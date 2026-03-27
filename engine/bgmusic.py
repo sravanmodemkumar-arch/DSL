@@ -430,7 +430,7 @@ def _gen_bansuri(n, sr, vol):
 # Audio mixing
 # ---------------------------------------------------------------------------
 
-def mix_audio_with_bgm(narration_path, bgm_path, output_path, bgm_volume=0.15):
+def mix_audio_with_bgm(narration_path, bgm_path, output_path, bgm_volume=0.30):
     """Mix narration audio with background music using FFmpeg.
 
     BGM volume is automatically ducked so narration stays clear.

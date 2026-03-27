@@ -105,7 +105,7 @@ class VideoPipeline:
                                       style=self.config.get("BGM_STYLE", "ambient"))
                 mixed = os.path.join(output_dir, f"{qid}_mixed.mp3")
                 mix_audio_with_bgm(raw_audio, bgm_src, mixed,
-                                   bgm_volume=self.config.get("BGM_VOLUME", 0.15))
+                                   bgm_volume=self.config.get("BGM_VOLUME", 0.30))
                 final_audio = mixed
             result["audio_path"] = final_audio
             _cb(progress_callback, "timestamp_map", 40)

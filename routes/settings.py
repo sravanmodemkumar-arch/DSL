@@ -20,7 +20,7 @@ DEFAULTS = {
     "job_timeout": "600",
     "bgm_enabled": "true",
     "bgm_style": "bansuri",
-    "bgm_volume": "0.15",
+    "bgm_volume": "0.30",
     "auto_youtube_upload": "false",
     "youtube_default_privacy": "public",
     "youtube_default_category": "27",

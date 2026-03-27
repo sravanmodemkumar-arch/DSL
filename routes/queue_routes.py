@@ -1,8 +1,14 @@
 import os
 import shutil
 from flask import Blueprint, render_template, request, current_app
+from sqlalchemy import text
 from models import db, JobQueue, Video
 from datetime import datetime, timezone
+
+_ACTIVE_FIRST = text(
+    "CASE status WHEN 'processing' THEN 0 WHEN 'queued' THEN 1 "
+    "WHEN 'failed' THEN 2 WHEN 'completed' THEN 3 ELSE 4 END"
+)
 
 queue_bp = Blueprint("queue", __name__)
 
@@ -15,13 +21,15 @@ def index():
     if status_filter:
         query = query.filter(JobQueue.status == status_filter)
 
-    jobs = query.order_by(JobQueue.priority, JobQueue.created_at.desc()).all()
+    jobs = query.order_by(_ACTIVE_FIRST, JobQueue.priority, JobQueue.created_at.desc()).all()
 
     # Stats
     queued = JobQueue.query.filter_by(status="queued").count()
     processing = JobQueue.query.filter_by(status="processing").count()
     completed = JobQueue.query.filter_by(status="completed").count()
     failed = JobQueue.query.filter_by(status="failed").count()
+    cancelled = JobQueue.query.filter_by(status="cancelled").count()
+    total = queued + processing + completed + failed + cancelled
 
     return render_template(
         "queue.html",
@@ -30,6 +38,8 @@ def index():
         processing=processing,
         completed=completed,
         failed=failed,
+        cancelled=cancelled,
+        total=total,
         status_filter=status_filter,
     )
 
@@ -43,7 +53,7 @@ def list_partial():
     if status_filter:
         query = query.filter(JobQueue.status == status_filter)
 
-    jobs = query.order_by(JobQueue.priority, JobQueue.created_at.desc()).all()
+    jobs = query.order_by(_ACTIVE_FIRST, JobQueue.priority, JobQueue.created_at.desc()).all()
     return render_template("components/queue_list.html", jobs=jobs)
 
 

@@ -306,7 +306,7 @@ def _run_queue(app):
             "THEMES":            THEMES,
             "BGM_ENABLED":       app.config.get("BGM_ENABLED", True),
             "BGM_STYLE":         app.config.get("BGM_STYLE", "ambient"),
-            "BGM_VOLUME":        app.config.get("BGM_VOLUME", 0.15),
+            "BGM_VOLUME":        app.config.get("BGM_VOLUME", 0.30),
             "BGM_FILES":         app.config.get("BGM_FILES", []),
             "WATERMARK_ENABLED": _Setting.get("watermark_enabled", "false") == "true",
             "WATERMARK_TEXT":    _Setting.get("watermark_text", ""),

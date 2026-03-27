@@ -253,9 +253,14 @@
         fetch('/upload/process', { method: 'POST', body: formData })
             .then(r => r.text())
             .then(html => {
-                document.getElementById('process-result').innerHTML = html;
-                btn.disabled = false;
-                btn.textContent = 'Process & Generate Videos';
+                // Redirect to queue on success so user sees all jobs live
+                if (html.includes('Queued')) {
+                    window.location.href = '/queue';
+                } else {
+                    document.getElementById('process-result').innerHTML = html;
+                    btn.disabled = false;
+                    btn.textContent = 'Process & Generate Videos';
+                }
             })
             .catch(err => {
                 document.getElementById('process-result').innerHTML = `<div class="text-red-400 p-3 text-sm">❌ Request failed: ${err.message}</div>`;

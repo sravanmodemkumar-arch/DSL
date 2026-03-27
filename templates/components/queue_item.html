@@ -1,66 +1,114 @@
 <div class="bg-dark-card border border-dark-border rounded-xl p-4 fade-in" id="job-{{ job.id }}">
-    <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-3">
-            <span class="text-sm font-medium">{{ job.video_id }}</span>
-            <span class="text-xs px-2 py-0.5 rounded
+
+    <!-- Row 1: Title + Status badge -->
+    <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start gap-3 min-w-0">
+            <!-- Status dot -->
+            <span class="mt-1 flex-shrink-0 w-2.5 h-2.5 rounded-full
+                {% if job.status == 'processing' %}bg-cyan-400 animate-pulse
+                {% elif job.status == 'completed' %}bg-green-400
+                {% elif job.status == 'failed' %}bg-red-400
+                {% elif job.status == 'cancelled' %}bg-gray-500
+                {% else %}bg-yellow-400{% endif %}">
+            </span>
+            <div class="min-w-0">
+                <!-- Question title -->
+                <p class="text-sm font-semibold text-white leading-snug truncate">
+                    {{ job.video.title if job.video else job.video_id }}
+                </p>
+                <!-- Subject › Topic breadcrumb -->
+                {% if job.video and job.video.subject %}
+                <p class="text-xs text-gray-400 mt-0.5">
+                    {{ job.video.subject }}{% if job.video.topic %} › {{ job.video.topic }}{% endif %}{% if job.video.subtopic %} › {{ job.video.subtopic }}{% endif %}
+                </p>
+                {% endif %}
+                <!-- ID + priority -->
+                <p class="text-xs text-gray-600 mt-0.5 font-mono">
+                    {{ job.video_id }}
+                    &nbsp;·&nbsp;
+                    {% if job.priority == 1 %}🔴 Urgent
+                    {% elif job.priority == 2 %}🟠 High
+                    {% elif job.priority == 3 %}⚪ Normal
+                    {% else %}🔵 Low{% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- Status badge + actions -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="text-xs px-2 py-0.5 rounded font-medium
                 {% if job.status == 'processing' %}bg-cyan-500/20 text-cyan-400
                 {% elif job.status == 'completed' %}bg-green-500/20 text-green-400
                 {% elif job.status == 'failed' %}bg-red-500/20 text-red-400
                 {% elif job.status == 'cancelled' %}bg-gray-500/20 text-gray-400
                 {% else %}bg-yellow-500/20 text-yellow-400{% endif %}">
-                {{ job.stage or job.status }}
+                {% if job.status == 'processing' %}
+                    {{ {'audio_gen':'Audio','timestamp_map':'Timeline','rendering':'Rendering','encoding':'Encoding'}.get(job.stage, 'Processing') }}
+                {% else %}
+                    {{ job.status | capitalize }}
+                {% endif %}
             </span>
-            <span class="text-xs text-gray-500">
-                Priority:
-                {% if job.priority == 1 %}Urgent
-                {% elif job.priority == 2 %}High
-                {% elif job.priority == 3 %}Normal
-                {% else %}Low{% endif %}
-            </span>
-        </div>
-        <div class="flex items-center gap-2">
+
             {% if job.status in ('queued', 'processing') %}
-            <button hx-post="/queue/{{ job.id }}/cancel" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
-                hx-confirm="Cancel this job and delete all its files?"
-                class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">Cancel</button>
+            <button hx-post="/queue/{{ job.id }}/cancel"
+                hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+                hx-confirm="Cancel this job?"
+                class="text-xs px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">
+                Cancel
+            </button>
             {% endif %}
-            {% if job.status == 'failed' %}
-            <button hx-post="/queue/{{ job.id }}/retry" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
-                class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">Retry</button>
-            {% endif %}
+
             {% if job.status == 'queued' %}
-            <button hx-post="/queue/{{ job.id }}/priority" hx-target="#job-{{ job.id }}" hx-swap="outerHTML" hx-vals='{"priority": 1}'
-                class="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30">Bump</button>
+            <button hx-post="/queue/{{ job.id }}/priority"
+                hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+                hx-vals='{"priority": 1}'
+                class="text-xs px-2 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30">
+                Bump
+            </button>
             {% endif %}
-            {% if job.status in ('cancelled', 'failed') %}
+
+            {% if job.status == 'failed' %}
+            <button hx-post="/queue/{{ job.id }}/retry"
+                hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+                class="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400 hover:bg-green-500/30">
+                Retry
+            </button>
+            {% endif %}
+
+            {% if job.status in ('cancelled', 'failed', 'completed') %}
             <button hx-post="/queue/{{ job.id }}/delete"
                 hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
-                hx-confirm="Delete this job and all its files permanently?"
-                class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
+                hx-confirm="Delete this job and all its files?"
+                class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">
+                Delete
+            </button>
             {% endif %}
         </div>
     </div>
 
+    <!-- Progress bar (processing only) -->
     {% if job.status == 'processing' %}
-    <div class="w-full h-2 bg-dark-border rounded-full overflow-hidden">
-        <div class="h-full bg-accent rounded-full transition-all duration-1000" style="width: {{ job.progress }}%"></div>
+    <div class="mt-3">
+        <div class="w-full h-1.5 bg-dark-border rounded-full overflow-hidden">
+            <div class="h-full bg-cyan-400 rounded-full transition-all duration-700"
+                style="width: {{ job.progress }}%"></div>
+        </div>
+        <p class="text-xs text-gray-500 mt-1">{{ job.progress }}% — {{ {'audio_gen':'Generating audio','timestamp_map':'Building timeline','rendering':'Rendering frames','encoding':'Encoding video'}.get(job.stage, job.stage or 'Working...') }}</p>
     </div>
-    <p class="text-xs text-gray-500 mt-1">{{ job.progress }}% complete</p>
     {% endif %}
 
+    <!-- Error message -->
     {% if job.error_message %}
-    <p class="text-xs text-red-400 mt-2 font-mono">{{ job.error_message[:200] }}</p>
+    <p class="text-xs text-red-400 mt-2 font-mono bg-red-500/10 rounded px-2 py-1">
+        {{ job.error_message[:250] }}
+    </p>
     {% endif %}
 
-    <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
-        {% if job.created_at %}
-        <span>Created: {{ job.created_at.strftime('%H:%M:%S') }}</span>
-        {% endif %}
-        {% if job.started_at %}
-        <span>Started: {{ job.started_at.strftime('%H:%M:%S') }}</span>
-        {% endif %}
-        {% if job.completed_at %}
-        <span>Done: {{ job.completed_at.strftime('%H:%M:%S') }}</span>
-        {% endif %}
+    <!-- Timestamps -->
+    <div class="flex gap-3 mt-2 text-xs text-gray-600">
+        {% if job.created_at %}<span>Queued {{ job.created_at.strftime('%H:%M:%S') }}</span>{% endif %}
+        {% if job.started_at %}<span>· Started {{ job.started_at.strftime('%H:%M:%S') }}</span>{% endif %}
+        {% if job.completed_at %}<span>· Done {{ job.completed_at.strftime('%H:%M:%S') }}</span>{% endif %}
     </div>
+
 </div>
