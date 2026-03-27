@@ -132,6 +132,32 @@ def reset():
     '''
 
 
+@settings_bp.route("/youtube/save-oauth-keys", methods=["POST"])
+def youtube_save_oauth_keys():
+    """Build client_secrets.json from Client ID + Client Secret entered in the browser."""
+    import json as _json
+    client_id     = request.form.get("client_id", "").strip()
+    client_secret = request.form.get("client_secret", "").strip()
+    if not client_id or not client_secret:
+        return '<div class="text-red-400 p-2 text-sm">Both Client ID and Client Secret are required.</div>'
+
+    redirect_uri = Setting.get("youtube_redirect_uri", "http://localhost:5000/youtube/oauth-callback")
+    secrets = {
+        "web": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris": [redirect_uri],
+        }
+    }
+    dest = os.path.join(current_app.root_path, "client_secrets.json")
+    with open(dest, "w") as f:
+        _json.dump(secrets, f, indent=2)
+    return '<div class="text-green-400 p-2 text-sm">Credentials saved. <a href="/youtube/auth" class="underline font-medium">Click here to connect your YouTube account →</a></div>'
+
+
 @settings_bp.route("/youtube/upload-secrets", methods=["POST"])
 def youtube_upload_secrets():
     """Upload client_secrets.json to project root."""
