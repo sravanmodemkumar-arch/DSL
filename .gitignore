@@ -57,3 +57,5 @@ desktop.ini
 # Secrets / API keys
 .env
 secrets.py
+client_secrets.json
+youtube_token.json
