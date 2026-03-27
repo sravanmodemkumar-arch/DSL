@@ -39,6 +39,9 @@ def validate_json(data, assets_dir=None):
     seen_ids = set()
     for i, question in enumerate(data):
         prefix = f"[{i}]"
+        # Skip reference/documentation objects
+        if isinstance(question, dict) and "_DOC" in question:
+            continue
         _validate_question(question, prefix, errors, seen_ids, assets_dir)
 
     has_fatal = any(e.severity == "error" for e in errors)

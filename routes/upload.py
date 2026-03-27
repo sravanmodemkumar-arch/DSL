@@ -114,6 +114,11 @@ def process():
     if not isinstance(data, list):
         data = [data]
 
+    # Strip reference/documentation objects (have a top-level _DOC key)
+    data = [q for q in data if not (isinstance(q, dict) and "_DOC" in q)]
+    if not data:
+        return '<div class="text-yellow-400 p-3">No processable questions found — file appears to be a reference schema only.</div>'
+
     is_valid, errors = validate_json(data)
     fatal = [e for e in errors if e.severity == "error"]
     if fatal:
