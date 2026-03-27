@@ -61,6 +61,11 @@ def list_partial():
 def cancel(job_id):
     job = JobQueue.query.get_or_404(job_id)
     if job.status in ("queued", "processing"):
+        # Signal the running job to stop (checked in progress_cb)
+        if job.status == "processing":
+            from routes.upload import _mark_cancelled
+            _mark_cancelled(job_id)
+
         video = Video.query.filter_by(video_id=job.video_id).first()
         json_path = ""
         if video:
@@ -71,6 +76,12 @@ def cancel(job_id):
         db.session.commit()
         if json_path:
             _cleanup_orphaned_json(json_path)
+
+        # Restart queue so remaining queued jobs keep processing
+        from routes.upload import _start_processing
+        from flask import current_app
+        _start_processing(current_app._get_current_object())
+
         return ""  # HTMX removes the card
     return render_template("components/queue_item.html", job=job)
 
@@ -198,6 +209,10 @@ def set_priority(job_id):
 def delete_job(job_id):
     """Delete a job and its video record + all generated files."""
     job = JobQueue.query.get_or_404(job_id)
+    # Signal if currently processing
+    if job.status == "processing":
+        from routes.upload import _mark_cancelled
+        _mark_cancelled(job_id)
     video = Video.query.filter_by(video_id=job.video_id).first()
     json_path = video.json_path if video else ""
     if video:
@@ -206,6 +221,12 @@ def delete_job(job_id):
     db.session.delete(job)
     db.session.commit()
     _cleanup_orphaned_json(json_path)   # delete batch JSON if nothing else references it
+
+    # Restart queue so remaining jobs keep processing
+    from routes.upload import _start_processing
+    from flask import current_app
+    _start_processing(current_app._get_current_object())
+
     return ""   # empty → HTMX removes the card
 
 

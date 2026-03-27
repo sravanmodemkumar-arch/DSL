@@ -3,12 +3,14 @@ import json
 import zipfile
 import tempfile
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Blueprint, render_template, request, current_app, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 from models import db, Video, JobQueue
 from engine.validator import validate_json
 from engine.pipeline import VideoPipeline
+from engine.hardware import detect_hardware, compute_allocation
 from datetime import datetime, timezone
 
 upload_bp = Blueprint("upload", __name__)
@@ -239,101 +241,161 @@ def process():
     '''
 
 
-# ── Queue processor — dynamic concurrent multi-video ──────────────────────────
+# ── Queue processor — trigger-based parallel with 95% utilization ─────────────
+#
+# Trigger points (all call _check_and_start_queued):
+#   1. New upload          2. Job completed       3. Job failed
+#   4. Job cancelled       5. Job deleted          6. Job retry
+#   7. Server startup
+#
+# Each queued job gets its own thread. Cores are distributed dynamically:
+#   total_active = currently processing + newly queued
+#   cores_per_video = 95% of logical cores / total_active
 
-_queue_running = False
-_queue_lock = threading.Lock()
+_active_jobs = {}              # job_id -> thread, tracks running jobs
+_active_lock = threading.Lock()
+_cancelled_jobs = set()
+_cancelled_lock = threading.Lock()
+_config_dict = None            # built once, reused
+_config_lock = threading.Lock()
+
+
+def _mark_cancelled(job_id):
+    """Called by cancel/delete route to signal a running job to stop."""
+    with _cancelled_lock:
+        _cancelled_jobs.add(job_id)
+
+
+def _is_cancelled(job_id):
+    with _cancelled_lock:
+        return job_id in _cancelled_jobs
+
+
+def _clear_cancelled(job_id):
+    with _cancelled_lock:
+        _cancelled_jobs.discard(job_id)
+
+
+def _get_config(app):
+    """Build config dict once, reuse across all jobs."""
+    global _config_dict
+    with _config_lock:
+        if _config_dict is not None:
+            return _config_dict
+        with app.app_context():
+            from config import THEMES
+            from models import Setting as _Setting
+            _wm_path = _Setting.get("watermark_image_path", app.config.get("WATERMARK_IMAGE", ""))
+            _config_dict = {
+                "RESOLUTIONS":       app.config["RESOLUTIONS"],
+                "QUALITY_PRESETS":   app.config["QUALITY_PRESETS"],
+                "TTS_ENGINE":        app.config["TTS_ENGINE"],
+                "TTS_LANG":          app.config["TTS_LANG"],
+                "TTS_TLD":           app.config["TTS_TLD"],
+                "ASSETS_DIR":        app.config["ASSETS_DIR"],
+                "THEMES":            THEMES,
+                "BGM_ENABLED":       app.config.get("BGM_ENABLED", True),
+                "BGM_STYLE":         app.config.get("BGM_STYLE", "ambient"),
+                "BGM_VOLUME":        app.config.get("BGM_VOLUME", 0.30),
+                "BGM_FILES":         app.config.get("BGM_FILES", []),
+                "WATERMARK_ENABLED": _Setting.get("watermark_enabled", "false") == "true",
+                "WATERMARK_TEXT":    _Setting.get("watermark_text", ""),
+                "WATERMARK_IMAGE":   _wm_path,
+                "WATERMARK_OPACITY": float(_Setting.get("watermark_opacity", "0.35")),
+                "VIDEOS_DIR":        app.config["VIDEOS_DIR"],
+            }
+        return _config_dict
 
 
 def _start_processing(app):
-    """Start background queue processor — no-op if already running."""
-    global _queue_running
-    with _queue_lock:
-        if _queue_running:
-            return
-        _queue_running = True
-    thread = threading.Thread(target=_process_queue, args=(app,), daemon=True)
-    thread.start()
+    """Single entry point — called from all 7 triggers."""
+    _check_and_start_queued(app)
 
 
-def _process_queue(app):
-    """Wrapper that clears the running flag when done."""
-    global _queue_running
-    try:
-        _run_queue(app)
-    finally:
-        with _queue_lock:
-            _queue_running = False
+# Minimum cores per video to be effective (ProcessPoolExecutor overhead)
+_MIN_CORES_PER_VIDEO = 3
 
 
-def _run_queue(app):
-    """Process queued jobs one at a time, using 95% of all CPU cores per video."""
-    total_cores = os.cpu_count() or 1
-    concurrent_videos = 1
-    cores_per_video = max(1, int(total_cores * 0.95))
+def _check_and_start_queued(app):
+    """Check for queued jobs and start as many as possible in parallel.
 
-    print(f"[Queue] {total_cores} CPU cores -> 1 video x {cores_per_video} cores (95%)")
+    Logic:
+      total_workers = 95% of logical cores (e.g. 15 on 16-core)
+      max_concurrent = total_workers // MIN_CORES_PER_VIDEO (e.g. 15//3 = 5)
+      slots_free = max_concurrent - currently_active
+      Start up to slots_free new jobs, each getting total_workers // total_active cores.
 
-    # Build config dict once (read from app config in main thread)
+    Example on 16-core (15 workers):
+      1 video  → 15 cores     5 videos → 3 cores each
+      2 videos → 7 cores each   10 queued → 5 run now, 5 wait
+    """
+    config_dict = _get_config(app)
+    alloc = compute_allocation()
+    total_workers = alloc["frame_workers"]
+    max_concurrent = max(1, total_workers // _MIN_CORES_PER_VIDEO)
+
     with app.app_context():
-        from config import THEMES
-        from models import Setting as _Setting
-        _wm_path = _Setting.get("watermark_image_path", app.config.get("WATERMARK_IMAGE", ""))
-        config_dict = {
-            "RESOLUTIONS":       app.config["RESOLUTIONS"],
-            "QUALITY_PRESETS":   app.config["QUALITY_PRESETS"],
-            "TTS_ENGINE":        app.config["TTS_ENGINE"],
-            "TTS_LANG":          app.config["TTS_LANG"],
-            "TTS_TLD":           app.config["TTS_TLD"],
-            "ASSETS_DIR":        app.config["ASSETS_DIR"],
-            "THEMES":            THEMES,
-            "BGM_ENABLED":       app.config.get("BGM_ENABLED", True),
-            "BGM_STYLE":         app.config.get("BGM_STYLE", "ambient"),
-            "BGM_VOLUME":        app.config.get("BGM_VOLUME", 0.30),
-            "BGM_FILES":         app.config.get("BGM_FILES", []),
-            "WATERMARK_ENABLED": _Setting.get("watermark_enabled", "false") == "true",
-            "WATERMARK_TEXT":    _Setting.get("watermark_text", ""),
-            "WATERMARK_IMAGE":   _wm_path,
-            "WATERMARK_OPACITY": float(_Setting.get("watermark_opacity", "0.35")),
-            "VIDEOS_DIR":        app.config["VIDEOS_DIR"],
-        }
+        # Clean up finished threads
+        with _active_lock:
+            done = [jid for jid, t in _active_jobs.items() if not t.is_alive()]
+            for jid in done:
+                del _active_jobs[jid]
+            active_count = len(_active_jobs)
 
-    # Process jobs in batches of concurrent_videos until queue is empty
-    while True:
-        with app.app_context():
-            # Atomically claim next batch
-            jobs = (JobQueue.query
-                    .filter_by(status="queued")
-                    .order_by(JobQueue.priority, JobQueue.created_at)
-                    .limit(concurrent_videos)
-                    .all())
-            if not jobs:
-                break
-            job_ids = []
-            for job in jobs:
-                job.status = "processing"
-                job.started_at = datetime.now(timezone.utc)
-                job_ids.append(job.id)
-            db.session.commit()
+        slots_free = max(0, max_concurrent - active_count)
+        if slots_free == 0:
+            return
 
-        # Run this batch in parallel — each job in its own thread + app context
-        with ThreadPoolExecutor(max_workers=len(job_ids)) as executor:
-            futures = {
-                executor.submit(_process_single_job, app, jid, config_dict, cores_per_video): jid
-                for jid in job_ids
-            }
-            for fut in as_completed(futures):
-                try:
-                    fut.result()
-                except Exception:
-                    pass  # errors are recorded inside _process_single_job
+        # Claim only as many as we have slots for
+        jobs = (JobQueue.query
+                .filter_by(status="queued")
+                .order_by(JobQueue.priority, JobQueue.created_at)
+                .limit(slots_free)
+                .all())
+        if not jobs:
+            return
+
+        new_ids = []
+        for job in jobs:
+            job.status = "processing"
+            job.started_at = datetime.now(timezone.utc)
+            new_ids.append(job.id)
+        db.session.commit()
+
+    # Distribute cores across active + new
+    total_active = active_count + len(new_ids)
+    cores = max(_MIN_CORES_PER_VIDEO, total_workers // max(1, total_active))
+
+    print(f"[Queue] {len(new_ids)} new + {active_count} active "
+          f"= {total_active} videos x {cores} cores "
+          f"(total {total_workers} @ 95%, max {max_concurrent} concurrent)")
+
+    for jid in new_ids:
+        t = threading.Thread(
+            target=_process_single_job,
+            args=(app, jid, config_dict, cores),
+            daemon=True,
+        )
+        with _active_lock:
+            _active_jobs[jid] = t
+        t.start()
+
+
+def _job_finished(app, job_id):
+    """Called when a job completes/fails/cancels — clean up and trigger next."""
+    with _active_lock:
+        _active_jobs.pop(job_id, None)
+    # Trigger: pick up any newly queued jobs
+    _check_and_start_queued(app)
 
 
 def _process_single_job(app, job_id, config_dict, frame_workers):
-    """Process one video job in its own thread with its own SQLAlchemy session."""
+    """Process one video job in its own thread."""
     with app.app_context():
         job = db.session.get(JobQueue, job_id)
-        if not job:
+        if not job or _is_cancelled(job_id):
+            _clear_cancelled(job_id)
+            _job_finished(app, job_id)
             return
 
         video = Video.query.filter_by(video_id=job.video_id).first()
@@ -341,6 +403,7 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             job.status = "failed"
             job.error_message = "Video record not found"
             db.session.commit()
+            _job_finished(app, job_id)
             return
 
         video.status = "processing"
@@ -366,6 +429,8 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             os.makedirs(output_dir, exist_ok=True)
 
             def progress_cb(stage, percent):
+                if _is_cancelled(job_id):
+                    raise InterruptedError("Job cancelled by user")
                 job.stage = stage
                 job.progress = percent
                 video.progress = percent
@@ -382,6 +447,9 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
                 frame_workers=frame_workers,
             )
 
+            if _is_cancelled(job_id):
+                raise InterruptedError("Job cancelled by user")
+
             print(f"[Video] DONE  {video.video_id} ({result.get('duration', 0):.1f}s)")
             video.video_path       = result.get("video_path", "")
             video.audio_path       = result.get("audio_path", "")
@@ -395,21 +463,44 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             job.completed_at       = datetime.now(timezone.utc)
             db.session.commit()
 
-            # Clean logs, caches, temp files after successful render
             _cleanup_after_success()
 
-        except Exception as e:
-            print(f"[Video] FAIL  {video.video_id}: {e}")
-            video.status      = "failed"
-            video.error_message = str(e)
-            job.status        = "failed"
-            job.error_message = str(e)
-            job.completed_at  = datetime.now(timezone.utc)
-            if job.retry_count < job.max_retries:
-                job.retry_count += 1
-                job.status  = "queued"
-                video.status = "pending"
+        except InterruptedError:
+            print(f"[Video] CANCELLED {video.video_id}")
+            _clear_cancelled(job_id)
+            db.session.expire_all()
+            job = db.session.get(JobQueue, job_id)
+            video_check = Video.query.filter_by(video_id=video.video_id).first()
+            if job:
+                job.status = "cancelled"
+                job.completed_at = datetime.now(timezone.utc)
+            if video_check:
+                video_check.status = "failed"
+                video_check.error_message = "Cancelled by user"
             db.session.commit()
+
+        except Exception as e:
+            _clear_cancelled(job_id)
+            print(f"[Video] FAIL  {video.video_id}: {e}")
+            db.session.expire_all()
+            job = db.session.get(JobQueue, job_id)
+            video_obj = Video.query.filter_by(video_id=video.video_id).first()
+            if video_obj:
+                video_obj.status = "failed"
+                video_obj.error_message = str(e)
+            if job:
+                job.status = "failed"
+                job.error_message = str(e)
+                job.completed_at = datetime.now(timezone.utc)
+                if job.retry_count < job.max_retries:
+                    job.retry_count += 1
+                    job.status = "queued"
+                    if video_obj:
+                        video_obj.status = "pending"
+            db.session.commit()
+
+        # Trigger: job done, check for more queued work
+        _job_finished(app, job_id)
 
 
 def _cleanup_after_success():

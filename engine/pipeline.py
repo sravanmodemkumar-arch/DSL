@@ -12,15 +12,11 @@ from datetime import datetime, timezone
 # CPU encodes (libx264) are NOT serialised — they run fully in parallel.
 _GPU_ENCODE_LOCK = threading.Lock()
 
-# ── Encoder detection cache ───────────────────────────────────────────────────
-# Avoids repeated `ffmpeg -encoders` subprocess calls per video.
-_ENCODER_CACHE: tuple | None = None
-_ENCODER_CACHE_LOCK = threading.Lock()
-
 from .audio import generate_audio_for_question, concatenate_audio
 from .renderer import FrameRenderer
 from .sync import build_timeline, get_active_state
 from .bgmusic import generate_bg_music, mix_audio_with_bgm
+from .hardware import detect_hardware, compute_allocation
 
 
 # ── Module-level worker (must be top-level to be picklable for ProcessPoolExecutor) ──
@@ -194,16 +190,24 @@ class VideoPipeline:
                          width, height, theme_colors, watermark_cfg, frames_dir,
                          progress_callback, frame_workers=None):
         """Split frame rendering across CPU cores using separate processes.
-        Uses frame_workers if given, otherwise auto-uses 90% of all cores.
-        ProcessPoolExecutor bypasses the GIL for true multi-core parallelism."""
+        Uses hardware-detected 95% allocation. ProcessPoolExecutor bypasses
+        the GIL for true multi-core parallelism."""
         if frame_workers is not None:
             workers = max(1, frame_workers)
         else:
-            cpu_count = os.cpu_count() or 1
-            workers = max(1, int(cpu_count * 0.9))
+            alloc = compute_allocation()
+            workers = alloc["frame_workers"]
 
-        # Divide frames into equal chunks for each worker
-        chunk_size = max(1, (total_frames + workers - 1) // workers)
+        # Divide frames into chunks — larger chunks on high-core systems
+        alloc = compute_allocation()
+        if alloc["chunk_strategy"] == "large":
+            # Fewer, larger chunks = less IPC overhead on high-core systems
+            chunk_size = max(1, (total_frames + workers - 1) // workers)
+        else:
+            # More, smaller chunks = better load balancing on low-core systems
+            num_chunks = min(workers * 2, total_frames)
+            chunk_size = max(1, (total_frames + num_chunks - 1) // num_chunks)
+
         chunks = []
         for start in range(0, total_frames, chunk_size):
             end = min(start + chunk_size, total_frames)
@@ -226,53 +230,15 @@ class VideoPipeline:
 
     # ── Encoding ──────────────────────────────────────────────────────────────
 
-    def _detect_encoder(self, ffmpeg_bin):
-        """Return (encoder_name, extra_flags). Cached after first call."""
-        global _ENCODER_CACHE
-        with _ENCODER_CACHE_LOCK:
-            if _ENCODER_CACHE is not None:
-                return _ENCODER_CACHE
-            result = self._probe_encoder(ffmpeg_bin)
-            _ENCODER_CACHE = result
-            return result
-
-    def _probe_encoder(self, ffmpeg_bin):
-        """Detect best available encoder. Prefers GPU, falls back to CPU."""
-        try:
-            out = subprocess.run(
-                [ffmpeg_bin, "-hide_banner", "-encoders"],
-                capture_output=True, text=True, timeout=10,
-            ).stdout
-            if "h264_nvenc" in out:   # NVIDIA GPU
-                print("[Encoder] NVIDIA GPU (h264_nvenc)")
-                return "h264_nvenc", ["-preset", "p4", "-rc", "vbr", "-cq", "22", "-b_ref_mode", "disabled"]
-            if "h264_amf" in out:     # AMD GPU
-                print("[Encoder] AMD GPU (h264_amf)")
-                return "h264_amf",   ["-quality", "balanced", "-rc", "vbr_latency"]
-            if "h264_qsv" in out:     # Intel GPU
-                print("[Encoder] Intel GPU (h264_qsv)")
-                return "h264_qsv",   ["-preset", "medium", "-look_ahead", "1"]
-        except Exception:
-            pass
-        # CPU fallback — thread count set per-video in _encode_video()
-        print("[Encoder] CPU (libx264)")
-        return "libx264", ["-preset", "fast"]
-
     def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height, frame_workers=None):
-        """Encode frames + audio → MP4 using best available encoder.
-        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel.
-        frame_workers controls CPU thread allocation for concurrent video support."""
+        """Encode frames + audio → MP4 using hardware-detected encoder.
+        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel."""
         ffmpeg = self._get_ffmpeg_path()
-        encoder, enc_flags = self._detect_encoder(ffmpeg)
-        is_gpu = encoder != "libx264"
-
-        # Thread allocation: GPU=auto, CPU=proportional to allocated cores
-        if is_gpu:
-            enc_threads = "0"
-        elif frame_workers:
-            enc_threads = str(max(1, frame_workers))
-        else:
-            enc_threads = str(max(1, os.cpu_count() or 1))
+        alloc = compute_allocation()
+        encoder = alloc["gpu_encoder"]
+        enc_flags = list(alloc["gpu_encoder_flags"])
+        is_gpu = alloc["is_gpu_encode"]
+        enc_threads = alloc["encode_threads"]
 
         def _run(enc, flags, use_lock, threads):
             cmd = [
@@ -301,7 +267,7 @@ class VideoPipeline:
         except subprocess.CalledProcessError:
             # GPU failed — fall back to CPU (no lock needed)
             if is_gpu:
-                cpu_threads = str(frame_workers or max(1, os.cpu_count() or 1))
+                cpu_threads = str(max(1, int((os.cpu_count() or 1) * 0.95)))
                 _run("libx264", ["-preset", "fast"], use_lock=False, threads=cpu_threads)
             else:
                 raise RuntimeError("FFmpeg libx264 encoding failed.")

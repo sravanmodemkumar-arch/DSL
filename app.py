@@ -86,6 +86,12 @@ app = create_app()
 
 # Auto-resume queued jobs on startup (only in actual server process, not reloader)
 if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+    # Show hardware profile on startup
+    from engine.hardware import detect_hardware, compute_allocation, print_hardware_summary
+    hw = detect_hardware()
+    alloc = compute_allocation(hw)
+    print_hardware_summary(hw, alloc)
+
     with app.app_context():
         from models import JobQueue, Video
         # Reset stuck "processing" jobs back to "queued"
