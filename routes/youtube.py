@@ -75,25 +75,26 @@ def auth():
     if not _has_secrets():
         return redirect(url_for("youtube.index") + "?error=no_secrets")
 
-    # Allow HTTP for local development
     import os as _os
     _os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
     try:
-        from google_auth_oauthlib.flow import Flow
+        import json as _json
+        from requests_oauthlib import OAuth2Session
         from models import Setting
+
         saved_uri = Setting.get("youtube_redirect_uri", "").strip()
         redirect_uri = saved_uri if saved_uri else "http://127.0.0.1:5000/youtube/oauth-callback"
-        flow = Flow.from_client_secrets_file(
-            _secrets_path(),
-            scopes=SCOPES,
-            redirect_uri=redirect_uri,
-        )
-        auth_url, state = flow.authorization_url(
+
+        secrets = _json.load(open(_secrets_path()))
+        cfg = secrets.get("web") or secrets.get("installed")
+        client_id = cfg["client_id"]
+
+        oauth = OAuth2Session(client_id, redirect_uri=redirect_uri, scope=SCOPES)
+        auth_url, state = oauth.authorization_url(
+            cfg.get("auth_uri", "https://accounts.google.com/o/oauth2/auth"),
             access_type="offline",
-            include_granted_scopes="true",
             prompt="consent",
-            code_challenge_method=None,
         )
         session["oauth_state"] = state
         session["oauth_redirect_uri"] = redirect_uri
@@ -113,19 +114,34 @@ def oauth_callback():
         return redirect(url_for("youtube.index") + f"?error={error}")
 
     try:
-        from google_auth_oauthlib.flow import Flow
-        # Use same redirect_uri that was used to start the flow
+        import json as _json
+        from requests_oauthlib import OAuth2Session
+        from google.oauth2.credentials import Credentials
+
         redirect_uri = session.get("oauth_redirect_uri", "http://127.0.0.1:5000/youtube/oauth-callback")
-        flow = Flow.from_client_secrets_file(
-            _secrets_path(),
-            scopes=SCOPES,
-            state=session.get("oauth_state"),
-            redirect_uri=redirect_uri,
+        secrets = _json.load(open(_secrets_path()))
+        cfg = secrets.get("web") or secrets.get("installed")
+        client_id     = cfg["client_id"]
+        client_secret = cfg["client_secret"]
+        token_uri     = cfg.get("token_uri", "https://oauth2.googleapis.com/token")
+
+        oauth = OAuth2Session(client_id, redirect_uri=redirect_uri,
+                              scope=SCOPES, state=session.get("oauth_state"))
+        token = oauth.fetch_token(
+            token_uri,
+            authorization_response=request.url.replace("http://", "http://"),
+            client_secret=client_secret,
+            include_client_id=True,
         )
-        # Use authorization_code directly to avoid PKCE code_verifier requirement
-        code = request.args.get("code")
-        flow.fetch_token(code=code)
-        creds = flow.credentials
+
+        creds = Credentials(
+            token=token["access_token"],
+            refresh_token=token.get("refresh_token"),
+            token_uri=token_uri,
+            client_id=client_id,
+            client_secret=client_secret,
+            scopes=SCOPES,
+        )
         with open(_token_path(), "w") as f:
             f.write(creds.to_json())
         return redirect(url_for("youtube.index") + "?connected=1")
