@@ -249,7 +249,7 @@ def delete(video_id):
     db.session.delete(video)
     db.session.commit()
 
-    return '<div hx-trigger="load" hx-get="/videos/list" hx-target="#video-grid" hx-swap="innerHTML"></div>'
+    return ""
 
 
 @videos_bp.route("/<video_id>/clean-temp", methods=["POST"])

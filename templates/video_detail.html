@@ -74,20 +74,13 @@
                     Retry Generation
                 </button>
                 {% endif %}
-                {% if video.status == 'completed' %}
-                <button hx-post="/videos/{{ video.video_id }}/clean-temp" hx-target="#clean-result" hx-swap="innerHTML"
-                    class="bg-green-500/20 text-green-400 border border-green-500/30 px-4 py-2 rounded-lg hover:bg-green-500/30 transition text-sm">
-                    Save
-                </button>
-                {% endif %}
                 <button hx-delete="/videos/{{ video.video_id }}/delete" hx-confirm="Delete this video permanently?"
-                    hx-target="body"
+                    hx-on::after-request="window.location='/videos'"
                     class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500/30 transition text-sm">
                     Delete
                 </button>
             </div>
             <div id="retry-result"></div>
-            <div id="clean-result"></div>
         </div>
 
         <!-- Sidebar Info (1/3) -->
