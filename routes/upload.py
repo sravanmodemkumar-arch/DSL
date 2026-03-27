@@ -410,6 +410,9 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             job.completed_at       = datetime.now(timezone.utc)
             db.session.commit()
 
+            # Clean server log after successful render to free disk space
+            _truncate_server_log()
+
         except Exception as e:
             video.status      = "failed"
             video.error_message = str(e)
@@ -421,3 +424,13 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
                 job.status  = "queued"
                 video.status = "pending"
             db.session.commit()
+
+
+def _truncate_server_log():
+    """Clear server.log after successful video render to free disk space."""
+    try:
+        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "server.log")
+        if os.path.exists(log_path):
+            open(log_path, "w").close()  # Truncate to 0 bytes
+    except Exception:
+        pass  # Non-critical — don't fail the job if log cleanup fails

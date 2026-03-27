@@ -1,10 +1,15 @@
 import os
+import logging
+from logging.handlers import RotatingFileHandler
+
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Allow HTTP for local OAuth (dev only)
 
 from flask import Flask
 from config import Config, BASE_DIR
 from models import db
 from routes import register_blueprints
+
+LOG_FILE = os.path.join(BASE_DIR, "server.log")
 
 
 
@@ -39,6 +44,18 @@ def create_app():
             _conn.execute(text("PRAGMA busy_timeout=30000"))
             _conn.commit()
         db.create_all()
+
+    # ── Logging — rotate at 5 MB, keep 1 backup ──────────────────────────
+    log_handler = RotatingFileHandler(
+        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=1, encoding="utf-8"
+    )
+    log_handler.setLevel(logging.INFO)
+    log_handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    ))
+    app.logger.addHandler(log_handler)
+    # Also capture werkzeug request logs
+    logging.getLogger("werkzeug").addHandler(log_handler)
 
     # Register blueprints
     register_blueprints(app)
