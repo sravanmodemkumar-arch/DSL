@@ -130,6 +130,54 @@ def reset():
     '''
 
 
+@settings_bp.route("/youtube/upload-secrets", methods=["POST"])
+def youtube_upload_secrets():
+    """Upload client_secrets.json to project root."""
+    f = request.files.get("secrets_file")
+    if not f or not f.filename:
+        return '<div class="text-red-400 p-2 text-sm">No file selected.</div>'
+    if not f.filename.endswith(".json"):
+        return '<div class="text-red-400 p-2 text-sm">Must be a .json file.</div>'
+
+    dest = os.path.join(current_app.root_path, "client_secrets.json")
+    f.save(dest)
+
+    # Quick sanity check — must contain web or installed client type
+    try:
+        import json as _json
+        data = _json.load(open(dest))
+        if "web" not in data and "installed" not in data:
+            os.remove(dest)
+            return '<div class="text-red-400 p-2 text-sm">Invalid file — must be a Google OAuth client secrets JSON.</div>'
+    except Exception:
+        os.remove(dest)
+        return '<div class="text-red-400 p-2 text-sm">Invalid JSON file.</div>'
+
+    return '<div class="text-green-400 p-2 text-sm">client_secrets.json saved. <a href="/youtube/auth" class="underline">Click here to connect your YouTube account</a>.</div>'
+
+
+@settings_bp.route("/youtube/secrets-status")
+def youtube_secrets_status():
+    """Return current client_secrets.json status."""
+    dest = os.path.join(current_app.root_path, "client_secrets.json")
+    token = os.path.join(current_app.root_path, "youtube_token.json")
+    if os.path.exists(dest) and os.path.exists(token):
+        return '<span class="text-green-400 text-xs">Connected — client_secrets.json + token found</span>'
+    if os.path.exists(dest):
+        return '<span class="text-yellow-400 text-xs">client_secrets.json found — not yet authorized</span>'
+    return '<span class="text-gray-500 text-xs">Not configured</span>'
+
+
+@settings_bp.route("/youtube/remove-secrets", methods=["POST"])
+def youtube_remove_secrets():
+    """Remove client_secrets.json and token."""
+    for fname in ("client_secrets.json", "youtube_token.json"):
+        path = os.path.join(current_app.root_path, fname)
+        if os.path.exists(path):
+            os.remove(path)
+    return '<span class="text-yellow-400 text-xs">Removed — YouTube API disconnected</span>'
+
+
 @settings_bp.route("/watermark/upload", methods=["POST"])
 def watermark_upload():
     """Upload watermark image — stored as storage/assets/watermark/watermark.png."""

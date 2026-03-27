@@ -336,8 +336,42 @@
 
             <!-- YouTube (Optional) -->
             <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">YouTube (Optional)</h3>
+                <h3 class="text-sm font-semibold mb-4">YouTube API Setup</h3>
                 <div class="space-y-4">
+
+                    <!-- Credentials upload -->
+                    <div class="border border-dark-border rounded-lg p-3 space-y-2">
+                        <label class="block text-xs text-gray-400">Google OAuth Credentials (client_secrets.json)</label>
+                        <div id="yt_secrets_status" hx-get="/settings/youtube/secrets-status"
+                             hx-trigger="load" class="mb-1"></div>
+                        <div class="flex gap-2">
+                            <input type="file" id="yt_secrets_file" accept=".json"
+                                class="flex-1 text-xs text-gray-400 bg-dark-bg border border-dark-border rounded-lg px-2 py-1.5 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-accent/20 file:text-accent">
+                            <button type="button" onclick="uploadSecrets()"
+                                class="shrink-0 px-3 py-1.5 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
+                                Upload
+                            </button>
+                            <button type="button"
+                                hx-post="/settings/youtube/remove-secrets"
+                                hx-target="#yt_secrets_status" hx-swap="innerHTML"
+                                hx-confirm="Remove credentials and disconnect YouTube?"
+                                class="shrink-0 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-400 transition-colors">
+                                Remove
+                            </button>
+                        </div>
+                        <div id="yt_upload_result"></div>
+                        <div class="text-xs text-gray-500 space-y-0.5 mt-1">
+                            <p>1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-accent hover:underline">Google Cloud Console</a> → APIs &amp; Services → Credentials</p>
+                            <p>2. Create OAuth 2.0 Client ID → type: <strong>Web application</strong></p>
+                            <p>3. Add redirect URI: <code class="bg-dark-bg px-1 rounded text-accent">http://localhost:5000/youtube/oauth-callback</code></p>
+                            <p>4. Download JSON → upload here → click Connect</p>
+                        </div>
+                        <a href="/youtube/auth"
+                            class="inline-block mt-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs hover:bg-red-500/30 transition">
+                            Connect YouTube Account →
+                        </a>
+                    </div>
+
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Auto Upload after Generation</label>
                         <select name="auto_youtube_upload" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
@@ -360,11 +394,22 @@
                             <option value="28" {{ 'selected' if settings.youtube_default_category == '28' }}>Science & Technology</option>
                         </select>
                     </div>
-                    <p class="text-xs text-gray-500">
-                        Place <code class="bg-black/30 px-1 rounded">client_secrets.json</code> in project root for API access.
-                    </p>
                 </div>
             </div>
+            <script>
+            function uploadSecrets() {
+                var file = document.getElementById('yt_secrets_file').files[0];
+                if (!file) { alert('Select a file first.'); return; }
+                var fd = new FormData();
+                fd.append('secrets_file', file);
+                fetch('/settings/youtube/upload-secrets', { method: 'POST', body: fd })
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        document.getElementById('yt_upload_result').innerHTML = html;
+                        htmx.trigger('#yt_secrets_status', 'load');
+                    });
+            }
+            </script>
         </div>
 
         <!-- Save / Reset -->
