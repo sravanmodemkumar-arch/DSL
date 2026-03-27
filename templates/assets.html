@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Assets - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold">Asset Manager</h2>
+        <p class="text-gray-400 text-sm mt-1">Upload images, SVGs and video clips. Reference them in your JSON using the <code class="bg-black/30 px-1 rounded">assets</code> block.</p>
+    </div>
+
+    <!-- Upload Panel -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+        <h3 class="text-sm font-semibold mb-4">Upload Assets</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Subject / Folder (optional)</label>
+                <input type="text" id="upload_subject" placeholder="e.g. biology, physics, history"
+                    class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                <p class="text-xs text-gray-500 mt-1">Files are organized by subject folder for easy reference.</p>
+            </div>
+            <div>
+                <label class="block text-xs text-gray-400 mb-1">Files (images / SVG / video — multiple allowed)</label>
+                <input type="file" id="upload_files" multiple
+                    accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.mp4,.webm,.mov"
+                    class="w-full text-sm text-gray-400 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-accent/20 file:text-accent">
+            </div>
+            <button type="button" onclick="uploadAssets()"
+                class="px-4 py-2 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-sm text-accent transition-colors">
+                Upload Files
+            </button>
+            <div id="upload_result"></div>
+        </div>
+    </div>
+
+    <!-- JSON Usage Guide -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+        <h3 class="text-sm font-semibold mb-3">How to use in JSON</h3>
+        <pre class="text-xs text-gray-300 bg-black/30 rounded-lg p-4 overflow-x-auto"><code>{
+  "assets": {
+    "images": { "cell_diagram": "biology/cell_structure.png" },
+    "svgs":   { "circuit":      "physics/circuit.svg" },
+    "videos": { "pendulum":     "physics/pendulum.mp4" }
+  },
+  "scenes": [{
+    "type": "concept",
+    "steps": [
+      {
+        "audio": "Look at this diagram...",
+        "render": { "action": "show", "target": "image", "src": "cell_diagram" }
+      },
+      {
+        "audio": "Watch this clip...",
+        "render": { "action": "show", "target": "video_clip", "src": "pendulum",
+                    "caption": "Simple Pendulum Motion" }
+      }
+    ]
+  }]
+}</code></pre>
+    </div>
+
+    <!-- Asset Lists -->
+    {% for kind, files in tree.items() %}
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+        <h3 class="text-sm font-semibold mb-4 capitalize">
+            {{ kind }}
+            <span class="ml-2 text-xs text-gray-500 font-normal">({{ files|length }} files)</span>
+        </h3>
+        {% if files %}
+        <div class="space-y-2">
+            {% for f in files %}
+            <div class="flex items-center gap-3 p-2 bg-dark-bg rounded-lg border border-dark-border/50">
+                <div class="flex-1 min-w-0">
+                    <div class="text-sm font-mono truncate">{{ f.rel }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">
+                        Key: <code class="bg-black/30 px-1 rounded text-accent">{{ f.key }}</code>
+                        {% if f.subdir and f.subdir != '.' %}&middot; folder: {{ f.subdir }}{% endif %}
+                        &middot; {{ (f.size / 1024)|round(1) }} KB
+                    </div>
+                </div>
+                <button
+                    hx-post="/assets/delete"
+                    hx-vals='{"rel": "{{ f.rel }}"}'
+                    hx-confirm="Delete {{ f.name }}?"
+                    hx-target="closest div"
+                    hx-swap="outerHTML"
+                    class="shrink-0 px-2 py-1 text-xs text-red-400 hover:text-red-300 border border-red-400/20 rounded transition-colors">
+                    Delete
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm">No {{ kind }} uploaded yet.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function uploadAssets() {
+    var files   = document.getElementById('upload_files').files;
+    var subject = document.getElementById('upload_subject').value;
+    var result  = document.getElementById('upload_result');
+    if (!files.length) { result.innerHTML = '<p class="text-yellow-400 text-sm">Select files first.</p>'; return; }
+    var fd = new FormData();
+    fd.append('subject', subject);
+    for (var i = 0; i < files.length; i++) fd.append('files', files[i]);
+    result.innerHTML = '<p class="text-gray-400 text-sm">Uploading...</p>';
+    fetch('/assets/upload', { method: 'POST', body: fd })
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            result.innerHTML = html;
+            setTimeout(function(){ location.reload(); }, 1500);
+        });
+}
+</script>
+{% endblock %}

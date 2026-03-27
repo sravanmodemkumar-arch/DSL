@@ -1,0 +1,1001 @@
+[
+
+  {
+    "id": "q-math-percentage-basics",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "Percentage — Quick Maths",
+      "subtitle": "Formula · Digit Method · Fraction",
+      "badge": "SSC | Banking | Railway",
+      "topic": "Percentage Shortcut",
+      "highlights": ["Formula card", "Digit boxes", "Fraction result"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Mathematics",
+      "topic": "Percentage",
+      "subtopic": "Basic percentage calculation",
+      "difficulty": "easy",
+      "exam": "SSC / Banking / Railway",
+      "grade": "Class 7 to Competitive Exams",
+      "language": "English"
+    },
+    "question": {
+      "text": "What is 15% of 240?",
+      "audio": "What is fifteen percent of two hundred and forty?",
+      "options": [
+        { "key": "a", "value": "30" },
+        { "key": "b", "value": "36" },
+        { "key": "c", "value": "40" },
+        { "key": "d", "value": "45" }
+      ],
+      "correct": "b"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "What is 15% of 240?",
+        "audio": "What is fifteen percent of two forty? Percentage means per hundred. So fifteen percent means fifteen out of every hundred parts.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A thirty. Option B thirty six. Option C forty. Option D forty five. Think before you scroll.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Percentage Formula",
+            "audio": "The percentage formula is: Percentage equals value divided by total, multiplied by one hundred. Or reversed: value equals percentage divided by one hundred, multiplied by total.",
+            "render": {
+              "action": "show",
+              "target": "formula_block",
+              "value": "Value = (Percent ÷ 100) × Total"
+            }
+          },
+          {
+            "text": "Apply the formula",
+            "audio": "Apply the formula. Value equals fifteen divided by one hundred, multiplied by two forty.",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "= (15 ÷ 100) × 240"
+            }
+          },
+          {
+            "text": "Simplify fraction",
+            "audio": "Fifteen divided by one hundred simplifies to three over twenty.",
+            "render": {
+              "action": "show",
+              "target": "fraction",
+              "numerator": "15",
+              "denominator": "100",
+              "result": "3/20",
+              "label": "Simplify",
+              "highlighted": false
+            }
+          },
+          {
+            "text": "Final calculation",
+            "audio": "Now multiply three over twenty by two forty. Three times two forty is seven twenty. Seven twenty divided by twenty is thirty six.",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "3/20 × 240 = 720/20 = 36"
+            }
+          },
+          {
+            "text": "Answer = 36",
+            "audio": "The answer is thirty six. Option B is correct.",
+            "render": {
+              "action": "show",
+              "target": "sum_box",
+              "value": "36",
+              "highlighted": true
+            }
+          },
+          {
+            "text": "Number line — 15% is between 10% and 20%",
+            "audio": "On the number line, fifteen percent lies exactly between ten percent and twenty percent of two forty.",
+            "render": {
+              "action": "show",
+              "target": "number_line",
+              "label": "Percentage on number line (0–100%)",
+              "start": 0,
+              "end": 100,
+              "marks": [0, 10, 15, 20, 50, 100],
+              "highlight": [15]
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-bio-photosynthesis",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "Photosynthesis",
+      "subtitle": "Process · Equation · Key Facts",
+      "badge": "NEET | Class 10 | Science",
+      "topic": "Biology — Plant Biology",
+      "highlights": ["Flow chart", "Chemical equation", "Key facts"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Biology",
+      "topic": "Plant Biology",
+      "subtopic": "Photosynthesis — process and equation",
+      "difficulty": "medium",
+      "exam": "NEET / Class 10 / State Board",
+      "grade": "Class 9-10",
+      "language": "English"
+    },
+    "question": {
+      "text": "Which gas is released as a by-product of photosynthesis?",
+      "audio": "Which gas is released as a by-product of photosynthesis?",
+      "options": [
+        { "key": "a", "value": "CO₂" },
+        { "key": "b", "value": "N₂" },
+        { "key": "c", "value": "O₂" },
+        { "key": "d", "value": "H₂" }
+      ],
+      "correct": "c"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "Which gas is released as a by-product of photosynthesis?",
+        "audio": "Which gas is released as a by-product of photosynthesis? By-product means something produced along with the main product. Let us understand the photosynthesis process first.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A carbon dioxide. Option B nitrogen. Option C oxygen. Option D hydrogen. One of these is what plants release into the air.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "What is Photosynthesis?",
+            "audio": "Photosynthesis is the process by which green plants prepare their own food using sunlight, carbon dioxide, and water.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Photosynthesis",
+              "items": [
+                "Plants make food using sunlight.",
+                "Inputs: CO₂ + H₂O + Light energy.",
+                "Site: Chloroplasts (contain chlorophyll).",
+                "Output: Glucose (C₆H₁₂O₆) + Oxygen"
+              ]
+            }
+          },
+          {
+            "text": "Process Steps",
+            "audio": "The process has three main steps. First, chlorophyll absorbs sunlight. Second, light energy splits water into hydrogen and oxygen. Third, carbon dioxide is combined with hydrogen to form glucose.",
+            "render": {
+              "action": "show",
+              "target": "process_steps",
+              "heading": "Process",
+              "steps": [
+                "Chlorophyll absorbs sunlight",
+                "Water (H₂O) splits → H + O₂ released",
+                "CO₂ + H → Glucose (C₆H₁₂O₆)"
+              ]
+            }
+          },
+          {
+            "text": "Photosynthesis Flow",
+            "audio": "The flow of photosynthesis: sunlight enters the leaf, chlorophyll captures it, water and carbon dioxide are absorbed, glucose and oxygen are produced.",
+            "render": {
+              "action": "show",
+              "target": "flow_chart",
+              "heading": "Photosynthesis Flow",
+              "steps": [
+                { "text": "Sunlight absorbed by Chlorophyll", "color": "orange" },
+                { "text": "H₂O absorbed from roots", "color": "blue" },
+                { "text": "CO₂ enters through stomata", "color": "green" },
+                { "text": "Glucose produced + O₂ released", "color": "green" }
+              ]
+            }
+          },
+          {
+            "text": "Chemical Equation",
+            "audio": "The balanced chemical equation of photosynthesis is: six molecules of carbon dioxide plus six molecules of water, in the presence of light and chlorophyll, produces one molecule of glucose and six molecules of oxygen.",
+            "render": {
+              "action": "show",
+              "target": "chem_equation",
+              "reactants": "6CO₂ + 6H₂O",
+              "products": "C₆H₁₂O₆ + 6O₂",
+              "conditions": "Sunlight + Chlorophyll",
+              "reversible": false
+            }
+          },
+          {
+            "text": "Key Facts",
+            "audio": "Key facts to remember. Chlorophyll gives plants their green color. Stomata are tiny pores through which gases enter. Photosynthesis happens mainly in leaves.",
+            "render": {
+              "action": "show",
+              "target": "key_facts",
+              "heading": "Quick Facts",
+              "facts": [
+                { "key": "Site",        "value": "Chloroplasts in leaf cells" },
+                { "key": "Pigment",     "value": "Chlorophyll (green)" },
+                { "key": "Gas In",      "value": "CO₂ (through stomata)" },
+                { "key": "Gas Out",     "value": "O₂ (by-product)" },
+                { "key": "Food Made",   "value": "Glucose (C₆H₁₂O₆)" }
+              ]
+            }
+          },
+          {
+            "text": "Memory Trick",
+            "audio": "Remember using the mnemonic CLOG. Carbon dioxide, Light, Oxygen, Glucose. That is the input output pair of photosynthesis.",
+            "render": {
+              "action": "show",
+              "target": "memory_trick",
+              "label": "Remember photosynthesis as:",
+              "trick": "CLOG",
+              "expansion": "CO₂  Light  O₂  Glucose",
+              "note": "CO₂ + Light → O₂ + Glucose"
+            }
+          },
+          {
+            "text": "Answer: Oxygen",
+            "audio": "Oxygen is released as a by-product when water molecules are split during photosynthesis. Option C is correct.",
+            "render": { "action": "show", "target": "final_answer" }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-chem-acid-base",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "Acids & Bases",
+      "subtitle": "Neutralisation · pH · Key Reactions",
+      "badge": "NEET | JEE | Class 10",
+      "topic": "Chemistry — Acids, Bases & Salts",
+      "highlights": ["Chemical equation", "Key facts table", "Highlight rule"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Chemistry",
+      "topic": "Acids, Bases and Salts",
+      "subtopic": "Neutralisation reaction",
+      "difficulty": "medium",
+      "exam": "NEET / JEE / Class 10",
+      "grade": "Class 10",
+      "language": "English"
+    },
+    "question": {
+      "text": "When an acid reacts with a base, what type of reaction occurs?",
+      "audio": "When an acid reacts with a base, what type of reaction occurs?",
+      "options": [
+        { "key": "a", "value": "Oxidation" },
+        { "key": "b", "value": "Reduction" },
+        { "key": "c", "value": "Neutralisation" },
+        { "key": "d", "value": "Decomposition" }
+      ],
+      "correct": "c"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "When an acid reacts with a base, what type of reaction occurs?",
+        "audio": "When an acid reacts with a base, what type of reaction occurs? This is a fundamental chemistry concept.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A oxidation. Option B reduction. Option C neutralisation. Option D decomposition.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "The Golden Rule",
+            "audio": "The golden rule: Acid plus Base gives Salt and Water. This is called Neutralisation.",
+            "render": {
+              "action": "show",
+              "target": "highlight_box",
+              "text": "Acid + Base → Salt + Water",
+              "color": "orange"
+            }
+          },
+          {
+            "text": "Neutralisation Explained",
+            "audio": "In a neutralisation reaction, the H plus ions from the acid combine with the O H minus ions from the base to form water. The remaining ions form a salt.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Neutralisation",
+              "items": [
+                "H⁺ (from acid) + OH⁻ (from base) → H₂O",
+                "Remaining ions form a Salt",
+                "Product is always neutral (pH = 7)",
+                "Exothermic — releases heat"
+              ]
+            }
+          },
+          {
+            "text": "Example Reaction — HCl + NaOH",
+            "audio": "Example: Hydrochloric acid plus sodium hydroxide gives sodium chloride plus water. HCl plus NaOH gives NaCl plus H two O.",
+            "render": {
+              "action": "show",
+              "target": "chem_equation",
+              "reactants": "HCl + NaOH",
+              "products": "NaCl + H₂O",
+              "conditions": "Neutralisation",
+              "reversible": false
+            }
+          },
+          {
+            "text": "pH Scale Key Points",
+            "audio": "Key pH facts: acids have pH less than seven. Neutral substances have pH exactly seven. Bases have pH greater than seven.",
+            "render": {
+              "action": "show",
+              "target": "key_facts",
+              "heading": "pH Scale",
+              "facts": [
+                { "key": "Acid",    "value": "pH < 7  (e.g. HCl, H₂SO₄)" },
+                { "key": "Neutral", "value": "pH = 7  (e.g. Water, NaCl)" },
+                { "key": "Base",    "value": "pH > 7  (e.g. NaOH, NH₃)" },
+                { "key": "Product", "value": "Salt + Water (always)" }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-physics-ohms-law",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "Ohm's Law",
+      "subtitle": "V = IR — Formula · Application · Units",
+      "badge": "JEE | NEET | Class 10",
+      "topic": "Physics — Electricity",
+      "highlights": ["Formula card", "Equation", "Two-column comparison"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Physics",
+      "topic": "Electricity",
+      "subtopic": "Ohm's Law — formula and application",
+      "difficulty": "easy",
+      "exam": "JEE / NEET / Class 10",
+      "grade": "Class 10",
+      "language": "English"
+    },
+    "question": {
+      "text": "A resistor of 5Ω has a voltage of 15V across it. What is the current through it?",
+      "audio": "A resistor of five ohms has a voltage of fifteen volts across it. What is the current through it?",
+      "options": [
+        { "key": "a", "value": "1 A" },
+        { "key": "b", "value": "2 A" },
+        { "key": "c", "value": "3 A" },
+        { "key": "d", "value": "5 A" }
+      ],
+      "correct": "c"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "A resistor of 5Ω has 15V across it. Find the current.",
+        "audio": "A resistor of five ohms has fifteen volts across it. We need to find the current through it. Let us recall Ohm's Law.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A one ampere. Option B two ampere. Option C three ampere. Option D five ampere.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Ohm's Law",
+            "audio": "Ohm's Law states that the current through a conductor is directly proportional to the voltage across it and inversely proportional to its resistance.",
+            "render": {
+              "action": "show",
+              "target": "formula_block",
+              "value": "V = I × R   →   I = V ÷ R"
+            }
+          },
+          {
+            "text": "SI Units",
+            "audio": "The SI units: V is voltage in volts, I is current in amperes, R is resistance in ohms.",
+            "render": {
+              "action": "show",
+              "target": "two_col_text",
+              "left": {
+                "heading": "Symbols",
+                "items": ["V = Voltage", "I = Current", "R = Resistance"]
+              },
+              "right": {
+                "heading": "SI Units",
+                "items": ["Volt (V)", "Ampere (A)", "Ohm (Ω)"]
+              }
+            }
+          },
+          {
+            "text": "Substitute values",
+            "audio": "Substitute the values. I equals V divided by R. I equals fifteen divided by five.",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "I = V ÷ R = 15 ÷ 5"
+            }
+          },
+          {
+            "text": "Current = 3 A",
+            "audio": "Fifteen divided by five is three. The current is three amperes. Option C is correct.",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "I = 3 A",
+              "highlighted": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-history-independence",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "Indian Independence",
+      "subtitle": "Key Events · Timeline · Leaders",
+      "badge": "UPSC | SSC | State PSC",
+      "topic": "History — Freedom Struggle",
+      "highlights": ["Timeline", "Key facts", "Memory trick"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "History",
+      "topic": "Indian Freedom Struggle",
+      "subtopic": "Key events and dates 1857–1947",
+      "difficulty": "medium",
+      "exam": "UPSC / SSC / State PSC",
+      "grade": "Class 8 to Competitive Exams",
+      "language": "English"
+    },
+    "question": {
+      "text": "In which year did India gain independence from British rule?",
+      "audio": "In which year did India gain independence from British rule?",
+      "options": [
+        { "key": "a", "value": "1942" },
+        { "key": "b", "value": "1945" },
+        { "key": "c", "value": "1947" },
+        { "key": "d", "value": "1950" }
+      ],
+      "correct": "c"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "In which year did India gain independence?",
+        "audio": "In which year did India gain independence from British rule? Let us trace the key milestones of India's freedom struggle.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A nineteen forty two. Option B nineteen forty five. Option C nineteen forty seven. Option D nineteen fifty.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Freedom Struggle Timeline",
+            "audio": "Let us look at the key events of the Indian freedom struggle from eighteen fifty seven to nineteen forty seven.",
+            "render": {
+              "action": "show",
+              "target": "timeline",
+              "heading": "India's Freedom Struggle",
+              "events": [
+                { "year": "1857", "event": "First War of Independence (Sepoy Mutiny)", "highlight": false },
+                { "year": "1885", "event": "Indian National Congress founded", "highlight": false },
+                { "year": "1919", "event": "Jallianwala Bagh Massacre", "highlight": false },
+                { "year": "1930", "event": "Dandi March — Salt Satyagraha", "highlight": false },
+                { "year": "1942", "event": "Quit India Movement", "highlight": false },
+                { "year": "1947", "event": "India gains Independence (15 Aug)", "highlight": true }
+              ]
+            }
+          },
+          {
+            "text": "Before and After Independence",
+            "audio": "Let us compare the situation before and after independence.",
+            "render": {
+              "action": "show",
+              "target": "two_col_text",
+              "left": {
+                "heading": "Before 1947",
+                "items": [
+                  "British Colonial Rule",
+                  "No voting rights",
+                  "Economic exploitation",
+                  "Partition of Bengal (1905)"
+                ]
+              },
+              "right": {
+                "heading": "After 1947",
+                "items": [
+                  "Democratic Republic",
+                  "Universal adult franchise",
+                  "Self-governed economy",
+                  "Constitution adopted (1950)"
+                ]
+              }
+            }
+          },
+          {
+            "text": "Key Leaders",
+            "audio": "Key leaders of the independence movement.",
+            "render": {
+              "action": "show",
+              "target": "key_facts",
+              "heading": "Freedom Movement Leaders",
+              "facts": [
+                { "key": "Mahatma Gandhi",   "value": "Non-violence, Satyagraha" },
+                { "key": "Jawaharlal Nehru", "value": "First Prime Minister" },
+                { "key": "Subhas C. Bose",  "value": "Indian National Army (INA)" },
+                { "key": "B. R. Ambedkar",  "value": "Constitution architect" },
+                { "key": "Sardar Patel",    "value": "Integration of princely states" }
+              ]
+            }
+          },
+          {
+            "text": "Memory Trick — DJQIE",
+            "audio": "Remember the five major movements using DJQIE: Dandi, Jallianwala, Quit India, INA, Election of 1946.",
+            "render": {
+              "action": "show",
+              "target": "memory_trick",
+              "label": "Major events (in order):",
+              "trick": "DJQIE",
+              "expansion": "Dandi  Jallianwala  Quit India  INA  Elections",
+              "note": "1930 · 1919 · 1942 · 1943 · 1946"
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-accounts-cash-ledger",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "T-Account (Ledger)",
+      "subtitle": "Debit · Credit · Rules of Journal",
+      "badge": "CA Foundation | Class 11 | Commerce",
+      "topic": "Accounts — Ledger Posting",
+      "highlights": ["T-Account", "Debit Credit rules", "Key facts"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Accounts",
+      "topic": "Accounting Fundamentals",
+      "subtopic": "Ledger posting — T-Account format",
+      "difficulty": "medium",
+      "exam": "CA Foundation / Class 11 Commerce",
+      "grade": "Class 11",
+      "language": "English"
+    },
+    "question": {
+      "text": "In which side of Cash Account is 'Cash received from customers' posted?",
+      "audio": "In which side of a Cash Account is the entry 'Cash received from customers' posted?",
+      "options": [
+        { "key": "a", "value": "Credit Side" },
+        { "key": "b", "value": "Debit Side" },
+        { "key": "c", "value": "Both Sides" },
+        { "key": "d", "value": "Not posted" }
+      ],
+      "correct": "b"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "Where is 'Cash received from customers' posted in Cash Account?",
+        "audio": "Where is the entry 'cash received from customers' posted in the cash account? Is it on the debit side or the credit side?",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A credit side. Option B debit side. Option C both sides. Option D not posted.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Golden Rules of Accounting",
+            "audio": "For real accounts like cash, the golden rule is: Debit what comes in, Credit what goes out. Cash received means cash coming in, so it is debited.",
+            "render": {
+              "action": "show",
+              "target": "highlight_box",
+              "text": "Real A/c: Debit what comes IN, Credit what goes OUT",
+              "color": "blue"
+            }
+          },
+          {
+            "text": "Debit Credit Rules",
+            "audio": "Here are the three types of accounts and their rules.",
+            "render": {
+              "action": "show",
+              "target": "key_facts",
+              "heading": "Golden Rules of Accounting",
+              "facts": [
+                { "key": "Real A/c",     "value": "Dr: Comes in  |  Cr: Goes out" },
+                { "key": "Personal A/c", "value": "Dr: Receiver  |  Cr: Giver" },
+                { "key": "Nominal A/c",  "value": "Dr: Expenses/Losses  |  Cr: Income/Gains" }
+              ]
+            }
+          },
+          {
+            "text": "Cash Account — T Format",
+            "audio": "Look at the cash account in T format. Opening balance and cash received from customers appear on the debit side. Payments for purchases and expenses appear on the credit side.",
+            "render": {
+              "action": "show",
+              "target": "t_account",
+              "name": "Cash Account",
+              "debit": [
+                { "desc": "Opening Balance (b/d)", "amount": "50,000" },
+                { "desc": "Cash from Customers",    "amount": "80,000" },
+                { "desc": "Sale of old assets",     "amount": "15,000" }
+              ],
+              "credit": [
+                { "desc": "Purchases (Cash)",  "amount": "40,000" },
+                { "desc": "Salaries Paid",     "amount": "25,000" },
+                { "desc": "Rent Paid",         "amount": "10,000" },
+                { "desc": "Balance c/d",       "amount": "70,000" }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-reasoning-analogy",
+    "thumbnail_intro_seconds": 3,
+    "thumbnail": {
+      "title": "Analogy Reasoning",
+      "subtitle": "A : B :: C : ?  — Pattern Recognition",
+      "badge": "SSC | IBPS | Railway | CAT",
+      "topic": "Reasoning — Analogy",
+      "highlights": ["Analogy display", "Concept text", "Memory trick"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Reasoning",
+      "topic": "Verbal Reasoning",
+      "subtopic": "Analogy — relationship identification",
+      "difficulty": "easy",
+      "exam": "SSC / IBPS / Railway / CAT",
+      "grade": "Competitive Exams",
+      "language": "English"
+    },
+    "question": {
+      "text": "Doctor : Hospital :: Teacher : ?",
+      "audio": "Doctor is to Hospital as Teacher is to what?",
+      "options": [
+        { "key": "a", "value": "Book" },
+        { "key": "b", "value": "School" },
+        { "key": "c", "value": "Student" },
+        { "key": "d", "value": "Classroom" }
+      ],
+      "correct": "b"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "Doctor : Hospital :: Teacher : ?",
+        "audio": "Doctor is to Hospital as Teacher is to what? This is an analogy question. We need to identify the relationship.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A book. Option B school. Option C student. Option D classroom. Think of the relationship between Doctor and Hospital.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Analogy Strategy",
+            "audio": "In analogy questions, identify the relationship in the first pair. Then apply the same relationship to the second pair.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Analogy Strategy",
+              "items": [
+                "Step 1: Find the relationship in pair A : B.",
+                "Step 2: Apply the same relationship to C : ?",
+                "Step 3: Choose the answer that matches."
+              ]
+            }
+          },
+          {
+            "text": "Identify the relationship",
+            "audio": "Doctor works in a Hospital. That is the relationship. Person works in a Place. Now apply: Teacher works in a what?",
+            "render": {
+              "action": "show",
+              "target": "analogy",
+              "relation": "Person : Place of Work",
+              "pairs": [["Doctor", "Hospital"], ["Teacher", "?"]],
+              "answer": ""
+            }
+          },
+          {
+            "text": "Answer: School",
+            "audio": "Teacher works in a School. So the answer is School. Option B is correct.",
+            "render": {
+              "action": "show",
+              "target": "analogy",
+              "relation": "Person : Place of Work",
+              "pairs": [["Doctor", "Hospital"], ["Teacher", "?"]],
+              "answer": "School"
+            }
+          },
+          {
+            "text": "More Examples",
+            "audio": "More examples of the same pattern: Pilot flies an aeroplane. Chef cooks in a kitchen. Lawyer argues in a court.",
+            "render": {
+              "action": "show",
+              "target": "key_facts",
+              "heading": "Same Relation: Person → Workplace",
+              "facts": [
+                { "key": "Pilot",   "value": "Aeroplane / Cockpit" },
+                { "key": "Chef",    "value": "Kitchen / Restaurant" },
+                { "key": "Lawyer",  "value": "Court" },
+                { "key": "Soldier", "value": "Barracks / Battlefield" }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+
+  {
+    "id": "q-math-digit-sum-divisibility",
+    "thumbnail_intro_seconds": 4,
+    "thumbnail": {
+      "title": "Divisibility Rules",
+      "subtitle": "Rule of 9  &  Rule of 11",
+      "badge": "SSC | UPSC | Banking | Railway",
+      "topic": "Number Theory Shortcut",
+      "highlights": ["Add all digits", "Alternate +/- signs"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Mathematics",
+      "topic": "Number Theory",
+      "subtopic": "Divisibility Rules — 9 and 11",
+      "difficulty": "medium",
+      "exam": "SSC / UPSC / Banking / Railway / State PSC",
+      "grade": "Class 6 to Competitive Exams",
+      "language": "English"
+    },
+    "question": {
+      "text": "Which of the following numbers is divisible completely by both 9 and 11?",
+      "audio": "Which of the following numbers is divisible completely by both nine and eleven?",
+      "options": [
+        { "key": "a", "value": "277218" },
+        { "key": "b", "value": "10098" },
+        { "key": "c", "value": "12345" },
+        { "key": "d", "value": "181998" }
+      ],
+      "correct": "b"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "Which of the following numbers is divisible completely by both 9 and 11?",
+        "audio": "Which of the following numbers is divisible completely by both nine and eleven? The word completely means there should be no remainder. A number must pass two separate tests.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+      {
+        "type": "options",
+        "audio": "Option A two lakh seventy seven thousand two hundred and eighteen. Option B ten thousand and ninety eight. Option C twelve thousand three hundred and forty five. Option D one lakh eighty one thousand nine hundred and ninety eight.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Rule of 9 — Key Rule",
+            "audio": "Rule of Nine. Add all the digits of the number. If the digit sum is divisible by nine, the number is divisible by nine.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Rule of 9",
+              "items": ["Add all digits.", "If the digit sum divides by 9, the number divides by 9."]
+            }
+          },
+          {
+            "text": "Rule of 11 — Key Rule",
+            "audio": "Rule of Eleven. Assign alternating plus and minus signs to digits from left to right. If the result is zero or divisible by eleven, the number is divisible by eleven.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Rule of 11",
+              "items": ["Alternate plus and minus signs left to right.", "If the result is 0 or divisible by 11, the number divides by 11."],
+              "highlighted": true
+            }
+          },
+          {
+            "text": "Strategy",
+            "audio": "Apply Rule of Nine first. It is faster. Eliminate the options that fail. Then apply Rule of Eleven to the remaining ones.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Strategy",
+              "items": ["Apply Rule of 9 first — it is faster.", "Eliminate failing options.", "Then check Rule of 11 on the remaining ones."]
+            }
+          },
+          {
+            "text": "Rule of 9",
+            "audio": "Now let us apply both rules to Option B. Rule of Nine. Add all digits of ten thousand ninety eight.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": { "title": "Rule of 9" }
+            }
+          },
+          {
+            "text": "Digits of 10098",
+            "audio": "The digits are one, zero, zero, nine, eight. One plus zero plus zero plus nine plus eight equals eighteen.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+"
+              }
+            }
+          },
+          {
+            "text": "Sum = 18 divided by 9",
+            "audio": "The digit sum is eighteen. Eighteen divided by nine equals two exactly.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2"
+              }
+            }
+          },
+          {
+            "text": "Rule of 9 — PASS",
+            "audio": "No remainder. Ten thousand and ninety eight is divisible by nine. Rule of Nine, pass.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              }
+            }
+          },
+          {
+            "text": "Rule of 11",
+            "audio": "Now Rule of Eleven. Assign alternating plus and minus signs from left to right.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": { "title": "Rule of 11" }
+            }
+          },
+          {
+            "text": "Alternating signs",
+            "audio": "Plus one, minus zero, plus zero, minus nine, plus eight.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": {
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"]
+              }
+            }
+          },
+          {
+            "text": "Alternating sum = 0",
+            "audio": "Plus one minus zero plus zero minus nine plus eight equals zero.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": {
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"],
+                "sum_text": "+1 - 0 + 0 - 9 + 8 = 0"
+              }
+            }
+          },
+          {
+            "text": "Both rules pass",
+            "audio": "Zero means divisible by eleven. Both rules pass. Option B is the answer.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": {
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"],
+                "sum_text": "+1 - 0 + 0 - 9 + 8 = 0",
+                "verdict": "Divisible by 11!",
+                "pass": true
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+
+]

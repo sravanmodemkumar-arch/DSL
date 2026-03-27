@@ -1,0 +1,362 @@
+[
+  {
+    "id": "q-time-work-full",
+    "meta": {
+      "subject": "Mathematics",
+      "topic": "Arithmetic",
+      "subtopic": "Time and Work",
+      "difficulty": "medium"
+    },
+    "assets": {
+      "images": {
+        "workers": "/assets/images/workers.png"
+      },
+      "svgs": {
+        "work_flow": "/assets/svg/work-flow.svg"
+      }
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "A can complete a work in 10 days and B in 15 days. In how many days can they complete together?",
+        "audio": "A can complete a work in ten days and B in fifteen days. In how many days can they complete the work together?",
+        "render": {
+          "action": "show",
+          "target": "question_block"
+        }
+      },
+      {
+        "type": "visual_intro",
+        "render": {
+          "action": "show",
+          "target": "image",
+          "src": "workers",
+          "position": "center",
+          "size": "medium"
+        }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Work formula",
+            "audio": "In time and work, we calculate work done per day",
+            "render": {
+              "action": "show",
+              "target": "formula_block",
+              "value": "Work per day = 1 / total days"
+            }
+          },
+          {
+            "text": "Combined work",
+            "audio": "When two people work together, we add their efficiencies",
+            "render": {
+              "action": "highlight",
+              "target": "formula_block"
+            }
+          }
+        ]
+      },
+      {
+        "type": "solution",
+        "steps": [
+          {
+            "text": "A's work",
+            "audio": "A completes the work in ten days, so A's one day work is one by ten",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "A = 1/10"
+            }
+          },
+          {
+            "text": "B's work",
+            "audio": "B completes the work in fifteen days, so B's one day work is one by fifteen",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "B = 1/15"
+            }
+          },
+          {
+            "text": "Show flow",
+            "audio": "Now we combine both works",
+            "render": {
+              "action": "show",
+              "target": "svg",
+              "src": "work_flow",
+              "position": "center",
+              "size": "medium"
+            }
+          },
+          {
+            "text": "Add fractions",
+            "audio": "Now we add one by ten and one by fifteen",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "1/10 + 1/15"
+            }
+          },
+          {
+            "text": "LCM step",
+            "audio": "The LCM of ten and fifteen is thirty",
+            "render": {
+              "action": "highlight",
+              "target": "equation"
+            }
+          },
+          {
+            "text": "Convert fractions",
+            "audio": "One by ten becomes three by thirty and one by fifteen becomes two by thirty",
+            "render": {
+              "action": "update",
+              "target": "equation",
+              "value": "3/30 + 2/30"
+            }
+          },
+          {
+            "text": "Add",
+            "audio": "Now we add three by thirty and two by thirty which gives five by thirty",
+            "render": {
+              "action": "update",
+              "target": "equation",
+              "value": "5/30"
+            }
+          },
+          {
+            "text": "Simplify",
+            "audio": "Five by thirty simplifies to one by six",
+            "render": {
+              "action": "update",
+              "target": "equation",
+              "value": "1/6"
+            }
+          },
+          {
+            "text": "Final",
+            "audio": "This means together they complete the work in six days",
+            "render": {
+              "action": "show_result",
+              "target": "final_answer",
+              "value": "6 days"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q1-divisibility-full",
+    "meta": {
+      "subject": "Mathematics",
+      "topic": "Number System",
+      "subtopic": "Divisibility by 9",
+      "difficulty": "medium"
+    },
+    "scenes": [
+      {
+        "type": "question",
+        "text": "Which number is divisible by 9?",
+        "audio": "Which number is divisible by nine?",
+        "render": {
+          "action": "show",
+          "target": "question_block"
+        }
+      },
+      {
+        "type": "options",
+        "render": {
+          "action": "show",
+          "target": "options_grid",
+          "data": [
+            {
+              "key": "A",
+              "value": "277218"
+            },
+            {
+              "key": "B",
+              "value": "123456"
+            },
+            {
+              "key": "C",
+              "value": "654321"
+            },
+            {
+              "key": "D",
+              "value": "111112"
+            }
+          ]
+        }
+      },
+      {
+        "type": "concept",
+        "steps": [
+          {
+            "text": "Divisibility rule",
+            "audio": "To check divisibility by nine, we add all digits of the number",
+            "render": {
+              "action": "show",
+              "target": "concept_text"
+            }
+          },
+          {
+            "text": "If sum divisible",
+            "audio": "If the sum of digits is divisible by nine, then the number is also divisible by nine",
+            "render": {
+              "action": "highlight",
+              "target": "concept_text"
+            }
+          }
+        ]
+      },
+      {
+        "type": "solution",
+        "option": "A",
+        "steps": [
+          {
+            "text": "Option A: 277218",
+            "audio": "Let us check option A, two lakh seventy seven thousand two hundred eighteen",
+            "render": {
+              "action": "highlight",
+              "target": "option_A"
+            }
+          },
+          {
+            "text": "Digits",
+            "audio": "First, we write all digits of the number",
+            "render": {
+              "action": "show",
+              "target": "digit_boxes",
+              "data": [
+                2,
+                7,
+                7,
+                2,
+                1,
+                8
+              ]
+            }
+          },
+          {
+            "text": "Explain digits",
+            "audio": "The digits are two, seven, seven, two, one, and eight",
+            "render": {
+              "action": "highlight",
+              "target": "digits",
+              "indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5
+              ]
+            }
+          },
+          {
+            "text": "Start addition",
+            "audio": "Now we will add these digits step by step",
+            "render": {
+              "action": "show",
+              "target": "instruction_text"
+            }
+          },
+          {
+            "text": "2 + 7 = 9",
+            "audio": "First, we take two and add seven, which gives nine",
+            "render": {
+              "action": "highlight",
+              "target": "digits",
+              "indices": [
+                0,
+                1
+              ]
+            }
+          },
+          {
+            "text": "9 + 7 = 16",
+            "audio": "Next, we add seven to nine, which becomes sixteen",
+            "render": {
+              "action": "update",
+              "target": "running_sum",
+              "value": 16
+            }
+          },
+          {
+            "text": "16 + 2 = 18",
+            "audio": "Now we add two to sixteen, which gives eighteen",
+            "render": {
+              "action": "update",
+              "target": "running_sum",
+              "value": 18
+            }
+          },
+          {
+            "text": "18 + 1 = 19",
+            "audio": "Next, we add one to eighteen, which becomes nineteen",
+            "render": {
+              "action": "update",
+              "target": "running_sum",
+              "value": 19
+            }
+          },
+          {
+            "text": "19 + 8 = 27",
+            "audio": "Finally, we add eight to nineteen, giving us twenty seven",
+            "render": {
+              "action": "update",
+              "target": "running_sum",
+              "value": 27
+            }
+          },
+          {
+            "text": "Sum = 27",
+            "audio": "So the total sum of all digits is twenty seven",
+            "render": {
+              "action": "show_result",
+              "target": "sum_box",
+              "value": 27
+            }
+          },
+          {
+            "text": "Check divisibility",
+            "audio": "Now we check whether twenty seven is divisible by nine",
+            "render": {
+              "action": "show",
+              "target": "division_block",
+              "expression": "27 \u00f7 9"
+            }
+          },
+          {
+            "text": "27 \u00f7 9 = 3",
+            "audio": "Twenty seven divided by nine equals three",
+            "render": {
+              "action": "update",
+              "target": "division_block",
+              "expression": "27 \u00f7 9 = 3"
+            }
+          },
+          {
+            "text": "Conclusion",
+            "audio": "Since we get a whole number, it means twenty seven is divisible by nine",
+            "render": {
+              "action": "highlight",
+              "target": "sum_box"
+            }
+          },
+          {
+            "text": "Final",
+            "audio": "Therefore, the given number is divisible by nine",
+            "render": {
+              "action": "highlight",
+              "target": "final_answer"
+            }
+          }
+        ],
+        "result": "correct",
+        "verdict_audio": "Hence, option A is correct"
+      }
+    ]
+  }
+]

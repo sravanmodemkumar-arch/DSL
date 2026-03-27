@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+
+# Database
+instance/
+*.db
+*.sqlite3
+
+# Generated output (videos, frames, audio)
+output/
+storage/output/
+storage/audio/
+storage/frames/
+storage/temp/
+
+# Uploaded assets (user files — not tracked in git)
+storage/assets/images/
+storage/assets/svgs/
+storage/assets/videos/
+storage/assets/watermark/
+storage/assets/audio_clips/
+
+# Keep the assets folder structure
+!storage/assets/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Claude Code settings
+.claude/
+
+# Secrets / API keys
+.env
+secrets.py

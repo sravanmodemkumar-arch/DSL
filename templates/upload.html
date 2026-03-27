@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Upload JSON - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold">Upload JSON</h2>
+        <p class="text-gray-400 text-sm mt-1">Upload your JSON DSL file to generate educational videos</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- JSON Editor (2/3 width) -->
+        <div class="lg:col-span-2 space-y-4">
+            <!-- File Upload -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <label class="block text-sm font-medium mb-3">Upload JSON File</label>
+                <div class="border-2 border-dashed border-dark-border rounded-lg p-8 text-center hover:border-accent/50 transition cursor-pointer" id="drop-zone">
+                    <svg class="w-10 h-10 mx-auto text-gray-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    <p class="text-sm text-gray-400">Drag & drop JSON or ZIP file, or <label for="file-input" class="text-accent cursor-pointer hover:underline">browse</label></p>
+                    <p class="text-xs text-gray-500 mt-1">Supports .json (single/batch) and .zip (multiple JSON files)</p>
+                    <input type="file" id="file-input" accept=".json,.zip" class="hidden">
+                </div>
+            </div>
+
+            <!-- JSON Editor -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <label class="text-sm font-medium">JSON Content</label>
+                    <div class="flex gap-2">
+                        <button onclick="formatJSON()" class="text-xs px-3 py-1 rounded bg-white/10 hover:bg-white/20 transition">Format</button>
+                        <button onclick="clearEditor()" class="text-xs px-3 py-1 rounded bg-white/10 hover:bg-white/20 transition">Clear</button>
+                        <button onclick="loadSample()" class="text-xs px-3 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30 transition">Load Sample</button>
+                    </div>
+                </div>
+                <textarea id="json-editor" name="json_content" rows="20"
+                    class="w-full bg-dark-bg border border-dark-border rounded-lg p-4 font-mono text-sm text-gray-300 focus:border-accent/50 focus:outline-none resize-y"
+                    placeholder='Paste your JSON here or upload a file...'
+                    spellcheck="false"></textarea>
+            </div>
+
+            <!-- Validation Result -->
+            <div id="validation-result"></div>
+        </div>
+
+        <!-- Settings Sidebar (1/3 width) -->
+        <div class="space-y-4">
+            <!-- Video Settings -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Video Settings</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Resolution</label>
+                        <select id="resolution" name="resolution" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="360p">360p (640x360)</option>
+                            <option value="720p">720p HD (1280x720)</option>
+                            <option value="1080p" selected>1080p Full HD (1920x1080)</option>
+                            <option value="2K">2K QHD (2560x1440)</option>
+                            <option value="4K">4K Ultra HD (3840x2160)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Quality Preset</label>
+                        <select id="quality_preset" name="quality_preset" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="P1">P1 - Preview (1M, 24fps)</option>
+                            <option value="P2">P2 - Draft (2M, 24fps)</option>
+                            <option value="P3">P3 - Mobile (4M, 30fps)</option>
+                            <option value="P4">P4 - Standard (6M, 30fps)</option>
+                            <option value="P5" selected>P5 - YouTube (10M, 30fps)</option>
+                            <option value="P6">P6 - High Quality (15M, 60fps)</option>
+                            <option value="P7">P7 - Maximum (25M, 60fps)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Theme</label>
+                        <select id="theme" name="theme" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="dark" selected>Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Max Duration (minutes)</label>
+                        <input type="number" id="max_duration" name="max_duration" value="8" min="1" max="30"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                    </div>
+
+                    <div class="border-t border-dark-border pt-4">
+                        <label class="block text-xs text-gray-400 mb-1">Background Music</label>
+                        <select id="bgm_style" name="bgm_style" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="calm_waves" selected>Calm Waves</option>
+                            <option value="zen_garden">Zen Garden</option>
+                            <option value="morning_dew">Morning Dew</option>
+                            <option value="deep_focus">Deep Focus</option>
+                            <option value="soft_piano">Soft Piano</option>
+                            <option value="crystal_bowl">Crystal Bowl</option>
+                            <option value="forest_stream">Forest Stream</option>
+                            <option value="twilight">Twilight</option>
+                            <option value="lotus">Lotus (Tanpura)</option>
+                            <option value="silent_mind">Silent Mind</option>
+                            <option value="none">No Music</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5 space-y-3">
+                <button onclick="validateJSON()"
+                    class="w-full bg-white/10 hover:bg-white/20 text-white py-2.5 rounded-lg text-sm font-medium transition">
+                    Validate JSON
+                </button>
+
+                <button onclick="processJSON()"
+                    class="w-full bg-accent/20 hover:bg-accent/30 text-accent border border-accent/30 py-2.5 rounded-lg text-sm font-medium transition">
+                    Process & Generate Videos
+                </button>
+            </div>
+
+            <!-- Processing Result -->
+            <div id="process-result"></div>
+
+            <!-- Help -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-3">JSON Structure</h3>
+                <div class="text-xs text-gray-400 space-y-2">
+                    <p><span class="text-accent">id</span> — Unique video ID</p>
+                    <p><span class="text-accent">meta</span> — Subject, topic, difficulty</p>
+                    <p><span class="text-accent">assets</span> — Images, SVGs (optional)</p>
+                    <p><span class="text-accent">scenes</span> — Array of scenes</p>
+                    <p class="mt-2 text-gray-500">Scene types: question, options, concept, solution, answer</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const editor = document.getElementById('json-editor');
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    let uploadedFile = null;
+
+    // File upload
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+    });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-accent'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-accent'); });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-accent');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    });
+
+    function handleFile(file) {
+        uploadedFile = file;
+        if (file.name.endsWith('.json')) {
+            const reader = new FileReader();
+            reader.onload = (e) => { editor.value = e.target.result; };
+            reader.readAsText(file);
+            dropZone.querySelector('p').textContent = 'Loaded: ' + file.name;
+        } else if (file.name.endsWith('.zip')) {
+            editor.value = '';
+            editor.placeholder = 'ZIP file loaded: ' + file.name + ' (contains multiple JSON files)';
+            dropZone.querySelector('p').textContent = 'ZIP loaded: ' + file.name;
+        }
+    }
+
+    function formatJSON() {
+        try {
+            const obj = JSON.parse(editor.value);
+            editor.value = JSON.stringify(obj, null, 2);
+        } catch(e) {
+            alert('Invalid JSON: ' + e.message);
+        }
+    }
+
+    function clearEditor() { editor.value = ''; }
+
+    function validateJSON() {
+        const formData = new FormData();
+        formData.append('json_content', editor.value);
+        fetch('/upload/validate', { method: 'POST', body: formData })
+            .then(r => r.text())
+            .then(html => { document.getElementById('validation-result').innerHTML = html; });
+    }
+
+    function processJSON() {
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'Processing...';
+
+        const formData = new FormData();
+        formData.append('json_content', editor.value);
+        formData.append('resolution', document.getElementById('resolution').value);
+        formData.append('quality_preset', document.getElementById('quality_preset').value);
+        formData.append('theme', document.getElementById('theme').value);
+        formData.append('max_duration', document.getElementById('max_duration').value);
+        if (uploadedFile) formData.append('json_file', uploadedFile);
+
+        fetch('/upload/process', { method: 'POST', body: formData })
+            .then(r => r.text())
+            .then(html => {
+                document.getElementById('process-result').innerHTML = html;
+                btn.disabled = false;
+                btn.textContent = 'Process & Generate Videos';
+            })
+            .catch(() => {
+                document.getElementById('process-result').innerHTML = '<div class="text-red-400 p-3">Request failed</div>';
+                btn.disabled = false;
+                btn.textContent = 'Process & Generate Videos';
+            });
+    }
+
+    function loadSample() {
+        editor.value = JSON.stringify([
+            {
+                "id": "sample-math-001",
+                "meta": {
+                    "subject": "Mathematics",
+                    "topic": "Arithmetic",
+                    "subtopic": "Addition",
+                    "difficulty": "easy"
+                },
+                "scenes": [
+                    {
+                        "type": "question",
+                        "text": "What is 25 + 37?",
+                        "audio": "What is twenty five plus thirty seven?",
+                        "render": { "action": "show", "target": "question_block" }
+                    },
+                    {
+                        "type": "solution",
+                        "steps": [
+                            {
+                                "text": "Add units: 5 + 7 = 12",
+                                "audio": "First, we add the units. Five plus seven equals twelve. We write two and carry one.",
+                                "render": { "action": "show", "target": "equation", "value": "5 + 7 = 12" }
+                            },
+                            {
+                                "text": "Add tens: 2 + 3 + 1 = 6",
+                                "audio": "Now we add the tens. Two plus three plus the carried one equals six.",
+                                "render": { "action": "show", "target": "equation", "value": "2 + 3 + 1 = 6" }
+                            },
+                            {
+                                "text": "Answer: 62",
+                                "audio": "So, twenty five plus thirty seven equals sixty two.",
+                                "render": { "action": "show_result", "target": "final_answer", "value": "62" }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ], null, 2);
+    }
+</script>
+{% endblock %}

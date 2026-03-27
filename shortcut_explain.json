@@ -1,0 +1,244 @@
+[
+  {
+    "id": "q1-divisibility-9-11-detailed",
+    "thumbnail_intro_seconds": 4,
+    "thumbnail": {
+      "title": "Divisibility Rules",
+      "subtitle": "Rule of 9  &  Rule of 11",
+      "badge": "SSC | UPSC | Banking | Railway",
+      "topic": "Number Theory Shortcut",
+      "highlights": ["Add all digits", "Alternate +/- signs"],
+      "style": "dark"
+    },
+    "meta": {
+      "subject": "Mathematics",
+      "topic": "Number Theory",
+      "subtopic": "Divisibility Rules — 9 and 11",
+      "difficulty": "medium",
+      "exam": "SSC / UPSC / Banking / Railway / State PSC",
+      "grade": "Class 6 to Competitive Exams",
+      "language": "English"
+    },
+    "question": {
+      "text": "Which of the following numbers is divisible completely by both 9 and 11?",
+      "audio": "Which of the following numbers is divisible completely by both nine and eleven?",
+      "options": [
+        { "key": "a", "value": "277218" },
+        { "key": "b", "value": "10098" },
+        { "key": "c", "value": "12345" },
+        { "key": "d", "value": "181998" }
+      ],
+      "correct": "b"
+    },
+    "scenes": [
+
+      {
+        "type": "question",
+        "text": "Which of the following numbers is divisible completely by both 9 and 11?",
+        "audio": "Which of the following numbers is divisible completely by both nine and eleven? The word completely means there should be no remainder. The word both means the number must pass two separate tests, one for nine and one for eleven. A number that fails even one test is eliminated.",
+        "render": { "action": "show", "target": "question_block" }
+      },
+
+      {
+        "type": "options",
+        "audio": "Option A, two lakh seventy seven thousand two hundred and eighteen. Option B, ten thousand and ninety eight. Option C, twelve thousand three hundred and forty five. Option D, one lakh eighty one thousand nine hundred and ninety eight. Only one of these four is divisible by both nine and eleven.",
+        "render": { "action": "show", "target": "options_grid" }
+      },
+
+      {
+        "type": "concept",
+        "steps": [
+
+          {
+            "text": "Rule of 9 — Key Rule",
+            "audio": "Rule of Nine. Add all the digits of the number. If the digit sum is divisible by nine, the number is divisible by nine.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Rule of 9",
+              "items": ["Add all digits.", "If the digit sum divides by 9, the number divides by 9."]
+            }
+          },
+
+          {
+            "text": "Rule of 11 — Key Rule",
+            "audio": "Rule of Eleven. Assign alternating plus and minus signs to digits from left to right. If the result is zero or divisible by eleven, the number is divisible by eleven.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Rule of 11",
+              "items": ["Alternate plus and minus signs left to right.", "If the result is 0 or divisible by 11, the number divides by 11."],
+              "highlighted": true
+            }
+          },
+
+          {
+            "text": "Strategy",
+            "audio": "Apply Rule of Nine first. It is faster. Eliminate the options that fail. Then apply Rule of Eleven to the remaining ones.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Strategy",
+              "items": ["Apply Rule of 9 first — it is faster.", "Eliminate failing options.", "Then check Rule of 11 on the remaining ones."]
+            }
+          },
+
+          {
+            "text": "Rule of 9",
+            "audio": "Now let us apply both rules to Option B. Rule of Nine. To check if a number is divisible by nine, add all its digits.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": { "title": "Rule of 9" }
+            }
+          },
+
+          {
+            "text": "Digits of 10098",
+            "audio": "The digits of ten thousand ninety eight are one, zero, zero, nine, eight. Add them: one plus zero is one, plus zero is one, plus nine is ten, plus eight is eighteen.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+"
+              }
+            }
+          },
+
+          {
+            "text": "Sum = 18 divided by 9",
+            "audio": "The digit sum is eighteen. Now divide by nine. Eighteen divided by nine equals two exactly.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2"
+              }
+            }
+          },
+
+          {
+            "text": "Rule of 9 — PASS",
+            "audio": "No remainder. Ten thousand and ninety eight is divisible by nine. Rule of Nine, pass.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              }
+            }
+          },
+
+          {
+            "text": "Rule of 11",
+            "audio": "Now Rule of Eleven. Assign alternating plus and minus signs to the digits from left to right, starting with plus.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": { "title": "Rule of 11" }
+            }
+          },
+
+          {
+            "text": "Alternating signs",
+            "audio": "Assign alternating plus and minus signs to each digit, starting with plus. Plus one, minus zero, plus zero, minus nine, plus eight.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": {
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"]
+              }
+            }
+          },
+
+          {
+            "text": "Alternating sum = 0",
+            "audio": "Add them all together. Plus one, minus zero, plus zero, minus nine, plus eight equals zero.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": {
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"],
+                "sum_text": "+1 - 0 + 0 - 9 + 8 = 0"
+              }
+            }
+          },
+
+          {
+            "text": "Both rules pass",
+            "audio": "Zero means the number is perfectly divisible by eleven. Rule of Eleven, pass. Both rules pass for ten thousand and ninety eight. Option B is the answer.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "digit_data": [1, 0, 0, 9, 8],
+                "operator": "+",
+                "numerator": "18",
+                "denominator": "9",
+                "result": "2",
+                "verdict": "Divisible by 9!",
+                "pass": true
+              },
+              "right": {
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"],
+                "sum_text": "+1 - 0 + 0 - 9 + 8 = 0",
+                "verdict": "Divisible by 11!",
+                "pass": true
+              }
+            }
+          }
+
+        ]
+      }
+
+    ]
+  }
+]

@@ -1,0 +1,59 @@
+<div class="bg-dark-card border border-dark-border rounded-xl p-4 fade-in" id="job-{{ job.id }}">
+    <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-3">
+            <span class="text-sm font-medium">{{ job.video_id }}</span>
+            <span class="text-xs px-2 py-0.5 rounded
+                {% if job.status == 'processing' %}bg-cyan-500/20 text-cyan-400
+                {% elif job.status == 'completed' %}bg-green-500/20 text-green-400
+                {% elif job.status == 'failed' %}bg-red-500/20 text-red-400
+                {% elif job.status == 'cancelled' %}bg-gray-500/20 text-gray-400
+                {% else %}bg-yellow-500/20 text-yellow-400{% endif %}">
+                {{ job.stage or job.status }}
+            </span>
+            <span class="text-xs text-gray-500">
+                Priority:
+                {% if job.priority == 1 %}Urgent
+                {% elif job.priority == 2 %}High
+                {% elif job.priority == 3 %}Normal
+                {% else %}Low{% endif %}
+            </span>
+        </div>
+        <div class="flex items-center gap-2">
+            {% if job.status in ('queued', 'processing') %}
+            <button hx-post="/queue/{{ job.id }}/cancel" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+                class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Cancel</button>
+            {% endif %}
+            {% if job.status == 'failed' %}
+            <button hx-post="/queue/{{ job.id }}/retry" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+                class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">Retry</button>
+            {% endif %}
+            {% if job.status == 'queued' %}
+            <button hx-post="/queue/{{ job.id }}/priority" hx-target="#job-{{ job.id }}" hx-swap="outerHTML" hx-vals='{"priority": 1}'
+                class="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30">Bump</button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if job.status == 'processing' %}
+    <div class="w-full h-2 bg-dark-border rounded-full overflow-hidden">
+        <div class="h-full bg-accent rounded-full transition-all duration-1000" style="width: {{ job.progress }}%"></div>
+    </div>
+    <p class="text-xs text-gray-500 mt-1">{{ job.progress }}% complete</p>
+    {% endif %}
+
+    {% if job.error_message %}
+    <p class="text-xs text-red-400 mt-2 font-mono">{{ job.error_message[:200] }}</p>
+    {% endif %}
+
+    <div class="flex items-center gap-4 mt-2 text-xs text-gray-500">
+        {% if job.created_at %}
+        <span>Created: {{ job.created_at.strftime('%H:%M:%S') }}</span>
+        {% endif %}
+        {% if job.started_at %}
+        <span>Started: {{ job.started_at.strftime('%H:%M:%S') }}</span>
+        {% endif %}
+        {% if job.completed_at %}
+        <span>Done: {{ job.completed_at.strftime('%H:%M:%S') }}</span>
+        {% endif %}
+    </div>
+</div>

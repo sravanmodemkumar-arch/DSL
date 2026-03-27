@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}YouTube - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold">YouTube Management</h2>
+            <p class="text-gray-400 text-sm mt-1">Upload videos and manage YouTube links</p>
+        </div>
+        <button hx-post="/youtube/bulk-upload" hx-target="#bulk-result" hx-swap="innerHTML" hx-confirm="Upload all ready videos to YouTube?"
+            class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500/30 transition text-sm">
+            Bulk Upload ({{ not_uploaded }} ready)
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 gap-4">
+        <div class="bg-dark-card border border-dark-border rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-green-400">{{ uploaded }}</p>
+            <p class="text-xs text-gray-500 mt-1">Published on YouTube</p>
+        </div>
+        <div class="bg-dark-card border border-dark-border rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-gray-400">{{ not_uploaded }}</p>
+            <p class="text-xs text-gray-500 mt-1">Ready to Upload</p>
+        </div>
+    </div>
+
+    <div id="bulk-result"></div>
+
+    <!-- Info Banner -->
+    <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-sm text-blue-300">
+        YouTube API is optional. You can manually add YouTube URLs after uploading videos through YouTube Studio.
+        To enable API uploads, place <code class="bg-black/30 px-1 rounded">client_secrets.json</code> in the project root.
+    </div>
+
+    <!-- Video List -->
+    <div class="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-dark-border text-left text-xs text-gray-500 uppercase">
+                    <th class="px-4 py-3">Video</th>
+                    <th class="px-4 py-3">Subject / Topic</th>
+                    <th class="px-4 py-3">YouTube Status</th>
+                    <th class="px-4 py-3">YouTube URL</th>
+                    <th class="px-4 py-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-dark-border">
+                {% for v in videos %}
+                <tr class="hover:bg-white/5" id="yt-row-{{ v.video_id }}">
+                    <td class="px-4 py-3">
+                        <a href="/videos/{{ v.video_id }}" class="text-accent hover:underline">{{ v.video_id }}</a>
+                        <p class="text-xs text-gray-500 truncate max-w-[200px]">{{ v.title[:50] }}</p>
+                    </td>
+                    <td class="px-4 py-3 text-gray-400">{{ v.subject }} / {{ v.topic }}</td>
+                    <td class="px-4 py-3">
+                        {% if v.youtube_status == 'published' %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-green-500/20 text-green-400">Published</span>
+                        {% elif v.youtube_status == 'uploading' %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400">Uploading</span>
+                        {% elif v.youtube_status == 'failed' %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">Failed</span>
+                        {% else %}
+                        <span class="text-xs px-2 py-0.5 rounded bg-gray-500/20 text-gray-400">Not Uploaded</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if v.youtube_url %}
+                        <a href="{{ v.youtube_url }}" target="_blank" class="text-xs text-accent hover:underline truncate block max-w-[200px]">{{ v.youtube_url }}</a>
+                        {% else %}
+                        <form hx-post="/youtube/update-url/{{ v.video_id }}" hx-target="#yt-row-{{ v.video_id }}" hx-swap="outerHTML" class="flex gap-1">
+                            <input type="text" name="youtube_url" placeholder="Paste URL..."
+                                class="flex-1 bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs focus:border-accent/50 focus:outline-none">
+                            <button class="bg-white/10 px-2 py-1 rounded text-xs hover:bg-white/20">Save</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3">
+                        {% if v.youtube_status != 'published' %}
+                        <button hx-post="/youtube/upload/{{ v.video_id }}" hx-target="#yt-row-{{ v.video_id }}" hx-swap="outerHTML"
+                            class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Upload</button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not videos %}
+        <div class="text-center py-12 text-gray-500 text-sm">No completed videos to manage</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

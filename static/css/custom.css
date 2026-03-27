@@ -1,0 +1,45 @@
+/* Custom overrides for STEM Video Generator */
+
+/* JSON editor */
+#json-editor {
+    tab-size: 2;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.5;
+}
+
+/* Custom scrollbar for editor */
+#json-editor::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+#json-editor::-webkit-scrollbar-track {
+    background: #0f0f23;
+}
+#json-editor::-webkit-scrollbar-thumb {
+    background: #2a2a4a;
+    border-radius: 4px;
+}
+
+/* Video card hover effect */
+.video-card:hover .video-overlay {
+    opacity: 1;
+}
+
+/* Loading pulse */
+.loading-pulse {
+    animation: loading-pulse 1.5s ease-in-out infinite;
+}
+@keyframes loading-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* Progress bar animation */
+.progress-bar {
+    transition: width 0.5s ease-out;
+}
+
+/* Table row hover */
+table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}

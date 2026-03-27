@@ -1,0 +1,603 @@
+[
+  {
+    "_DOC": "=== REFERENCE SCHEMA — Every field of the DSL documented inline. _comment fields are ignored by the renderer. Copy, adapt, and delete _comment fields before use. ===",
+
+    "id": "REQUIRED-unique-kebab-case-id",
+    "_id_comment": "RULES: lowercase letters, numbers, hyphens only. Must be unique across ALL questions in your library. Suggested format: q-[subject]-[topic]-[keyword]. Examples: q-math-lcm-hcf, q-bio-cell-division, q-hist-1857-revolt",
+
+    "thumbnail_intro_seconds": 4,
+    "_thumbnail_intro_seconds_comment": "Integer 0–5. Still image of the thumbnail shown BEFORE the video starts. 0 = no intro. 3–4 = recommended for YouTube shorts/reels.",
+
+    "thumbnail": {
+      "_comment": "Designs the video thumbnail — shown on YouTube, in preview, and as intro still.",
+      "title": "Short Title (3–4 words max)",
+      "_title_comment": "Main headline. Keep very short. E.g.: 'Divisibility Rules', 'Photosynthesis', 'Ohm's Law'",
+      "subtitle": "Descriptive subtitle explaining the video",
+      "_subtitle_comment": "Supporting text. Can be longer. E.g.: 'Rule of 9 & Rule of 11 — Fast Method'",
+      "badge": "SSC | UPSC | Banking | Railway",
+      "_badge_comment": "Exam tags shown as a banner. Use | to separate. E.g.: 'JEE | NEET | Class 10'",
+      "topic": "Subject — Specific Topic",
+      "_topic_comment": "Category label. E.g.: 'Mathematics — Number Theory', 'Biology — Cell Biology'",
+      "highlights": ["Key visual/trick 1", "Key visual/trick 2", "Key visual/trick 3"],
+      "_highlights_comment": "3 bullet points shown on thumbnail. What makes this video unique/useful.",
+      "style": "dark",
+      "_style_comment": "ONLY value: 'dark'. Light theme thumbnails not yet implemented."
+    },
+
+    "meta": {
+      "_comment": "Metadata for library organization, search, and export. Not rendered in video.",
+      "subject": "Mathematics",
+      "_subject_comment": "Pick ONE: Mathematics | Biology | Chemistry | Physics | History | Geography | Accounts | Economics | Reasoning | English | Computer Science | General Knowledge | Science",
+      "topic": "Number Theory",
+      "_topic_comment": "Chapter-level grouping. E.g.: 'Algebra', 'Organic Chemistry', 'Freedom Struggle'",
+      "subtopic": "Divisibility rules — 9 and 11",
+      "_subtopic_comment": "Specific concept. Used for tagging and analytics.",
+      "difficulty": "medium",
+      "_difficulty_comment": "ONLY values: easy | medium | hard",
+      "exam": "SSC / UPSC / Banking / Railway / State PSC",
+      "_exam_comment": "Target exams separated by /. Options: SSC / UPSC / JEE / NEET / CAT / IBPS / Railway / State PSC / Class 6-12",
+      "grade": "Class 6 to Competitive Exams",
+      "_grade_comment": "Target student level. E.g.: 'Class 10', 'Class 11-12', 'Competitive Exams'",
+      "language": "English",
+      "_language_comment": "ONLY value currently: English. Hindi support planned."
+    },
+
+    "question": {
+      "_comment": "The main MCQ question. Shown permanently in the header once revealed.",
+      "text": "Which number is divisible by both 9 and 11?",
+      "_text_comment": "Display text. Can include Unicode math: ÷ × ≤ ≥ ² ³ √ → ≠ ± α β γ π Σ ∞ ° ₁ ₂ H₂O CO₂",
+      "audio": "Which number is divisible by both nine and eleven?",
+      "_audio_comment": "SPOKEN version. CRITICAL RULES: (1) Spell all symbols: H₂O→'H two O', CO₂→'carbon dioxide', ÷→'divided by', ×→'multiplied by', ²→'squared', √→'square root of', ≥→'greater than or equal to', ±→'plus or minus'. (2) Write numbers in words when reading: 1947→'nineteen forty seven', 10098→'ten thousand and ninety eight'. (3) Complete natural sentences. NO hyphens — write 'twenty one' not 'twenty-one'.",
+      "options": [
+        { "key": "a", "value": "277218" },
+        { "key": "b", "value": "10098" },
+        { "key": "c", "value": "12345" },
+        { "key": "d", "value": "181998" }
+      ],
+      "_options_comment": "Always 4 options. Keys MUST be a/b/c/d (lowercase). Values are display strings — can include units, symbols.",
+      "correct": "b",
+      "_correct_comment": "The correct answer's key. MUST match one of the option keys exactly."
+    },
+
+    "assets": {
+      "_comment": "OPTIONAL. Maps asset keys to file paths. Upload files via the Assets page in the dashboard first. Then reference the key in render.src for image/svg/video targets.",
+      "images": {
+        "cell_diagram": "images/biology/cell_diagram.png",
+        "_comment": "key → relative path from ASSETS_DIR. Key is what you use in render.src"
+      },
+      "svgs": {
+        "number_line_svg": "svgs/maths/number_line.svg"
+      },
+      "videos": {
+        "pendulum_demo": "videos/physics/pendulum.mp4"
+      },
+      "audio_clips": {
+        "intro_music": "audio_clips/intro.mp3"
+      }
+    },
+
+    "scenes": [
+      {
+        "_comment": "=== SCENE TYPE: question === Show the question in header. Always first scene.",
+        "type": "question",
+        "_type_comment": "Scene types: question | options | concept | visual_intro",
+        "text": "Which number is divisible by both 9 and 11?",
+        "_text_comment": "Display text for the question (shown in header).",
+        "audio": "Which number is divisible by both nine and eleven? Completely divisible means zero remainder. The number must pass two separate tests — one for nine, one for eleven.",
+        "_audio_comment": "Full narration. Write 2–4 complete sentences. Explain what 'completely' and 'both' mean — add context a teacher would give.",
+        "render": { "action": "show", "target": "question_block" },
+        "_render_comment": "Always exactly this for question scenes."
+      },
+
+      {
+        "_comment": "=== SCENE TYPE: options === Read all options. Always second scene.",
+        "type": "options",
+        "audio": "Option A, two lakh seventy seven thousand two hundred and eighteen. Option B, ten thousand and ninety eight. Option C, twelve thousand three hundred and forty five. Option D, one lakh eighty one thousand nine hundred and ninety eight. Pause and think before continuing.",
+        "_audio_comment": "Read EACH option fully. Say 'Option A', 'Option B' etc — never 'paren A'. Spell out all numbers in words. Add 'Pause and think' or 'Which one seems right?' at end.",
+        "render": { "action": "show", "target": "options_grid" },
+        "_render_comment": "Always exactly this for options scenes."
+      },
+
+      {
+        "_comment": "=== SCENE TYPE: concept === Main explanation scene. Contains steps array.",
+        "type": "concept",
+        "_type_note": "IMPORTANT: Show CONCEPT/RULE first (concept_text or highlight_box steps), THEN show the working. Students need the rule before seeing it applied.",
+        "steps": [
+
+          {
+            "_comment": "--- ELEMENT: highlight_box --- Bold rule/formula in colored banner. Best for golden rules.",
+            "text": "The Golden Rule",
+            "_text_comment": "Step label — shown as a heading above content area during this step.",
+            "audio": "The most important rule: Add all digits. If the sum divides by nine, the number divides by nine.",
+            "_audio_comment": "Natural speech. At least 2 sentences. Explain WHY, not just WHAT.",
+            "render": {
+              "action": "show",
+              "_action_comment": "Actions: show (first time), update (change value), highlight (add highlight effect), clear (remove), show_result (like show, for answers).",
+              "target": "highlight_box",
+              "text": "Add all digits → if sum ÷ 9 = 0 remainder → divisible by 9",
+              "_text_note": "Keep short — 1 line. This is displayed LARGE and centered.",
+              "color": "blue",
+              "_color_comment": "Colors: orange | blue | green | red. Orange = warning/rule, Blue = info, Green = correct, Red = wrong."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: concept_text --- Text card with heading + bullet list. Main explanation element.",
+            "text": "Rule of 9 — Explained",
+            "audio": "The Rule of Nine works because nine is one less than ten, which is the base of our number system. When you add all digits, you are essentially computing the number modulo nine. If that sum is itself divisible by nine, so is the original number.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Rule of 9",
+              "_heading_comment": "Bold blue heading at top of card. Keep to 3–4 words.",
+              "items": [
+                "Add ALL digits of the number.",
+                "If digit sum is divisible by 9, number is divisible by 9.",
+                "Example: 18 → 1+8=9 → divisible by 9. ✓"
+              ],
+              "_items_comment": "Array of bullet point strings. 2–5 items ideal. Each item is one line.",
+              "highlighted": false,
+              "_highlighted_comment": "false = blue accent (default). true = orange accent (use for emphasis)."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: concept_text (highlighted=true) --- Orange variant for second/contrasting rule.",
+            "text": "Rule of 11 — Explained",
+            "audio": "Rule of Eleven. Assign alternating plus and minus signs starting from the leftmost digit. Add them up. If the result is zero or divisible by eleven, the number divides by eleven.",
+            "render": {
+              "action": "show",
+              "target": "concept_text",
+              "heading": "Rule of 11",
+              "items": [
+                "Alternate + and − signs from left digit.",
+                "+d₁ −d₂ +d₃ −d₄ ...",
+                "If result = 0 or divisible by 11 → divisible by 11."
+              ],
+              "highlighted": true
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: formula_block --- Blue card with 'Formula' label. Use for key equations.",
+            "text": "Formula",
+            "audio": "The formula for percentage is: value equals percentage divided by one hundred, multiplied by the total.",
+            "render": {
+              "action": "show",
+              "target": "formula_block",
+              "value": "Value = (Percent ÷ 100) × Total",
+              "_value_comment": "The formula text. Can include Unicode math symbols. Centered large text."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: equation --- Gray card for math working steps.",
+            "text": "Setup equation",
+            "audio": "Substitute the values. I equals V divided by R, which equals fifteen divided by five.",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "I = V ÷ R = 15 ÷ 5",
+              "_value_comment": "Math expression. Can use Unicode: ÷ × ± √ ² ³. Centered in card.",
+              "highlighted": false,
+              "_highlighted_comment": "false = blue accent (default). true = green border + green text (for final answer step)."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: equation (highlighted) --- Green highlighted equation for the final answer.",
+            "text": "Result",
+            "audio": "Therefore, I equals three amperes.",
+            "render": {
+              "action": "show",
+              "target": "equation",
+              "value": "I = 3 A",
+              "highlighted": true
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: digit_boxes --- Individual digit cards with operator symbols between them.",
+            "text": "Digits of 10098",
+            "audio": "The digits of ten thousand and ninety eight are one, zero, zero, nine, eight. Each digit is placed in its own box.",
+            "render": {
+              "action": "show",
+              "target": "digit_boxes",
+              "data": [1, 0, 0, 9, 8],
+              "_data_comment": "Array of digits (integers or strings). Each becomes one box. Can also be strings like '+1', '-0' for alternating signs.",
+              "highlighted_indices": [],
+              "_highlighted_indices_comment": "Array of 0-based index positions to highlight in blue. [] = none highlighted."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: running_sum --- Shows a running total. Usually paired with digit_boxes.",
+            "text": "Running sum",
+            "audio": "Adding the digits: one plus zero plus zero plus nine plus eight. The running sum is eighteen.",
+            "render": {
+              "action": "show",
+              "target": "running_sum",
+              "value": "18",
+              "_value_comment": "The sum value as a string. Shown as 'Sum = 18' in a styled card."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: fraction --- Fraction card with numerator/denominator display.",
+            "text": "Simplify",
+            "audio": "Fifteen divided by one hundred simplifies to three over twenty.",
+            "render": {
+              "action": "show",
+              "target": "fraction",
+              "numerator": "15",
+              "_numerator_comment": "Top number (string).",
+              "denominator": "100",
+              "_denominator_comment": "Bottom number (string).",
+              "result": "3/20",
+              "_result_comment": "Simplified result shown to the right of the fraction. String.",
+              "label": "Simplify",
+              "_label_comment": "Small label above the fraction. Optional.",
+              "highlighted": false
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: sum_box --- Highlighted result box. Use for final numerical answers.",
+            "text": "Answer = 36",
+            "audio": "The answer is thirty six. Option B is correct.",
+            "render": {
+              "action": "show",
+              "target": "sum_box",
+              "value": "36",
+              "_value_comment": "The result value string. Shown large and centered.",
+              "highlighted": true,
+              "_highlighted_comment": "true = orange/green accent. Almost always true for sum_box."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: key_facts --- Key:Value table. Best for facts, dates, properties, units.",
+            "text": "Key Facts",
+            "audio": "Here are the key facts to remember. Chlorophyll is the green pigment that captures sunlight. Stomata are tiny pores for gas exchange. Glucose is the food produced.",
+            "render": {
+              "action": "show",
+              "target": "key_facts",
+              "heading": "Quick Facts",
+              "_heading_comment": "Blue bold heading at top of table. Optional.",
+              "facts": [
+                { "key": "Pigment",   "value": "Chlorophyll (green)" },
+                { "key": "Gas In",    "value": "CO₂ through stomata" },
+                { "key": "Gas Out",   "value": "O₂ (by-product)" },
+                { "key": "Product",   "value": "Glucose C₆H₁₂O₆" },
+                { "key": "Site",      "value": "Chloroplasts in leaves" }
+              ],
+              "_facts_comment": "Array of {key, value} objects. key = left column (bold blue), value = right column. 3–7 rows recommended."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: process_steps --- Numbered step list with orange circles. For procedures.",
+            "text": "Process Steps",
+            "audio": "Photosynthesis has three main steps. First, chlorophyll absorbs sunlight. Second, water molecules are split, releasing oxygen. Third, carbon dioxide is combined with hydrogen to form glucose.",
+            "render": {
+              "action": "show",
+              "target": "process_steps",
+              "heading": "Photosynthesis Steps",
+              "_heading_comment": "Orange bold heading. Optional.",
+              "steps": [
+                "Chlorophyll absorbs sunlight (light reaction)",
+                "H₂O splits → O₂ released as by-product",
+                "CO₂ + H → Glucose (dark reaction / Calvin cycle)"
+              ],
+              "_steps_comment": "Array of strings. Each string = one numbered step. 3–6 steps recommended."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: two_col_text --- Two-column comparison. Blue left, orange right.",
+            "text": "Comparison",
+            "audio": "Let us compare acids and bases. Acids have pH less than seven, taste sour, and turn litmus red. Bases have pH greater than seven, taste bitter, and turn litmus blue.",
+            "render": {
+              "action": "show",
+              "target": "two_col_text",
+              "left": {
+                "heading": "Acids",
+                "_heading_comment": "Left column heading (blue). Optional.",
+                "items": ["pH < 7", "Sour taste", "Turns litmus RED", "Examples: HCl, H₂SO₄"]
+              },
+              "right": {
+                "heading": "Bases",
+                "_heading_comment": "Right column heading (orange). Optional.",
+                "items": ["pH > 7", "Bitter taste", "Turns litmus BLUE", "Examples: NaOH, NH₃"]
+              },
+              "_note": "Both columns should have same number of items for best visual alignment."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: timeline --- Chronological events on a vertical timeline. For History.",
+            "text": "Key Events",
+            "audio": "The major events of India's freedom struggle span ninety years. In eighteen fifty seven, the first war of independence began. In nineteen thirty, Gandhi led the Dandi March. In nineteen forty seven, India gained independence.",
+            "render": {
+              "action": "show",
+              "target": "timeline",
+              "heading": "Freedom Struggle Timeline",
+              "_heading_comment": "Blue bold heading at top. Optional.",
+              "events": [
+                { "year": "1857", "event": "First War of Independence", "highlight": false },
+                { "year": "1885", "event": "Indian National Congress founded", "highlight": false },
+                { "year": "1919", "event": "Jallianwala Bagh Massacre", "highlight": false },
+                { "year": "1930", "event": "Dandi March — Salt Satyagraha", "highlight": false },
+                { "year": "1942", "event": "Quit India Movement", "highlight": false },
+                { "year": "1947", "event": "India gains Independence!", "highlight": true }
+              ],
+              "_events_comment": "Array of {year, event, highlight}. year = string label (can be any string like '3000 BCE'). event = description. highlight = true makes dot orange + text bold."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: chem_equation --- Chemical equation with arrow. Centered large text.",
+            "text": "Photosynthesis Equation",
+            "audio": "The balanced chemical equation: six carbon dioxide plus six water molecules, using sunlight and chlorophyll, produces one molecule of glucose and six molecules of oxygen.",
+            "render": {
+              "action": "show",
+              "target": "chem_equation",
+              "reactants": "6CO₂ + 6H₂O",
+              "_reactants_comment": "Left side of equation. String. Use Unicode subscripts: ₁₂₃₄₅₆₇₈₉",
+              "products": "C₆H₁₂O₆ + 6O₂",
+              "_products_comment": "Right side of equation.",
+              "conditions": "Sunlight + Chlorophyll",
+              "_conditions_comment": "Shown below arrow as small text. OPTIONAL. Omit if no conditions.",
+              "reversible": false,
+              "_reversible_comment": "false = → arrow (irreversible). true = ⇌ arrow (reversible/equilibrium)."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: flow_chart --- Process flow with colored boxes and arrows.",
+            "text": "Flow of Photosynthesis",
+            "audio": "The flow of photosynthesis: sunlight enters the leaf and is absorbed by chlorophyll. Water is absorbed from the roots. Carbon dioxide enters through stomata. Together they produce glucose and oxygen.",
+            "render": {
+              "action": "show",
+              "target": "flow_chart",
+              "heading": "Photosynthesis Flow",
+              "_heading_comment": "Orange heading at top. Optional.",
+              "steps": [
+                { "text": "Sunlight → Absorbed by Chlorophyll", "color": "orange" },
+                { "text": "H₂O absorbed from roots", "color": "blue" },
+                { "text": "CO₂ enters through stomata", "color": "blue" },
+                { "text": "Glucose + O₂ produced", "color": "green" }
+              ],
+              "_steps_comment": "Array of {text, color}. color options: orange | blue | green | red. Steps connected by arrows automatically."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: t_account --- Accounting T-account ledger format.",
+            "text": "Cash Account",
+            "audio": "Look at the cash account in T format. The left side is the debit side. Opening balance and cash received from customers appear here. The right side is the credit side, showing payments made.",
+            "render": {
+              "action": "show",
+              "target": "t_account",
+              "name": "Cash Account",
+              "_name_comment": "Account heading. Shown in navy banner at top.",
+              "debit": [
+                { "desc": "Opening Balance (b/d)", "amount": "50,000" },
+                { "desc": "Cash from Customers",   "amount": "80,000" },
+                { "desc": "Sale of Assets",        "amount": "15,000" }
+              ],
+              "_debit_comment": "Array of {desc, amount}. desc = description, amount = string (use commas for thousands).",
+              "credit": [
+                { "desc": "Purchases (Cash)",  "amount": "40,000" },
+                { "desc": "Salaries Paid",     "amount": "25,000" },
+                { "desc": "Balance c/d",       "amount": "80,000" }
+              ],
+              "_credit_comment": "Same format as debit. Debit = left column, Credit = right column."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: memory_trick --- Mnemonic/acronym with large colorful letters.",
+            "text": "Memory Trick",
+            "audio": "Remember the colors of the spectrum using the mnemonic VIBGYOR. V for Violet, I for Indigo, B for Blue, G for Green, Y for Yellow, O for Orange, R for Red.",
+            "render": {
+              "action": "show",
+              "target": "memory_trick",
+              "label": "Remember the spectrum as:",
+              "_label_comment": "Small gray text above the trick. Like a prompt. E.g.: 'Remember using:', 'Mnemonic:'",
+              "trick": "VIBGYOR",
+              "_trick_comment": "The acronym/mnemonic displayed LARGE with colored letters. E.g.: 'BODMAS', 'VIBGYOR', 'HOMES', 'FANBOYS'",
+              "expansion": "Violet Indigo Blue Green Yellow Orange Red",
+              "_expansion_comment": "Full form of the acronym. Shown centered below the trick.",
+              "note": "Colors of visible light spectrum (highest to lowest frequency)",
+              "_note_comment": "OPTIONAL. Additional hint or fact shown in small gray text at bottom."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: analogy --- A:B::C:? display for Reasoning questions.",
+            "text": "Analogy — Question",
+            "audio": "Doctor is to Hospital as Teacher is to what? Identify the relationship in the first pair: a doctor works in a hospital. Apply the same relationship to find what a teacher works in.",
+            "render": {
+              "action": "show",
+              "target": "analogy",
+              "relation": "Person : Place of Work",
+              "_relation_comment": "Describes the relationship pattern. Shown as small header. OPTIONAL.",
+              "pairs": [
+                ["Doctor", "Hospital"],
+                ["Teacher", "?"]
+              ],
+              "_pairs_comment": "Array of 2-element arrays [term, related_term]. Use '?' for the unknown. Renders as 'Doctor : Hospital :: Teacher : ?'",
+              "answer": "",
+              "_answer_comment": "Set to empty string '' when showing the question. Set to the answer string in the reveal step."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: analogy (reveal) --- Same analogy with answer filled in.",
+            "text": "Analogy — Answer",
+            "audio": "A teacher works in a school. The answer is School. Option B is correct.",
+            "render": {
+              "action": "show",
+              "target": "analogy",
+              "relation": "Person : Place of Work",
+              "pairs": [
+                ["Doctor", "Hospital"],
+                ["Teacher", "?"]
+              ],
+              "answer": "School",
+              "_answer_comment": "Now filled with the actual answer. Replaces '?' in the display."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: number_line --- Number line with marked and highlighted points.",
+            "text": "Number Line",
+            "audio": "On the number line from negative five to fifteen, we mark the key values. Zero is the origin. The answer, seven, is highlighted in orange between five and ten.",
+            "render": {
+              "action": "show",
+              "target": "number_line",
+              "label": "Number Line (-5 to 15)",
+              "_label_comment": "Heading shown above the number line. OPTIONAL.",
+              "start": -5,
+              "_start_comment": "Leftmost value (integer or float).",
+              "end": 15,
+              "_end_comment": "Rightmost value (integer or float). Arrow extends past this.",
+              "marks": [-5, 0, 5, 7, 10, 15],
+              "_marks_comment": "Array of numbers to mark with dots on the line.",
+              "highlight": [7],
+              "_highlight_comment": "Array of numbers to highlight in orange (larger dot). Others are blue (small dot)."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: table --- Data table with headers and rows.",
+            "text": "Comparison Table",
+            "audio": "Look at this comparison table of the three laws of motion.",
+            "render": {
+              "action": "show",
+              "target": "table",
+              "headers": ["Law", "Statement", "Example"],
+              "_headers_comment": "Array of column header strings.",
+              "rows": [
+                ["1st Law", "Object stays at rest or motion unless force applied", "Book on table"],
+                ["2nd Law", "F = ma — Force = mass × acceleration", "Pushing a car"],
+                ["3rd Law", "Every action has equal and opposite reaction",  "Rocket propulsion"]
+              ],
+              "_rows_comment": "Array of arrays. Each inner array = one row. Must match header count."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: image --- Display an uploaded image asset.",
+            "text": "Cell Diagram",
+            "audio": "This is a diagram of a plant cell showing the cell wall, chloroplasts, and vacuole.",
+            "render": {
+              "action": "show",
+              "target": "image",
+              "src": "cell_diagram",
+              "_src_comment": "Key from assets.images block. Upload the file via Assets page first.",
+              "position": "center",
+              "_position_comment": "Position: center | left | right",
+              "size": "medium",
+              "_size_comment": "Size: small | medium | large"
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: svg --- Display an uploaded SVG asset.",
+            "text": "Number Line Diagram",
+            "audio": "This SVG diagram shows the number line clearly.",
+            "render": {
+              "action": "show",
+              "target": "svg",
+              "src": "number_line_svg",
+              "position": "center",
+              "size": "large"
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: shortcut_columns --- Two-column method card for Math shortcuts. Complex but powerful.",
+            "text": "Rule of 9 — Starting",
+            "audio": "Now let us apply Rule of Nine to ten thousand and ninety eight.",
+            "render": {
+              "action": "show",
+              "target": "shortcut_columns",
+              "left": {
+                "title": "Rule of 9",
+                "_title_comment": "Column heading. Always required.",
+                "digit_data": [1, 0, 0, 9, 8],
+                "_digit_data_comment": "Array of digits. Can be integers [1,0,9] or strings ['+1','-0','+9'] for alternating signs.",
+                "operator": "+",
+                "_operator_comment": "Operator shown between digits: '+' or '−'. OPTIONAL.",
+                "numerator": "18",
+                "_numerator_comment": "Top of fraction shown at bottom. The sum. OPTIONAL.",
+                "denominator": "9",
+                "_denominator_comment": "Bottom of fraction (divisor). OPTIONAL.",
+                "result": "2",
+                "_result_comment": "Quotient. OPTIONAL.",
+                "verdict": "Divisible by 9!",
+                "_verdict_comment": "Pass/fail message shown at bottom. OPTIONAL.",
+                "pass": true,
+                "_pass_comment": "true = green check ✓. false = red cross ✗. OPTIONAL."
+              },
+              "right": {
+                "_comment": "OPTIONAL. Add when building second column. Same structure as left.",
+                "title": "Rule of 11",
+                "digit_data": ["+1", "-0", "+0", "-9", "+8"],
+                "sum_text": "+1 - 0 + 0 - 9 + 8 = 0",
+                "_sum_text_comment": "Full alternating sum expression shown below digits. OPTIONAL.",
+                "verdict": "Divisible by 11!",
+                "pass": true
+              }
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: instruction_text --- Full-width instruction that CLEARS all other body elements. Use for major section transitions.",
+            "text": "Now applying to Option B",
+            "audio": "Now let us apply both rules specifically to option B, which is ten thousand and ninety eight.",
+            "render": {
+              "action": "show",
+              "target": "instruction_text",
+              "value": "Applying to Option B: 10098",
+              "_value_comment": "The instruction text. CLEARS all previous body elements when shown."
+            }
+          },
+
+          {
+            "_comment": "--- FINAL STEP: final_answer --- Always the LAST step. Reveals correct option with green badge.",
+            "text": "Answer",
+            "audio": "The answer is Option B, ten thousand and ninety eight. It passes both the rule of nine and the rule of eleven.",
+            "render": {
+              "action": "show",
+              "target": "final_answer",
+              "_comment": "No other fields needed. Automatically highlights the correct option key in green."
+            }
+          }
+
+        ]
+      },
+
+      {
+        "_comment": "=== SCENE TYPE: visual_intro === Shows an image without audio. Used for diagrams/infographics.",
+        "type": "visual_intro",
+        "render": {
+          "action": "show",
+          "target": "image",
+          "src": "cell_diagram",
+          "position": "center",
+          "size": "large"
+        }
+      }
+
+    ],
+
+    "verdict_audio": {
+      "_comment": "OPTIONAL advanced feature. If the last scene needs a separate verdict narration after all steps.",
+      "_example": "Add 'verdict_audio': 'string' field directly inside a scene (not here at top level) to add a final verdict narration."
+    }
+
+  }
+]

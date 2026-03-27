@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Video Library - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold">Video Library</h2>
+            <p class="text-gray-400 text-sm mt-1">Browse and manage generated videos</p>
+        </div>
+        <a href="/upload" class="bg-accent/20 text-accent border border-accent/30 px-4 py-2 rounded-lg hover:bg-accent/30 transition text-sm">
+            + New Video
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-4">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div>
+                <select name="subject" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none"
+                    hx-get="/videos/list" hx-target="#video-grid" hx-include="[name]" hx-trigger="change">
+                    <option value="">All Subjects</option>
+                    {% for s in subjects %}
+                    <option value="{{ s }}" {{ 'selected' if filters.subject == s }}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <select name="difficulty" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none"
+                    hx-get="/videos/list" hx-target="#video-grid" hx-include="[name]" hx-trigger="change">
+                    <option value="">All Difficulty</option>
+                    <option value="easy" {{ 'selected' if filters.difficulty == 'easy' }}>Easy</option>
+                    <option value="medium" {{ 'selected' if filters.difficulty == 'medium' }}>Medium</option>
+                    <option value="hard" {{ 'selected' if filters.difficulty == 'hard' }}>Hard</option>
+                </select>
+            </div>
+            <div>
+                <select name="status" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none"
+                    hx-get="/videos/list" hx-target="#video-grid" hx-include="[name]" hx-trigger="change">
+                    <option value="">All Status</option>
+                    <option value="completed" {{ 'selected' if filters.status == 'completed' }}>Completed</option>
+                    <option value="processing" {{ 'selected' if filters.status == 'processing' }}>Processing</option>
+                    <option value="pending" {{ 'selected' if filters.status == 'pending' }}>Pending</option>
+                    <option value="failed" {{ 'selected' if filters.status == 'failed' }}>Failed</option>
+                </select>
+            </div>
+            <div>
+                <select name="sort" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none"
+                    hx-get="/videos/list" hx-target="#video-grid" hx-include="[name]" hx-trigger="change">
+                    <option value="newest" {{ 'selected' if filters.sort == 'newest' }}>Newest First</option>
+                    <option value="oldest" {{ 'selected' if filters.sort == 'oldest' }}>Oldest First</option>
+                    <option value="subject" {{ 'selected' if filters.sort == 'subject' }}>By Subject</option>
+                    <option value="duration" {{ 'selected' if filters.sort == 'duration' }}>By Duration</option>
+                </select>
+            </div>
+            <div class="col-span-2">
+                <input type="text" name="search" value="{{ filters.search }}" placeholder="Search videos..."
+                    class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none"
+                    hx-get="/videos/list" hx-target="#video-grid" hx-include="[name]" hx-trigger="keyup changed delay:300ms">
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Grid -->
+    <div id="video-grid">
+        {% include "components/video_grid.html" %}
+    </div>
+</div>
+{% endblock %}

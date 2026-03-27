@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}{{ video.title[:50] }} - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <div class="flex items-center gap-2 text-sm text-gray-400">
+        <a href="/videos" class="hover:text-accent">Library</a>
+        <span>/</span>
+        <span>{{ video.subject }}</span>
+        <span>/</span>
+        <span>{{ video.topic }}</span>
+        <span>/</span>
+        <span class="text-gray-200">{{ video.video_id }}</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Video Player (2/3) -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
+                {% if video.status == 'completed' and video.video_path %}
+                <video controls class="w-full aspect-video bg-black" preload="metadata">
+                    <source src="/videos/{{ video.video_id }}/stream" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+                {% else %}
+                <div class="w-full aspect-video bg-dark-bg flex items-center justify-center">
+                    {% if video.status == 'processing' %}
+                    <div class="text-center">
+                        <svg class="w-12 h-12 mx-auto animate-spin text-cyan-400 mb-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        <p class="text-cyan-400">Processing... {{ video.progress }}%</p>
+                    </div>
+                    {% elif video.status == 'failed' %}
+                    <div class="text-center">
+                        <svg class="w-12 h-12 mx-auto text-red-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-red-400">Generation Failed</p>
+                        <p class="text-xs text-gray-500 mt-1">{{ video.error_message[:100] }}</p>
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500">Video not yet generated</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Title & Description -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h2 class="text-lg font-semibold">{{ video.title }}</h2>
+                <div class="flex flex-wrap gap-2 mt-3">
+                    <span class="text-xs px-2 py-1 rounded bg-accent/10 text-accent">{{ video.subject }}</span>
+                    <span class="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{{ video.topic }}</span>
+                    {% if video.subtopic %}
+                    <span class="text-xs px-2 py-1 rounded bg-white/10 text-gray-300">{{ video.subtopic }}</span>
+                    {% endif %}
+                    <span class="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-400">{{ video.difficulty }}</span>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <a href="/videos/{{ video.video_id }}/preview"
+                   class="bg-white/10 text-gray-300 px-4 py-2 rounded-lg hover:bg-white/20 transition text-sm">
+                    Preview Frames
+                </a>
+                {% if video.status == 'completed' %}
+                <a href="/videos/{{ video.video_id }}/download"
+                   class="bg-accent/20 text-accent border border-accent/30 px-4 py-2 rounded-lg hover:bg-accent/30 transition text-sm">
+                    Download MP4
+                </a>
+                {% endif %}
+                {% if video.status == 'failed' %}
+                <button hx-post="/videos/{{ video.video_id }}/retry" hx-target="#retry-result" hx-swap="innerHTML"
+                    class="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-4 py-2 rounded-lg hover:bg-yellow-500/30 transition text-sm">
+                    Retry Generation
+                </button>
+                {% endif %}
+                <button hx-delete="/videos/{{ video.video_id }}/delete" hx-confirm="Delete this video permanently?"
+                    hx-target="body"
+                    class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500/30 transition text-sm">
+                    Delete
+                </button>
+            </div>
+            <div id="retry-result"></div>
+        </div>
+
+        <!-- Sidebar Info (1/3) -->
+        <div class="space-y-4">
+            <!-- Details -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Video Details</h3>
+                <dl class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Video ID</dt>
+                        <dd class="font-mono text-xs">{{ video.video_id }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Status</dt>
+                        <dd>
+                            {% if video.status == 'completed' %}
+                            <span class="text-green-400">Completed</span>
+                            {% elif video.status == 'processing' %}
+                            <span class="text-cyan-400">Processing ({{ video.progress }}%)</span>
+                            {% elif video.status == 'failed' %}
+                            <span class="text-red-400">Failed</span>
+                            {% else %}
+                            <span class="text-gray-400">Pending</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Duration</dt>
+                        <dd>{{ '%d:%02d' % (video.duration_seconds // 60, video.duration_seconds % 60) if video.duration_seconds else 'N/A' }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Resolution</dt>
+                        <dd>{{ video.resolution }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Quality</dt>
+                        <dd>{{ video.quality_preset }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Theme</dt>
+                        <dd>{{ video.theme }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-400">Created</dt>
+                        <dd>{{ video.created_at.strftime('%Y-%m-%d %H:%M') if video.created_at else 'N/A' }}</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- YouTube -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">YouTube</h3>
+                <div id="youtube-status">
+                    {% include "components/youtube_status.html" %}
+                </div>
+            </div>
+
+            <!-- Tags -->
+            {% if video.exam_tags or video.purpose_tags %}
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-3">Tags</h3>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for tag in video.exam_tags.split(',') if tag %}
+                    <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">{{ tag }}</span>
+                    {% endfor %}
+                    {% for tag in video.purpose_tags.split(',') if tag %}
+                    <span class="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Error Details -->
+            {% if video.error_message %}
+            <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-5">
+                <h3 class="text-sm font-semibold text-red-400 mb-2">Error</h3>
+                <p class="text-xs text-red-300 font-mono break-all">{{ video.error_message }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

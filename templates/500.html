@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}500 - Server Error{% endblock %}
+{% block content %}
+<div class="flex items-center justify-center min-h-[60vh]">
+    <div class="text-center">
+        <p class="text-6xl font-bold text-red-400 mb-4">500</p>
+        <p class="text-xl text-gray-300 mb-2">Internal Server Error</p>
+        <p class="text-sm text-gray-500 mb-6">Something went wrong. Check the logs for details.</p>
+        <a href="/" class="bg-accent/20 text-accent border border-accent/30 px-6 py-2 rounded-lg hover:bg-accent/30 transition text-sm">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+{% endblock %}

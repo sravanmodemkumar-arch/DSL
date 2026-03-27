@@ -1,0 +1,37 @@
+{% if video.youtube_status == 'published' and video.youtube_url %}
+<div class="space-y-3">
+    <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-green-400"></span>
+        <span class="text-sm text-green-400">Published</span>
+    </div>
+    <a href="{{ video.youtube_url }}" target="_blank" class="text-xs text-accent hover:underline break-all">{{ video.youtube_url }}</a>
+</div>
+{% elif video.youtube_status == 'uploading' %}
+<div class="flex items-center gap-2">
+    <svg class="w-4 h-4 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+    <span class="text-sm text-cyan-400">Uploading...</span>
+</div>
+{% elif video.youtube_status == 'failed' %}
+<div class="flex items-center gap-2">
+    <span class="w-2 h-2 rounded-full bg-red-400"></span>
+    <span class="text-sm text-red-400">Upload Failed</span>
+</div>
+{% else %}
+<div class="space-y-3">
+    <p class="text-sm text-gray-500">Not uploaded</p>
+    {% if video.status == 'completed' %}
+    <button hx-post="/youtube/upload/{{ video.video_id }}" hx-target="#youtube-status" hx-swap="innerHTML"
+        class="w-full bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-2 rounded-lg hover:bg-red-500/30 transition text-xs">
+        Upload to YouTube
+    </button>
+    {% endif %}
+    <div class="mt-2">
+        <p class="text-xs text-gray-500 mb-1">Or add URL manually:</p>
+        <form hx-post="/youtube/update-url/{{ video.video_id }}" hx-target="#youtube-status" hx-swap="innerHTML" class="flex gap-2">
+            <input type="text" name="youtube_url" placeholder="https://youtube.com/watch?v=..."
+                class="flex-1 bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs focus:border-accent/50 focus:outline-none">
+            <button class="bg-white/10 px-2 py-1 rounded text-xs hover:bg-white/20">Save</button>
+        </form>
+    </div>
+</div>
+{% endif %}

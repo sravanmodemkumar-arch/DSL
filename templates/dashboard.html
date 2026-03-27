@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-bold">Dashboard</h2>
+            <p class="text-gray-400 text-sm mt-1">Overview of your video generation system</p>
+        </div>
+        <a href="/upload" class="bg-accent/20 text-accent border border-accent/30 px-4 py-2 rounded-lg hover:bg-accent/30 transition text-sm font-medium">
+            + Upload JSON
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div id="stats-cards" hx-get="/stats" hx-trigger="every 10s" hx-swap="innerHTML">
+        {% include "components/stats_cards.html" %}
+    </div>
+
+    <!-- Two Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Recent Videos -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+            <h3 class="text-lg font-semibold mb-4">Recent Videos</h3>
+            {% if recent %}
+            <div class="space-y-3">
+                {% for v in recent %}
+                <a href="/videos/{{ v.video_id }}" class="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium truncate">{{ v.title[:60] }}</p>
+                        <p class="text-xs text-gray-500">{{ v.subject }} / {{ v.topic }}</p>
+                    </div>
+                    <div class="ml-3 shrink-0">
+                        {% if v.status == 'completed' %}
+                        <span class="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">Done</span>
+                        {% elif v.status == 'processing' %}
+                        <span class="text-xs px-2 py-1 rounded bg-cyan-500/20 text-cyan-400">{{ v.progress }}%</span>
+                        {% elif v.status == 'failed' %}
+                        <span class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400">Failed</span>
+                        {% else %}
+                        <span class="text-xs px-2 py-1 rounded bg-gray-500/20 text-gray-400">Pending</span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No videos yet. <a href="/upload" class="text-accent underline">Upload JSON</a> to get started.</p>
+            {% endif %}
+        </div>
+
+        <!-- Subject Distribution -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+            <h3 class="text-lg font-semibold mb-4">Videos by Subject</h3>
+            {% if subjects %}
+            <div class="space-y-3">
+                {% for subject, count in subjects.items() %}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm">{{ subject }}</span>
+                    <div class="flex items-center gap-3">
+                        <div class="w-32 h-2 bg-dark-border rounded-full overflow-hidden">
+                            <div class="h-full bg-accent rounded-full" style="width: {{ (count / total_videos * 100) if total_videos > 0 else 0 }}%"></div>
+                        </div>
+                        <span class="text-sm text-gray-400 w-8 text-right">{{ count }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No data yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Active Jobs -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Active Jobs</h3>
+                <a href="/queue" class="text-xs text-accent hover:underline">View All</a>
+            </div>
+            {% if active_jobs %}
+            <div class="space-y-3">
+                {% for job in active_jobs %}
+                <div class="p-3 rounded-lg bg-white/5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium">{{ job.video_id }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded {% if job.status == 'processing' %}bg-cyan-500/20 text-cyan-400{% else %}bg-gray-500/20 text-gray-400{% endif %}">
+                            {{ job.stage or job.status }}
+                        </span>
+                    </div>
+                    <div class="w-full h-1.5 bg-dark-border rounded-full overflow-hidden">
+                        <div class="h-full bg-accent rounded-full transition-all duration-500" style="width: {{ job.progress }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No active jobs.</p>
+            {% endif %}
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+            <h3 class="text-lg font-semibold mb-4">YouTube Status</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="p-4 rounded-lg bg-white/5 text-center">
+                    <p class="text-2xl font-bold text-green-400">{{ uploaded }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Published</p>
+                </div>
+                <div class="p-4 rounded-lg bg-white/5 text-center">
+                    <p class="text-2xl font-bold text-gray-400">{{ completed - uploaded }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Ready to Upload</p>
+                </div>
+            </div>
+            <a href="/youtube" class="block mt-4 text-center text-sm text-accent hover:underline">Manage YouTube</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% if videos %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for v in videos %}
+    <div class="bg-dark-card border border-dark-border rounded-xl overflow-hidden hover:border-accent/30 transition fade-in">
+        <!-- Thumbnail -->
+        <div class="aspect-video bg-dark-bg relative">
+            {% if v.status == 'completed' and v.thumbnail_path %}
+            <img src="/videos/{{ v.video_id }}/thumbnail" alt="" class="w-full h-full object-cover">
+            {% else %}
+            <div class="w-full h-full flex items-center justify-center">
+                <span class="text-3xl text-gray-600">
+                    {% if v.status == 'processing' %}
+                    <svg class="w-10 h-10 animate-spin text-cyan-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    {% elif v.status == 'failed' %}
+                    <svg class="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {% else %}
+                    <svg class="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+
+            {% if v.duration_seconds > 0 %}
+            <span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
+                {{ '%d:%02d' % (v.duration_seconds // 60, v.duration_seconds % 60) }}
+            </span>
+            {% endif %}
+
+            {% if v.status == 'processing' %}
+            <div class="absolute bottom-0 left-0 right-0 h-1 bg-dark-border">
+                <div class="h-full bg-accent transition-all" style="width: {{ v.progress }}%"></div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Info -->
+        <div class="p-4">
+            <a href="/videos/{{ v.video_id }}" class="text-sm font-medium hover:text-accent transition line-clamp-2">
+                {{ v.title[:80] }}
+            </a>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="text-xs px-2 py-0.5 rounded bg-accent/10 text-accent">{{ v.subject }}</span>
+                <span class="text-xs text-gray-500">{{ v.topic }}</span>
+            </div>
+            <div class="flex items-center justify-between mt-3 text-xs text-gray-500">
+                <span>{{ v.resolution }} / {{ v.quality_preset }}</span>
+                <span>{{ v.difficulty }}</span>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if pagination.pages > 1 %}
+<div class="flex justify-center mt-6 gap-2">
+    {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if page_num %}
+            <a href="?page={{ page_num }}" class="px-3 py-1.5 rounded text-sm {{ 'bg-accent text-black font-medium' if page_num == pagination.page else 'bg-dark-card border border-dark-border hover:border-accent/30' }}">
+                {{ page_num }}
+            </a>
+        {% else %}
+            <span class="px-2 py-1.5 text-gray-500">...</span>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+{% else %}
+<div class="text-center py-20">
+    <svg class="w-16 h-16 mx-auto text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+    <p class="text-gray-500">No videos found</p>
+    <a href="/upload" class="text-accent text-sm hover:underline mt-2 inline-block">Upload JSON to generate videos</a>
+</div>
+{% endif %}

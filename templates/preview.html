@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Preview - {{ video.video_id }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-2 text-sm text-gray-400 mb-2">
+                <a href="/videos" class="hover:text-accent">Library</a>
+                <span>/</span>
+                <a href="/videos/{{ video.video_id }}" class="hover:text-accent">{{ video.video_id }}</a>
+                <span>/</span>
+                <span class="text-gray-200">Preview</span>
+            </div>
+            <h2 class="text-2xl font-bold">Preview: {{ video.video_id }}</h2>
+            <p class="text-gray-400 text-sm mt-1">Quick visual preview of key frames before full rendering</p>
+        </div>
+        <a href="/videos/{{ video.video_id }}" class="bg-white/10 text-gray-300 px-4 py-2 rounded-lg hover:bg-white/20 transition text-sm">
+            Back to Video
+        </a>
+    </div>
+
+    <!-- Video Info -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-4">
+        <div class="flex items-center gap-4">
+            <span class="text-xs px-2 py-1 rounded bg-accent/10 text-accent">{{ video.subject }}</span>
+            <span class="text-sm text-gray-300">{{ video.topic }}</span>
+            {% if video.subtopic %}
+            <span class="text-sm text-gray-500">/ {{ video.subtopic }}</span>
+            {% endif %}
+            <span class="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-400">{{ video.difficulty }}</span>
+            <span class="text-xs text-gray-500">{{ video.resolution }} / {{ video.quality_preset }}</span>
+        </div>
+    </div>
+
+    <!-- Preview Frames -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold">Key Frames Preview</h3>
+            <button hx-get="/videos/{{ video.video_id }}/preview-frames" hx-target="#preview-frames" hx-swap="innerHTML"
+                hx-indicator="#preview-loading"
+                class="text-xs px-3 py-1.5 rounded bg-accent/20 text-accent hover:bg-accent/30 transition">
+                Generate Preview
+            </button>
+        </div>
+
+        <div id="preview-loading" class="htmx-indicator text-center py-8">
+            <svg class="w-8 h-8 mx-auto animate-spin text-accent" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+            <p class="text-gray-500 text-sm mt-2">Rendering preview frames...</p>
+        </div>
+
+        <div id="preview-frames">
+            <div class="text-center py-12 text-gray-500 text-sm">
+                Click "Generate Preview" to see how key frames will look
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON Content -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+        <h3 class="text-sm font-semibold mb-3">Source JSON</h3>
+        <div class="text-xs text-gray-500 mb-2">{{ video.json_path }}</div>
+        <div class="bg-dark-bg rounded-lg p-4 max-h-96 overflow-y-auto">
+            <pre class="text-xs text-gray-400 font-mono whitespace-pre-wrap" id="json-preview"></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load JSON content
+    fetch('/videos/{{ video.video_id }}')
+        .then(() => {
+            const pre = document.getElementById('json-preview');
+            if (pre) pre.textContent = 'JSON source available at: {{ video.json_path }}';
+        });
+</script>
+{% endblock %}

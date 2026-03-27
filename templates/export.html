@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Export - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold">Export Data</h2>
+        <p class="text-gray-400 text-sm mt-1">Download Excel/CSV reports with video data and YouTube links</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Export Options -->
+        <div class="space-y-4">
+            <form action="/export/download" method="POST">
+                <div class="bg-dark-card border border-dark-border rounded-xl p-5 space-y-4">
+                    <h3 class="text-sm font-semibold">Export Type</h3>
+
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition">
+                            <input type="radio" name="export_type" value="master" checked class="text-accent">
+                            <div>
+                                <p class="text-sm font-medium">Master List</p>
+                                <p class="text-xs text-gray-500">All videos in a single sheet</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition">
+                            <input type="radio" name="export_type" value="subject" class="text-accent">
+                            <div>
+                                <p class="text-sm font-medium">Subject-wise</p>
+                                <p class="text-xs text-gray-500">Separate sheet per subject</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition">
+                            <input type="radio" name="export_type" value="topic" class="text-accent">
+                            <div>
+                                <p class="text-sm font-medium">Topic-wise</p>
+                                <p class="text-xs text-gray-500">Separate sheet per subject/topic</p>
+                            </div>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer transition">
+                            <input type="radio" name="export_type" value="youtube" class="text-accent">
+                            <div>
+                                <p class="text-sm font-medium">YouTube Links</p>
+                                <p class="text-xs text-gray-500">Only videos with YouTube URLs</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="border-t border-dark-border pt-4 space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Filter by Subject</label>
+                            <select name="subject" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                <option value="">All Subjects</option>
+                                {% for s in subjects %}
+                                <option value="{{ s }}">{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Filter by Status</label>
+                            <select name="status" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                <option value="">All Statuses</option>
+                                <option value="completed" selected>Completed Only</option>
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Format</label>
+                            <div class="flex gap-3">
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="format" value="xlsx" checked class="text-accent">
+                                    <span class="text-sm">Excel (.xlsx)</span>
+                                </label>
+                                <label class="flex items-center gap-2">
+                                    <input type="radio" name="format" value="csv" class="text-accent">
+                                    <span class="text-sm">CSV (.csv)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-accent/20 text-accent border border-accent/30 py-2.5 rounded-lg hover:bg-accent/30 transition text-sm font-medium">
+                        Download Export
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Preview / Info -->
+        <div class="space-y-4">
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Export Summary</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Total Completed Videos</span>
+                        <span class="font-medium">{{ total }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Subjects</span>
+                        <span class="font-medium">{{ subjects | length }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Topics</span>
+                        <span class="font-medium">{{ topics | length }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-3">Excel Columns</h3>
+                <div class="text-xs text-gray-400 space-y-1">
+                    <p>Video ID, Title, Subject, Chapter, Topic, Subtopic</p>
+                    <p>Difficulty, Duration, Resolution, Quality Preset</p>
+                    <p>Status, YouTube URL, YouTube Status</p>
+                    <p>Exam Tags, Purpose Tags, Created Date</p>
+                </div>
+            </div>
+
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-3">Use Cases</h3>
+                <ul class="text-xs text-gray-400 space-y-2">
+                    <li class="flex items-start gap-2">
+                        <span class="text-accent mt-0.5">-</span>
+                        <span>Share YouTube playlists by subject with students</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-accent mt-0.5">-</span>
+                        <span>Track which videos are uploaded to YouTube</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-accent mt-0.5">-</span>
+                        <span>Create curriculum mapping documents</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-accent mt-0.5">-</span>
+                        <span>Bulk import into LMS platforms</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

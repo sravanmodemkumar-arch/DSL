@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}Settings - STEM Video Generator{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold">Settings</h2>
+        <p class="text-gray-400 text-sm mt-1">Configure default video generation settings</p>
+    </div>
+
+    <form hx-post="/settings/save" hx-target="#save-result" hx-swap="innerHTML">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Video Defaults -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Video Defaults</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Default Resolution</label>
+                        <select name="default_resolution" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            {% for res in resolutions %}
+                            <option value="{{ res }}" {{ 'selected' if settings.default_resolution == res }}>{{ res }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Default Quality Preset</label>
+                        <select name="default_quality_preset" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            {% for key, val in presets.items() %}
+                            <option value="{{ key }}" {{ 'selected' if settings.default_quality_preset == key }}>{{ key }} - {{ val.label }} ({{ val.bitrate }}, {{ val.fps }}fps)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Default Duration (minutes)</label>
+                        <input type="number" name="default_duration_minutes" value="{{ settings.default_duration_minutes }}" min="1" max="30"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Default Theme</label>
+                        <select name="default_theme" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="dark" {{ 'selected' if settings.default_theme == 'dark' }}>Dark</option>
+                            <option value="light" {{ 'selected' if settings.default_theme == 'light' }}>Light</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Default FPS</label>
+                        <select name="default_fps" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="24" {{ 'selected' if settings.default_fps == '24' }}>24 fps</option>
+                            <option value="30" {{ 'selected' if settings.default_fps == '30' }}>30 fps</option>
+                            <option value="60" {{ 'selected' if settings.default_fps == '60' }}>60 fps</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio / TTS -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Audio / TTS</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">TTS Engine</label>
+                        <select name="tts_engine" id="tts_engine" onchange="toggleTtsFields()" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="edge_tts" {{ 'selected' if settings.tts_engine == 'edge_tts' }}>Edge TTS — Neural (Best, Free)</option>
+                            <option value="gtts" {{ 'selected' if settings.tts_engine == 'gtts' }}>Google TTS (Online)</option>
+                            <option value="pyttsx3" {{ 'selected' if settings.tts_engine == 'pyttsx3' }}>pyttsx3 (Offline)</option>
+                        </select>
+                    </div>
+                    <!-- Edge TTS voice selector -->
+                    <div id="edge_voice_row">
+                        <label class="block text-xs text-gray-400 mb-1">Voice (Edge TTS)</label>
+                        <div class="flex gap-2 items-start">
+                        <select id="edge_voice_select" name="tts_tld" class="flex-1 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" onchange="resetPreview()">
+                            <optgroup label="— Indian English —">
+                                <option value="en-IN-NeerjaNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaNeural' }}>Neerja — Indian Female (clear)</option>
+                                <option value="en-IN-NeerjaExpressiveNeural" {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaExpressiveNeural' }}>Neerja Expressive — Indian Female</option>
+                                <option value="en-IN-PrabhatNeural"          {{ 'selected' if settings.tts_tld == 'en-IN-PrabhatNeural' }}>Prabhat — Indian Male (clear)</option>
+                                <option value="en-IN-AaravNeural"            {{ 'selected' if settings.tts_tld == 'en-IN-AaravNeural' }}>Aarav — Indian Male (young)</option>
+                                <option value="en-IN-AnanyaNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-AnanyaNeural' }}>Ananya — Indian Female (warm)</option>
+                                <option value="en-IN-KavyaNeural"            {{ 'selected' if settings.tts_tld == 'en-IN-KavyaNeural' }}>Kavya — Indian Female (bright)</option>
+                                <option value="en-IN-KunalNeural"            {{ 'selected' if settings.tts_tld == 'en-IN-KunalNeural' }}>Kunal — Indian Male (deep)</option>
+                                <option value="en-IN-RehaanNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-RehaanNeural' }}>Rehaan — Indian Male (casual)</option>
+                            </optgroup>
+                            <optgroup label="— Hindi —">
+                                <option value="hi-IN-SwaraNeural"  {{ 'selected' if settings.tts_tld == 'hi-IN-SwaraNeural' }}>Swara — Hindi Female</option>
+                                <option value="hi-IN-MadhurNeural" {{ 'selected' if settings.tts_tld == 'hi-IN-MadhurNeural' }}>Madhur — Hindi Male</option>
+                            </optgroup>
+                            <optgroup label="— Tamil —">
+                                <option value="ta-IN-PallaviNeural"  {{ 'selected' if settings.tts_tld == 'ta-IN-PallaviNeural' }}>Pallavi — Tamil Female</option>
+                                <option value="ta-IN-ValluvarNeural" {{ 'selected' if settings.tts_tld == 'ta-IN-ValluvarNeural' }}>Valluvar — Tamil Male</option>
+                            </optgroup>
+                            <optgroup label="— Telugu —">
+                                <option value="te-IN-ShrutiNeural" {{ 'selected' if settings.tts_tld == 'te-IN-ShrutiNeural' }}>Shruti — Telugu Female</option>
+                                <option value="te-IN-MohanNeural"  {{ 'selected' if settings.tts_tld == 'te-IN-MohanNeural' }}>Mohan — Telugu Male</option>
+                            </optgroup>
+                            <optgroup label="— Marathi —">
+                                <option value="mr-IN-AarohiNeural"  {{ 'selected' if settings.tts_tld == 'mr-IN-AarohiNeural' }}>Aarohi — Marathi Female</option>
+                                <option value="mr-IN-ManoharNeural" {{ 'selected' if settings.tts_tld == 'mr-IN-ManoharNeural' }}>Manohar — Marathi Male</option>
+                            </optgroup>
+                            <optgroup label="— Bengali —">
+                                <option value="bn-IN-TanishaaNeural" {{ 'selected' if settings.tts_tld == 'bn-IN-TanishaaNeural' }}>Tanishaa — Bengali Female</option>
+                                <option value="bn-IN-BashkarNeural"  {{ 'selected' if settings.tts_tld == 'bn-IN-BashkarNeural' }}>Bashkar — Bengali Male</option>
+                            </optgroup>
+                            <optgroup label="— Gujarati —">
+                                <option value="gu-IN-DhwaniNeural"   {{ 'selected' if settings.tts_tld == 'gu-IN-DhwaniNeural' }}>Dhwani — Gujarati Female</option>
+                                <option value="gu-IN-NiranjanNeural" {{ 'selected' if settings.tts_tld == 'gu-IN-NiranjanNeural' }}>Niranjan — Gujarati Male</option>
+                            </optgroup>
+                            <optgroup label="— Kannada —">
+                                <option value="kn-IN-SapnaNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-SapnaNeural' }}>Sapna — Kannada Female</option>
+                                <option value="kn-IN-GaganNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-GaganNeural' }}>Gagan — Kannada Male</option>
+                            </optgroup>
+                            <optgroup label="— Malayalam —">
+                                <option value="ml-IN-SobhanaNeural" {{ 'selected' if settings.tts_tld == 'ml-IN-SobhanaNeural' }}>Sobhana — Malayalam Female</option>
+                                <option value="ml-IN-MidhunNeural"  {{ 'selected' if settings.tts_tld == 'ml-IN-MidhunNeural' }}>Midhun — Malayalam Male</option>
+                            </optgroup>
+                            <optgroup label="— International —">
+                                <option value="en-US-JennyNeural" {{ 'selected' if settings.tts_tld == 'en-US-JennyNeural' }}>Jenny — US Female</option>
+                                <option value="en-US-GuyNeural"   {{ 'selected' if settings.tts_tld == 'en-US-GuyNeural' }}>Guy — US Male</option>
+                                <option value="en-GB-SoniaNeural" {{ 'selected' if settings.tts_tld == 'en-GB-SoniaNeural' }}>Sonia — British Female</option>
+                            </optgroup>
+                        </select>
+                        <button type="button" onclick="previewVoice()"
+                            class="shrink-0 px-3 py-2 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
+                            ▶ Preview
+                        </button>
+                        </div>
+                        <div id="preview_player" class="mt-2 hidden">
+                            <audio id="preview_audio" controls class="w-full h-8"></audio>
+                            <p id="preview_status" class="text-xs text-gray-500 mt-1"></p>
+                        </div>
+                        <!-- Pre-generate all samples -->
+                        <div class="mt-3 flex items-center gap-3">
+                            <button type="button" onclick="generateAllSamples()"
+                                class="px-3 py-1.5 bg-dark-bg hover:bg-dark-border border border-dark-border rounded-lg text-xs text-gray-300 transition-colors">
+                                Generate All Samples
+                            </button>
+                            <span class="text-xs text-gray-500">saves to <code>static/voice_samples/</code> for instant playback</span>
+                        </div>
+                        <div id="gen_samples_result" class="mt-2"></div>
+                    </div>
+                    <!-- gTTS accent selector (shown only when gtts selected) -->
+                    <div id="gtts_rows" style="display:none">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Language</label>
+                            <select name="tts_lang" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                <option value="en" {{ 'selected' if settings.tts_lang == 'en' }}>English</option>
+                                <option value="hi" {{ 'selected' if settings.tts_lang == 'hi' }}>Hindi</option>
+                            </select>
+                        </div>
+                        <div class="mt-3">
+                            <label class="block text-xs text-gray-400 mb-1">Accent (gTTS TLD)</label>
+                            <select name="tts_tld_gtts" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                <option value="co.in" {{ 'selected' if settings.tts_tld == 'co.in' }}>Indian English</option>
+                                <option value="com"   {{ 'selected' if settings.tts_tld == 'com' }}>US English</option>
+                                <option value="co.uk" {{ 'selected' if settings.tts_tld == 'co.uk' }}>UK English</option>
+                                <option value="com.au" {{ 'selected' if settings.tts_tld == 'com.au' }}>Australian English</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+            function generateAllSamples() {
+                var btn = event.target;
+                var res = document.getElementById('gen_samples_result');
+                btn.disabled = true;
+                btn.textContent = 'Generating…';
+                res.innerHTML = '<p class="text-xs text-gray-400">This may take a minute…</p>';
+                fetch('/settings/tts-generate-samples', {method: 'POST', body: new FormData()})
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        res.innerHTML = html;
+                        btn.disabled = false;
+                        btn.textContent = 'Generate All Samples';
+                    })
+                    .catch(function(e){
+                        res.innerHTML = '<p class="text-xs text-red-400">Error: ' + e.message + '</p>';
+                        btn.disabled = false;
+                        btn.textContent = 'Generate All Samples';
+                    });
+            }
+            function toggleTtsFields() {
+                var eng = document.getElementById('tts_engine').value;
+                document.getElementById('edge_voice_row').style.display = eng === 'edge_tts' ? '' : 'none';
+                document.getElementById('gtts_rows').style.display = eng === 'gtts' ? '' : 'none';
+                resetPreview();
+            }
+            function resetPreview() {
+                document.getElementById('preview_player').classList.add('hidden');
+                document.getElementById('preview_status').textContent = '';
+            }
+            function previewVoice() {
+                var voice = document.getElementById('edge_voice_select').value;
+                var status = document.getElementById('preview_status');
+                var player = document.getElementById('preview_player');
+                var audio  = document.getElementById('preview_audio');
+                status.textContent = 'Generating sample…';
+                player.classList.remove('hidden');
+                audio.src = '';
+                fetch('/settings/tts-preview?voice=' + encodeURIComponent(voice))
+                    .then(function(r) {
+                        if (!r.ok) return r.json().then(function(j){ throw new Error(j.error); });
+                        return r.blob();
+                    })
+                    .then(function(blob) {
+                        audio.src = URL.createObjectURL(blob);
+                        audio.play();
+                        status.textContent = 'Playing: ' + voice;
+                    })
+                    .catch(function(e) {
+                        status.textContent = 'Error: ' + e.message;
+                    });
+            }
+            toggleTtsFields();
+            </script>
+
+            <!-- Background Music -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Background Music</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Enable BGM</label>
+                        <select name="bgm_enabled" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="true" {{ 'selected' if settings.bgm_enabled == 'true' }}>Enabled</option>
+                            <option value="false" {{ 'selected' if settings.bgm_enabled == 'false' }}>Disabled</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Music Style</label>
+                        <select name="bgm_style" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="calm_waves" {{ 'selected' if settings.bgm_style == 'calm_waves' }}>Calm Waves — slow sine pad</option>
+                            <option value="zen_garden" {{ 'selected' if settings.bgm_style == 'zen_garden' }}>Zen Garden — soft pentatonic chimes</option>
+                            <option value="morning_dew" {{ 'selected' if settings.bgm_style == 'morning_dew' }}>Morning Dew — light airy shimmer</option>
+                            <option value="deep_focus" {{ 'selected' if settings.bgm_style == 'deep_focus' }}>Deep Focus — low drone</option>
+                            <option value="soft_piano" {{ 'selected' if settings.bgm_style == 'soft_piano' }}>Soft Piano — gentle arpeggio</option>
+                            <option value="crystal_bowl" {{ 'selected' if settings.bgm_style == 'crystal_bowl' }}>Crystal Bowl — singing bowl resonance</option>
+                            <option value="forest_stream" {{ 'selected' if settings.bgm_style == 'forest_stream' }}>Forest Stream — nature ambience</option>
+                            <option value="twilight" {{ 'selected' if settings.bgm_style == 'twilight' }}>Twilight — warm evening chords</option>
+                            <option value="lotus" {{ 'selected' if settings.bgm_style == 'lotus' }}>Lotus — Indian tanpura drone</option>
+                            <option value="bansuri" {{ 'selected' if settings.bgm_style == 'bansuri' }}>Bansuri — Indian meditation flute</option>
+                            <option value="silent_mind" {{ 'selected' if settings.bgm_style == 'silent_mind' }}>Silent Mind — barely-there hum</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">BGM Volume (0.05 - 0.30)</label>
+                        <input type="number" name="bgm_volume" value="{{ settings.bgm_volume }}" min="0.05" max="0.30" step="0.05"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">Lower = more subtle. Narration always stays clear.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Watermark -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Watermark (Copyright Protection)</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Enable Watermark</label>
+                        <select name="watermark_enabled" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="false" {{ 'selected' if settings.watermark_enabled == 'false' }}>Disabled</option>
+                            <option value="true"  {{ 'selected' if settings.watermark_enabled == 'true' }}>Enabled — moves every 4 sec</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Text Watermark (if no image)</label>
+                        <input type="text" name="watermark_text" value="{{ settings.watermark_text }}"
+                            placeholder="e.g. © MyChannel"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">Used only when no image is uploaded.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Opacity (0.10 – 0.80)</label>
+                        <input type="number" name="watermark_opacity" value="{{ settings.watermark_opacity }}"
+                            min="0.10" max="0.80" step="0.05"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                    </div>
+                    <!-- Image upload (separate form, not part of main save) -->
+                    <div class="border border-dark-border rounded-lg p-3 space-y-2">
+                        <label class="block text-xs text-gray-400">Watermark Image (PNG / JPG / WEBP)</label>
+                        <div id="wm_status" hx-get="/settings/watermark/status"
+                             hx-trigger="load" class="mb-1"></div>
+                        <div class="flex gap-2">
+                            <input type="file" id="wm_file" accept=".png,.jpg,.jpeg,.webp"
+                                class="flex-1 text-xs text-gray-400 bg-dark-bg border border-dark-border rounded-lg px-2 py-1.5 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-accent/20 file:text-accent">
+                            <button type="button" onclick="uploadWatermark()"
+                                class="shrink-0 px-3 py-1.5 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
+                                Upload
+                            </button>
+                            <button type="button"
+                                hx-post="/settings/watermark/delete"
+                                hx-target="#wm_status" hx-swap="innerHTML"
+                                class="shrink-0 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-400 transition-colors">
+                                Remove
+                            </button>
+                        </div>
+                        <div id="wm_upload_result"></div>
+                    </div>
+                </div>
+            </div>
+            <script>
+            function uploadWatermark() {
+                var file = document.getElementById('wm_file').files[0];
+                if (!file) { alert('Select a file first.'); return; }
+                var fd = new FormData();
+                fd.append('watermark_file', file);
+                fetch('/settings/watermark/upload', { method: 'POST', body: fd })
+                    .then(function(r){ return r.text(); })
+                    .then(function(html){
+                        document.getElementById('wm_upload_result').innerHTML = html;
+                        htmx.trigger('#wm_status', 'load');
+                    });
+            }
+            </script>
+
+            <!-- Processing -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">Processing</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Max Workers (parallel jobs)</label>
+                        <input type="number" name="max_workers" value="{{ settings.max_workers }}" min="1" max="16"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Job Timeout (seconds)</label>
+                        <input type="number" name="job_timeout" value="{{ settings.job_timeout }}" min="60" max="3600"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">FFmpeg Path</label>
+                        <input type="text" name="ffmpeg_path" value="{{ settings.ffmpeg_path }}"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">Leave as "ffmpeg" if installed in PATH</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YouTube (Optional) -->
+            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-4">YouTube (Optional)</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Auto Upload after Generation</label>
+                        <select name="auto_youtube_upload" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="false" {{ 'selected' if settings.auto_youtube_upload == 'false' }}>Disabled</option>
+                            <option value="true" {{ 'selected' if settings.auto_youtube_upload == 'true' }}>Enabled</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Default Privacy</label>
+                        <select name="youtube_default_privacy" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="public" {{ 'selected' if settings.youtube_default_privacy == 'public' }}>Public</option>
+                            <option value="unlisted" {{ 'selected' if settings.youtube_default_privacy == 'unlisted' }}>Unlisted</option>
+                            <option value="private" {{ 'selected' if settings.youtube_default_privacy == 'private' }}>Private</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Category</label>
+                        <select name="youtube_default_category" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <option value="27" {{ 'selected' if settings.youtube_default_category == '27' }}>Education</option>
+                            <option value="28" {{ 'selected' if settings.youtube_default_category == '28' }}>Science & Technology</option>
+                        </select>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        Place <code class="bg-black/30 px-1 rounded">client_secrets.json</code> in project root for API access.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save / Reset -->
+        <div class="flex items-center gap-3 mt-6">
+            <button type="submit"
+                class="bg-accent/20 text-accent border border-accent/30 px-6 py-2.5 rounded-lg hover:bg-accent/30 transition text-sm font-medium">
+                Save Settings
+            </button>
+            <button type="button" hx-post="/settings/reset" hx-target="#save-result" hx-swap="innerHTML" hx-confirm="Reset all settings to defaults?"
+                class="bg-white/10 text-gray-300 px-6 py-2.5 rounded-lg hover:bg-white/20 transition text-sm">
+                Reset to Defaults
+            </button>
+        </div>
+        <div id="save-result" class="mt-4"></div>
+    </form>
+</div>
+{% endblock %}
