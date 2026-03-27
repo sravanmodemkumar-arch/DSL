@@ -45,17 +45,19 @@ def create_app():
             _conn.commit()
         db.create_all()
 
-    # ── Logging — rotate at 5 MB, keep 1 backup ──────────────────────────
+    # ── Logging — rotate at 2 MB, keep 0 backups (auto-cleanup) ─────────
     log_handler = RotatingFileHandler(
-        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=1, encoding="utf-8"
+        LOG_FILE, maxBytes=2 * 1024 * 1024, backupCount=0, encoding="utf-8"
     )
-    log_handler.setLevel(logging.INFO)
+    log_handler.setLevel(logging.WARNING)  # Only warnings+errors to file
     log_handler.setFormatter(logging.Formatter(
         "%(asctime)s %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     ))
     app.logger.addHandler(log_handler)
-    # Also capture werkzeug request logs
-    logging.getLogger("werkzeug").addHandler(log_handler)
+
+    # Suppress verbose werkzeug request logging (each HTTP request)
+    werkzeug_logger = logging.getLogger("werkzeug")
+    werkzeug_logger.setLevel(logging.ERROR)  # Only log errors, not every GET/POST
 
     # Register blueprints
     register_blueprints(app)

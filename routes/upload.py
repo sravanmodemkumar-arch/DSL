@@ -410,8 +410,8 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             job.completed_at       = datetime.now(timezone.utc)
             db.session.commit()
 
-            # Clean server log after successful render to free disk space
-            _truncate_server_log()
+            # Clean logs, caches, temp files after successful render
+            _cleanup_after_success()
 
         except Exception as e:
             video.status      = "failed"
@@ -426,11 +426,38 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             db.session.commit()
 
 
-def _truncate_server_log():
-    """Clear server.log after successful video render to free disk space."""
-    try:
-        log_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "server.log")
-        if os.path.exists(log_path):
-            open(log_path, "w").close()  # Truncate to 0 bytes
-    except Exception:
-        pass  # Non-critical — don't fail the job if log cleanup fails
+def _cleanup_after_success():
+    """Clean logs and temp files after successful video render to free memory/disk."""
+    project_root = os.path.dirname(os.path.dirname(__file__))
+
+    # 1. Truncate server.log (clear all request/debug logs)
+    for log_name in ("server.log", "server.log.1"):
+        log_path = os.path.join(project_root, log_name)
+        try:
+            if os.path.exists(log_path):
+                with open(log_path, "w") as f:
+                    f.truncate(0)
+        except Exception:
+            pass
+
+    # 2. Clear Python __pycache__ dirs to free memory
+    for dirpath, dirnames, _filenames in os.walk(project_root):
+        for d in dirnames:
+            if d == "__pycache__":
+                cache_path = os.path.join(dirpath, d)
+                try:
+                    import shutil
+                    shutil.rmtree(cache_path, ignore_errors=True)
+                except Exception:
+                    pass
+
+    # 3. Clear any leftover temp frame/audio dirs
+    storage_dir = os.path.join(project_root, "storage")
+    for entry in os.listdir(storage_dir) if os.path.isdir(storage_dir) else []:
+        full = os.path.join(storage_dir, entry)
+        if os.path.isdir(full) and (entry.startswith("frames_") or entry.startswith("audio_")):
+            try:
+                import shutil
+                shutil.rmtree(full, ignore_errors=True)
+            except Exception:
+                pass
