@@ -1,3 +1,5 @@
+import os
+import shutil
 from flask import Blueprint, render_template, request
 from models import db, JobQueue, Video
 from datetime import datetime, timezone
@@ -52,10 +54,51 @@ def cancel(job_id):
         job.status = "cancelled"
         video = Video.query.filter_by(video_id=job.video_id).first()
         if video:
-            video.status = "pending"
+            video.status = "failed"
             video.progress = 0
+            video.error_message = "Cancelled by user"
+            # Clean up any partially generated files
+            _cleanup_video_files(video)
         db.session.commit()
     return render_template("components/queue_item.html", job=job)
+
+
+def _cleanup_video_files(video):
+    """Delete all files generated for a video (used on cancel or delete)."""
+    # Individual known file paths
+    for path in [video.video_path, video.audio_path, video.thumbnail_path]:
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+    # Output directory (audio segments, bgm, mixed, frames)
+    if video.video_path:
+        output_dir = os.path.dirname(video.video_path)
+        if output_dir and os.path.isdir(output_dir):
+            qid = video.video_id
+            # Temp audio files
+            for suffix in (f"{qid}_audio.mp3", f"{qid}_bgm.wav", f"{qid}_mixed.mp3"):
+                p = os.path.join(output_dir, suffix)
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
+            # Audio segments dir
+            audio_dir = os.path.join(output_dir, "audio")
+            if os.path.isdir(audio_dir):
+                shutil.rmtree(audio_dir, ignore_errors=True)
+            # Frames dir (if render was interrupted)
+            frames_dir = os.path.join(output_dir, "frames")
+            if os.path.isdir(frames_dir):
+                shutil.rmtree(frames_dir, ignore_errors=True)
+
+    # Clear paths in DB
+    video.video_path = ""
+    video.audio_path = ""
+    video.thumbnail_path = ""
 
 
 @queue_bp.route("/<int:job_id>/retry", methods=["POST"])

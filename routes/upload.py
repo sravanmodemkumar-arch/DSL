@@ -3,7 +3,7 @@ import json
 import zipfile
 import tempfile
 import threading
-from flask import Blueprint, render_template, request, current_app, jsonify
+from flask import Blueprint, render_template, request, current_app, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 from models import db, Video, JobQueue
 from engine.validator import validate_json
@@ -16,6 +16,24 @@ upload_bp = Blueprint("upload", __name__)
 @upload_bp.route("/")
 def index():
     return render_template("upload.html")
+
+
+@upload_bp.route("/download/reference-schema")
+def download_reference_schema():
+    path = os.path.join(current_app.root_path, "REFERENCE_SCHEMA.json")
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, as_attachment=True, download_name="REFERENCE_SCHEMA.json",
+                     mimetype="application/json")
+
+
+@upload_bp.route("/download/prompt")
+def download_prompt():
+    path = os.path.join(current_app.root_path, "PROMPT_JSON_GENERATOR.md")
+    if not os.path.exists(path):
+        abort(404)
+    return send_file(path, as_attachment=True, download_name="PROMPT_JSON_GENERATOR.md",
+                     mimetype="text/markdown")
 
 
 @upload_bp.route("/validate", methods=["POST"])
@@ -123,17 +141,45 @@ def process():
         if existing:
             continue
 
+        # Title: prefer question text, fall back to thumbnail title, then ID
+        title = (
+            q.get("question", {}).get("text")
+            or q.get("thumbnail", {}).get("title", "")
+            or qid
+        )
+
+        # exam_tags: meta.exam is a string like "SSC / UPSC / Banking"
+        raw_exam = meta.get("exam", meta.get("exam_tags", ""))
+        if isinstance(raw_exam, list):
+            exam_tags_str = ",".join(raw_exam)
+        else:
+            exam_tags_str = ",".join(p.strip() for p in raw_exam.replace("/", ",").split(",") if p.strip())
+
+        # grade_tags: meta.grade is a plain string
+        raw_grade = meta.get("grade", meta.get("grade_tags", ""))
+        if isinstance(raw_grade, list):
+            grade_tags_str = ",".join(raw_grade)
+        else:
+            grade_tags_str = raw_grade.strip()
+
+        # purpose_tags: optional list or string
+        raw_purpose = meta.get("purpose", meta.get("purpose_tags", ""))
+        if isinstance(raw_purpose, list):
+            purpose_tags_str = ",".join(raw_purpose)
+        else:
+            purpose_tags_str = raw_purpose.strip()
+
         video = Video(
             video_id=qid,
-            title=q.get("scenes", [{}])[0].get("text", qid) if q.get("scenes") else qid,
+            title=title,
             subject=meta.get("subject", "Unknown"),
-            chapter=meta.get("chapter", meta.get("topic", "")),
+            chapter=meta.get("chapter", ""),
             topic=meta.get("topic", ""),
             subtopic=meta.get("subtopic", ""),
             difficulty=meta.get("difficulty", "medium"),
-            exam_tags=",".join(meta.get("exam_tags", [])),
-            purpose_tags=",".join(meta.get("purpose_tags", [])),
-            grade_tags=",".join(meta.get("grade_tags", [])),
+            exam_tags=exam_tags_str,
+            purpose_tags=purpose_tags_str,
+            grade_tags=grade_tags_str,
             resolution=resolution,
             quality_preset=quality,
             theme=theme,

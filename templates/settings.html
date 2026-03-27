@@ -430,27 +430,123 @@
                             class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
                         <p class="text-xs text-gray-500 mt-1">API key is for reading YouTube data only. Uploading always requires OAuth.</p>
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Auto Upload after Generation</label>
-                        <select name="auto_youtube_upload" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="false" {{ 'selected' if settings.auto_youtube_upload == 'false' }}>Disabled</option>
-                            <option value="true" {{ 'selected' if settings.auto_youtube_upload == 'true' }}>Enabled</option>
-                        </select>
+                    <!-- Upload behaviour -->
+                    <div class="border-t border-dark-border pt-3 space-y-3">
+                        <p class="text-xs text-gray-400 font-medium">Upload Behaviour</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Auto Upload after Render</label>
+                                <select name="auto_youtube_upload" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                    <option value="false" {{ 'selected' if settings.auto_youtube_upload == 'false' }}>Disabled</option>
+                                    <option value="true"  {{ 'selected' if settings.auto_youtube_upload == 'true' }}>Enabled</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Default Privacy</label>
+                                <select name="youtube_default_privacy" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                    <option value="public"   {{ 'selected' if settings.youtube_default_privacy == 'public' }}>Public</option>
+                                    <option value="unlisted" {{ 'selected' if settings.youtube_default_privacy == 'unlisted' }}>Unlisted</option>
+                                    <option value="private"  {{ 'selected' if settings.youtube_default_privacy == 'private' }}>Private</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Category</label>
+                                <select name="youtube_default_category" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                    <option value="27" {{ 'selected' if settings.youtube_default_category == '27' }}>Education (27)</option>
+                                    <option value="28" {{ 'selected' if settings.youtube_default_category == '28' }}>Science & Tech (28)</option>
+                                    <option value="26" {{ 'selected' if settings.youtube_default_category == '26' }}>How-to & Style (26)</option>
+                                    <option value="22" {{ 'selected' if settings.youtube_default_category == '22' }}>People & Blogs (22)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Language</label>
+                                <select name="youtube_language" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                    <option value="en"    {{ 'selected' if settings.youtube_language == 'en' }}>English</option>
+                                    <option value="hi"    {{ 'selected' if settings.youtube_language == 'hi' }}>Hindi</option>
+                                    <option value="te"    {{ 'selected' if settings.youtube_language == 'te' }}>Telugu</option>
+                                    <option value="ta"    {{ 'selected' if settings.youtube_language == 'ta' }}>Tamil</option>
+                                    <option value="kn"    {{ 'selected' if settings.youtube_language == 'kn' }}>Kannada</option>
+                                    <option value="ml"    {{ 'selected' if settings.youtube_language == 'ml' }}>Malayalam</option>
+                                    <option value="mr"    {{ 'selected' if settings.youtube_language == 'mr' }}>Marathi</option>
+                                    <option value="bn"    {{ 'selected' if settings.youtube_language == 'bn' }}>Bengali</option>
+                                    <option value="gu"    {{ 'selected' if settings.youtube_language == 'gu' }}>Gujarati</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">License</label>
+                                <select name="youtube_license" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                    <option value="youtube" {{ 'selected' if settings.youtube_license == 'youtube' }}>Standard YouTube</option>
+                                    <option value="creativeCommon" {{ 'selected' if settings.youtube_license == 'creativeCommon' }}>Creative Commons</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Made for Kids</label>
+                                <select name="youtube_made_for_kids" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                                    <option value="false" {{ 'selected' if settings.youtube_made_for_kids != 'true' }}>No</option>
+                                    <option value="true"  {{ 'selected' if settings.youtube_made_for_kids == 'true' }}>Yes</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Default Privacy</label>
-                        <select name="youtube_default_privacy" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="public" {{ 'selected' if settings.youtube_default_privacy == 'public' }}>Public</option>
-                            <option value="unlisted" {{ 'selected' if settings.youtube_default_privacy == 'unlisted' }}>Unlisted</option>
-                            <option value="private" {{ 'selected' if settings.youtube_default_privacy == 'private' }}>Private</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Category</label>
-                        <select name="youtube_default_category" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="27" {{ 'selected' if settings.youtube_default_category == '27' }}>Education</option>
-                            <option value="28" {{ 'selected' if settings.youtube_default_category == '28' }}>Science & Technology</option>
-                        </select>
+
+                    <!-- SEO Metadata -->
+                    <div class="border-t border-dark-border pt-3 space-y-3">
+                        <p class="text-xs text-gray-400 font-medium">SEO Metadata (applied to every video)</p>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Channel / Brand Name</label>
+                            <input type="text" name="youtube_channel_name"
+                                value="{{ settings.youtube_channel_name }}"
+                                placeholder="e.g. ExamReady Academy"
+                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <p class="text-xs text-gray-600 mt-0.5">Appended to title: "Topic | ChannelName"</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Default Keywords / Tags
+                                <span class="text-gray-600">(comma-separated — added to every video)</span></label>
+                            <textarea name="youtube_default_tags" rows="3"
+                                placeholder="competitive exam, study tips, exam preparation, shortcut tricks, concept video, education"
+                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none resize-none">{{ settings.youtube_default_tags }}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Default Hashtags
+                                <span class="text-gray-600">(without #, comma-separated)</span></label>
+                            <input type="text" name="youtube_default_hashtags"
+                                value="{{ settings.youtube_default_hashtags }}"
+                                placeholder="Education, ExamPreparation, StudyWithMe, ShortTricks"
+                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Description Header
+                                <span class="text-gray-600">(shown at top of every description)</span></label>
+                            <textarea name="youtube_desc_header" rows="3"
+                                placeholder="Welcome to [Channel Name]! We make exam preparation easy with clear concept videos and shortcut tricks."
+                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none resize-none">{{ settings.youtube_desc_header }}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Description Footer / CTA
+                                <span class="text-gray-600">(shown at bottom — links, subscribe message)</span></label>
+                            <textarea name="youtube_desc_footer" rows="4"
+                                placeholder="🔔 SUBSCRIBE for daily exam shortcuts → [channel link]
+📱 Telegram: t.me/yourchannel
+📧 Contact: your@email.com
+👍 Like | 💬 Comment | 🔔 Subscribe"
+                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none resize-none">{{ settings.youtube_desc_footer }}</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-500 mb-1">Playlist ID
+                                <span class="text-gray-600">(auto-add videos to this playlist)</span></label>
+                            <input type="text" name="youtube_playlist_id"
+                                value="{{ settings.youtube_playlist_id }}"
+                                placeholder="PLxxxxxxxxxxxxxxxxxxxxxx"
+                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
+                            <p class="text-xs text-gray-600 mt-0.5">Find it in YouTube Studio → Playlists → share link → ?list=THIS_PART</p>
+                        </div>
                     </div>
                 </div>
             </div>

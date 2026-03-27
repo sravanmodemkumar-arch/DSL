@@ -176,17 +176,25 @@ def upload_video(video_id):
         db.session.commit()
 
         title, description, tags = _build_metadata(video)
-        from models import Setting
-        privacy = Setting.get("youtube_default_privacy", "public")
-        category = Setting.get("youtube_default_category", "27")
+        yt_cfg = _get_yt_upload_config(video)
 
-        yt_id = _upload_to_youtube(video.video_path, title, description, tags, creds,
-                                   privacy=privacy, category=category)
+        yt_id = _upload_to_youtube(
+            video.video_path, title, description, tags, creds,
+            privacy=yt_cfg["privacy"],
+            category=yt_cfg["category"],
+            language=yt_cfg["language"],
+            license=yt_cfg["license"],
+            made_for_kids=yt_cfg["made_for_kids"],
+        )
 
         if yt_id:
             video.youtube_video_id = yt_id
             video.youtube_url = f"https://www.youtube.com/watch?v={yt_id}"
             video.youtube_status = "published"
+            # Add to playlist if specified
+            playlist_id = yt_cfg.get("playlist_id", "")
+            if playlist_id:
+                _add_to_playlist(yt_id, playlist_id, creds)
         else:
             video.youtube_status = "failed"
 
@@ -216,15 +224,22 @@ def bulk_upload():
             video.youtube_status = "uploading"
             db.session.commit()
             title, description, tags = _build_metadata(video)
-            from models import Setting
-            privacy = Setting.get("youtube_default_privacy", "public")
-            category = Setting.get("youtube_default_category", "27")
-            yt_id = _upload_to_youtube(video.video_path, title, description, tags, creds,
-                                       privacy=privacy, category=category)
+            yt_cfg = _get_yt_upload_config(video)
+            yt_id = _upload_to_youtube(
+                video.video_path, title, description, tags, creds,
+                privacy=yt_cfg["privacy"],
+                category=yt_cfg["category"],
+                language=yt_cfg["language"],
+                license=yt_cfg["license"],
+                made_for_kids=yt_cfg["made_for_kids"],
+            )
             if yt_id:
                 video.youtube_video_id = yt_id
                 video.youtube_url = f"https://www.youtube.com/watch?v={yt_id}"
                 video.youtube_status = "published"
+                playlist_id = yt_cfg.get("playlist_id", "")
+                if playlist_id:
+                    _add_to_playlist(yt_id, playlist_id, creds)
                 results["success"] += 1
             else:
                 video.youtube_status = "failed"
@@ -259,94 +274,173 @@ def update_url(video_id):
 # ── Internal ──────────────────────────────────────────────────────────────────
 
 def _build_metadata(video):
-    """Build SEO-friendly title, description and tags for a video."""
-    # ── Title (max 100 chars) ─────────────────────────────────────────────────
-    # Format: "Topic: Question | Subject | Difficulty | Exam"
-    parts = [p for p in [video.topic, video.subtopic] if p]
-    topic_str = " - ".join(parts) if parts else video.subject
-    exam_list = [t.strip() for t in (video.exam_tags or "").split(",") if t.strip()]
-    exam_str  = " | " + exam_list[0] if exam_list else ""
-    diff_str  = f" | {video.difficulty.capitalize()}" if video.difficulty else ""
-    title = f"{topic_str}{diff_str}{exam_str}"[:95]
-    if video.subject and video.subject.lower() not in title.lower():
-        title = f"{title} | {video.subject}"
-    title = title[:100]
+    """Build YouTube title, description and tags for a video.
 
-    # ── Description (SEO-rich, ~500 words) ───────────────────────────────────
-    duration_str = ""
-    if video.duration_seconds:
-        m, s = int(video.duration_seconds) // 60, int(video.duration_seconds) % 60
-        duration_str = f"{m}:{s:02d} min"
+    Priority order:
+      1. youtube block inside the video's JSON file (explicit override)
+      2. Auto-generated from meta/thumbnail/question fields in the JSON
+      3. Fallback from Video model fields (subject, topic, exam_tags, etc.)
+    """
+    import json as _json
 
-    exam_line   = ", ".join(exam_list) if exam_list else ""
-    grade_list  = [t.strip() for t in (video.grade_tags or "").split(",") if t.strip()]
-    purpose_list= [t.strip() for t in (video.purpose_tags or "").split(",") if t.strip()]
+    # ── Load question JSON ────────────────────────────────────────────────────
+    yt_block = {}
+    q_data = {}
+    if video.json_path and os.path.exists(video.json_path):
+        try:
+            with open(video.json_path, "r", encoding="utf-8") as f:
+                all_q = _json.load(f)
+            for q in all_q:
+                if q.get("id") == video.video_id:
+                    q_data = q
+                    yt_block = q.get("youtube", {})
+                    break
+        except Exception:
+            pass
 
-    desc_lines = [
-        f"📚 {video.title}",
-        "",
-        f"In this video, we cover {topic_str} from {video.subject}.",
-        f"Follow along for a clear, step-by-step explanation designed for exam preparation.",
-        "",
-        "─────────────────────────────",
-        "📌 VIDEO DETAILS",
-        "─────────────────────────────",
-        f"Subject   : {video.subject}",
-    ]
-    if video.chapter:
-        desc_lines.append(f"Chapter   : {video.chapter}")
-    desc_lines += [
-        f"Topic     : {video.topic}",
-    ]
-    if video.subtopic:
-        desc_lines.append(f"Subtopic  : {video.subtopic}")
-    desc_lines += [
-        f"Difficulty: {video.difficulty.capitalize() if video.difficulty else 'N/A'}",
-    ]
-    if duration_str:
-        desc_lines.append(f"Duration  : {duration_str}")
-    if video.resolution:
-        desc_lines.append(f"Quality   : {video.resolution} / {video.quality_preset}")
-    if exam_line:
-        desc_lines += ["", "─────────────────────────────",
-                       "🎯 FOR EXAMS", "─────────────────────────────", exam_line]
-    if grade_list:
-        desc_lines += ["", f"🎓 Grade / Level: {', '.join(grade_list)}"]
-    if purpose_list:
-        desc_lines += [f"🔖 Purpose: {', '.join(purpose_list)}"]
+    meta      = q_data.get("meta", {})
+    thumbnail = q_data.get("thumbnail", {})
+    question  = q_data.get("question", {})
 
-    desc_lines += [
-        "",
-        "─────────────────────────────",
-        "🔔 SUBSCRIBE for daily exam shortcuts, concept videos & solved questions.",
-        "👍 LIKE if this helped you!",
-        "💬 COMMENT your doubts below.",
-        "─────────────────────────────",
-        "",
-        f"#{''.join(video.subject.split())}",
-    ]
-    if video.topic:
-        desc_lines.append(f"#{''.join(video.topic.split())}")
-    for ex in exam_list[:3]:
-        desc_lines.append(f"#{''.join(ex.split())}")
-    desc_lines += ["#Education", "#ExamPreparation", "#StudyWithMe", "#ShortTrick"]
+    # ── Helper: exam list ─────────────────────────────────────────────────────
+    raw_exam = meta.get("exam", video.exam_tags or "")
+    if isinstance(raw_exam, list):
+        exam_list = raw_exam
+    else:
+        exam_list = [p.strip() for p in raw_exam.replace("/", ",").split(",") if p.strip()]
 
-    description = "\n".join(desc_lines)[:5000]
+    grade_str   = meta.get("grade", video.grade_tags or "")
+    subject     = meta.get("subject", video.subject or "")
+    topic       = meta.get("topic", video.topic or "")
+    subtopic    = meta.get("subtopic", video.subtopic or "")
+    difficulty  = meta.get("difficulty", video.difficulty or "medium")
 
-    # ── Tags (max 500 chars total) ────────────────────────────────────────────
-    raw_tags = (
-        [video.subject, video.topic, video.subtopic, video.chapter,
-         video.difficulty, "education", "STEM", "exam preparation",
-         "study tips", "shortcut", "concept video"]
-        + exam_list + grade_list + purpose_list
-    )
-    tags = list(dict.fromkeys(t for t in raw_tags if t))[:30]
+    # ── TITLE ─────────────────────────────────────────────────────────────────
+    if yt_block.get("title"):
+        title = yt_block["title"][:100]
+    else:
+        # Auto-generate: "Topic — Subtopic | Difficulty | Exam | Subject"
+        parts = [p for p in [topic, subtopic] if p]
+        topic_str = " — ".join(parts) if parts else subject
+        exam_str  = " | " + exam_list[0] if exam_list else ""
+        diff_str  = f" | {difficulty.capitalize()}" if difficulty else ""
+        title = f"{topic_str}{diff_str}{exam_str}"[:95]
+        if subject and subject.lower() not in title.lower():
+            title = f"{title} | {subject}"
+        title = title[:100]
+
+    # ── DESCRIPTION ───────────────────────────────────────────────────────────
+    if yt_block.get("description"):
+        # Use JSON description, append hashtags at the end
+        raw_desc = yt_block["description"]
+        ht_list  = yt_block.get("hashtags", [])
+        if ht_list:
+            raw_desc = raw_desc.rstrip() + "\n\n" + " ".join(ht_list)
+        description = raw_desc[:5000]
+    else:
+        # Auto-generate rich description
+        duration_str = ""
+        if video.duration_seconds:
+            m, s = int(video.duration_seconds) // 60, int(video.duration_seconds) % 60
+            duration_str = f"{m}:{s:02d} min"
+
+        q_text  = question.get("text", video.title or "")
+        th_sub  = thumbnail.get("subtitle", "")
+        exam_ln = ", ".join(exam_list) if exam_list else ""
+
+        desc_lines = [
+            f"📚 {q_text}",
+            "",
+        ]
+        if th_sub:
+            desc_lines += [th_sub, ""]
+
+        desc_lines += [
+            f"In this video we cover {topic or subject} from {subject}.",
+            "Clear step-by-step explanation designed for exam preparation.",
+            "",
+            "─────────────────────────────",
+            "📌 VIDEO DETAILS",
+            "─────────────────────────────",
+            f"Subject   : {subject}",
+        ]
+        if topic:
+            desc_lines.append(f"Topic     : {topic}")
+        if subtopic:
+            desc_lines.append(f"Subtopic  : {subtopic}")
+        desc_lines.append(f"Difficulty: {difficulty.capitalize() if difficulty else 'N/A'}")
+        if duration_str:
+            desc_lines.append(f"Duration  : {duration_str}")
+        if exam_ln:
+            desc_lines += ["", "─────────────────────────────",
+                           "🎯 FOR EXAMS", "─────────────────────────────", exam_ln]
+        if grade_str:
+            desc_lines += ["", f"🎓 Grade / Level: {grade_str}"]
+        desc_lines += [
+            "",
+            "─────────────────────────────",
+            "🔔 SUBSCRIBE for daily exam shortcuts, concept videos & solved questions.",
+            "👍 LIKE if this helped you!",
+            "💬 COMMENT your doubts below.",
+            "─────────────────────────────",
+            "",
+        ]
+        # Auto hashtags
+        auto_tags = [f"#{subject.replace(' ', '')}", f"#{topic.replace(' ', '')}"]
+        for ex in exam_list[:3]:
+            auto_tags.append(f"#{''.join(ex.split())}")
+        auto_tags += ["#Education", "#ExamPreparation", "#StudyWithMe", "#MathsShortcut"]
+        desc_lines.append(" ".join(dict.fromkeys(auto_tags)))
+
+        description = "\n".join(desc_lines)[:5000]
+
+    # ── TAGS ──────────────────────────────────────────────────────────────────
+    if yt_block.get("tags"):
+        # JSON tags merged with core subject/topic for discoverability
+        base = [subject, topic, subtopic]
+        tags = list(dict.fromkeys(yt_block["tags"] + [t for t in base if t]))[:30]
+    else:
+        raw_tags = (
+            [subject, topic, subtopic, difficulty,
+             "education", "exam preparation", "study tips", "shortcut"]
+            + exam_list
+            + ([grade_str] if grade_str else [])
+        )
+        tags = list(dict.fromkeys(t for t in raw_tags if t))[:30]
 
     return title, description, tags
 
 
+def _get_yt_upload_config(video):
+    """Read upload config from JSON youtube block, fall back to settings defaults."""
+    import json as _json
+    from models import Setting
+
+    yt_block = {}
+    if video.json_path and os.path.exists(video.json_path):
+        try:
+            with open(video.json_path, "r", encoding="utf-8") as f:
+                all_q = _json.load(f)
+            for q in all_q:
+                if q.get("id") == video.video_id:
+                    yt_block = q.get("youtube", {})
+                    break
+        except Exception:
+            pass
+
+    return {
+        "privacy":       yt_block.get("privacy")       or Setting.get("youtube_default_privacy", "public"),
+        "category":      yt_block.get("category")      or Setting.get("youtube_default_category", "27"),
+        "language":      yt_block.get("language")      or Setting.get("youtube_language", "en"),
+        "license":       yt_block.get("license")       or Setting.get("youtube_license", "youtube"),
+        "made_for_kids": yt_block.get("made_for_kids", None),
+        "playlist_id":   yt_block.get("playlist_id")   or Setting.get("youtube_playlist_id", ""),
+    }
+
+
 def _upload_to_youtube(video_path, title, description, tags, creds,
-                       privacy="public", category="27"):
+                       privacy="public", category="27", language="en",
+                       license="youtube", made_for_kids=False):
     """Upload video using pre-authorized credentials. Returns YouTube video ID or None."""
     try:
         from googleapiclient.discovery import build
@@ -359,11 +453,12 @@ def _upload_to_youtube(video_path, title, description, tags, creds,
                 "description": description[:5000],
                 "tags": tags,
                 "categoryId": str(category),
-                "defaultLanguage": "en",
+                "defaultLanguage": language or "en",
             },
             "status": {
-                "privacyStatus": privacy,
-                "selfDeclaredMadeForKids": False,
+                "privacyStatus": privacy or "public",
+                "license": license or "youtube",
+                "selfDeclaredMadeForKids": bool(made_for_kids),
             },
         }
         media = MediaFileUpload(video_path, mimetype="video/mp4", resumable=True,
@@ -375,3 +470,21 @@ def _upload_to_youtube(video_path, title, description, tags, creds,
         return response.get("id")
     except Exception:
         return None
+
+
+def _add_to_playlist(video_id, playlist_id, creds):
+    """Add an uploaded video to a YouTube playlist. Silently ignores errors."""
+    try:
+        from googleapiclient.discovery import build
+        youtube = build("youtube", "v3", credentials=creds)
+        youtube.playlistItems().insert(
+            part="snippet",
+            body={
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": {"kind": "youtube#video", "videoId": video_id},
+                }
+            },
+        ).execute()
+    except Exception:
+        pass

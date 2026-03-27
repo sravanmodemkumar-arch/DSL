@@ -34,6 +34,19 @@ QUALITY CONTRACT:
 - When explaining a specific option, highlight it in saffron using target "option_a/b/c/d"
 - Progressive reveal: add one element at a time, not everything at once
 - Final step must always be { "action": "show", "target": "final_answer" } — shows correct option in GREEN
+
+YOUTUBE BLOCK (REQUIRED in every output):
+- Every question JSON MUST include a "youtube" block between "meta" and "question"
+- "title": SEO-optimised, max 100 chars — include topic + exam names + key keywords
+- "description": 3–5 paragraphs — what-you-learn bullets, exam list, CTA to subscribe/like/comment
+- "tags": 10–15 keyword strings — drives YouTube search (include subject, topic, exam names, tricks)
+- "hashtags": 6–10 strings with # prefix — appended to description
+- "playlist_id": leave "" unless specified by user
+- "privacy": "public" by default
+- "category": "27" (Education) always
+- "language": "en" for English videos
+- "license": "youtube" (standard license)
+- "made_for_kids": false for competitive exam / school exam content
 ```
 
 ---
@@ -51,6 +64,7 @@ QUALITY CONTRACT:
     "thumbnail_intro_seconds": 3,
     "thumbnail": { ... },
     "meta": { ... },
+    "youtube": { ... },
     "question": { ... },
     "scenes": [ ... ],
     "assets": { ... }
@@ -112,6 +126,38 @@ Use: 0 = no intro still image
   "language":   "English"
 }
 ```
+
+---
+
+### FIELD: youtube (OPTIONAL — controls YouTube upload)
+```json
+{
+  "title":         "Divisibility by 9 & 11 | Fast Shortcut | SSC UPSC Banking Railway",
+  "description":   "Master the divisibility rules for 9 and 11 with this fast shortcut method.\n\n📌 What you will learn:\n• Rule of 9: digit sum divisible by 9\n• Rule of 11: alternating sum = 0 or divisible by 11\n\n🎯 Exams: SSC CGL | UPSC | IBPS | RRB NTPC | Banking\n\n🔔 Subscribe for daily exam shortcuts!",
+  "tags":          ["divisibility rules", "number system tricks", "SSC CGL maths", "RRB NTPC maths", "maths shortcut"],
+  "hashtags":      ["#Maths", "#SSCPrep", "#NumberSystem", "#DivisibilityRules", "#ExamPreparation"],
+  "playlist_id":   "",
+  "privacy":       "public",
+  "category":      "27",
+  "language":      "en",
+  "license":       "youtube",
+  "made_for_kids": false
+}
+```
+
+**Rules:**
+- If `youtube` block is present, those values are used AS-IS for the upload — no auto-generation
+- If `youtube` block is absent, all metadata is auto-generated from `meta` + `thumbnail` + `question`
+- `title` max 100 chars — include topic, subject, exam names for SEO
+- `description` max 5000 chars — use `\n` for line breaks — include exam list, what-you-learn, subscribe CTA
+- `tags` — up to 30 keywords, each a string — drives YouTube search
+- `hashtags` — with `#` prefix — appended to description automatically
+- `playlist_id` — YouTube playlist ID (from playlist URL `?list=PLxxxxx`) — leave `""` if not needed
+- `privacy` — `public` | `private` | `unlisted`
+- `category` — `27`=Education (recommended), `28`=Science&Tech, `22`=People&Blogs
+- `language` — BCP-47 code: `en`, `hi`, `ta`, `te`, `mr`, `bn`
+- `license` — `youtube` (standard) | `creativeCommon` (CC BY)
+- `made_for_kids` — `false` for competitive exam content. `true` ONLY for children under 13
 
 ---
 
@@ -934,6 +980,14 @@ Exam target:  [e.g. SSC CGL / UPSC / JEE Mains / NEET / Class 10 / IBPS PO]
 Difficulty:   [easy / medium / hard]
 Video style:  [shortcut method / step-by-step / concept explanation / comparison]
 
+--- YOUTUBE DETAILS (fill for SEO-optimised upload) ---
+YouTube title:       [Concise title with topic + exam names, max 100 chars]
+YouTube description: [2–4 paragraph description with what-you-learn, exam list, subscribe CTA]
+YouTube tags:        [comma-separated keywords, 8–15 tags]
+YouTube hashtags:    [#Tag1, #Tag2, #Tag3 — 5–10 hashtags]
+Playlist ID:         [YouTube playlist ID or leave blank]
+Privacy:             [public / private / unlisted]
+
 --- GENERATION RULES ---
 1. Output ONLY valid JSON — no markdown, no explanation, no code fences.
 2. Wrap output in a JSON array [ { ... } ].
@@ -945,6 +999,7 @@ Video style:  [shortcut method / step-by-step / concept explanation / comparison
 8. Write audio as a teacher explaining to a student — complete sentences, explain WHY.
 9. Use the correct element types for this subject (see Subject → Elements Guide).
 10. Include a complete thumbnail block with highlights.
+11. Include a youtube block with title, description, tags, hashtags, privacy, category=27, language=en, made_for_kids=false.
 ```
 
 ---

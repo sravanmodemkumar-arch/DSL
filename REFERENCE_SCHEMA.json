@@ -42,6 +42,30 @@
       "_language_comment": "ONLY value currently: English. Hindi support planned."
     },
 
+    "youtube": {
+      "_comment": "OPTIONAL. YouTube upload metadata. If present, these values are used AS-IS for the upload. If omitted, metadata is auto-generated from meta + thumbnail + question fields.",
+      "title": "Divisibility by 9 & 11 | Fast Method | SSC RRB Banking",
+      "_title_comment": "YouTube video title. Max 100 characters. Include topic, exam names, and key keywords for SEO. If omitted, auto-generated from meta fields.",
+      "description": "Learn the fastest method to check divisibility by 9 and 11...\n\nIn this video we cover the Rule of 9 (digit sum) and Rule of 11 (alternating sum) step by step.",
+      "_description_comment": "Full YouTube description. Max 5000 characters. Can use \\n for line breaks. If omitted, auto-generated rich description with subject/topic/exam details.",
+      "tags": ["divisibility rules", "divisibility by 9", "divisibility by 11", "number system", "SSC CGL maths", "RRB NTPC maths", "banking exam maths", "maths shortcut tricks"],
+      "_tags_comment": "Array of keyword strings. Max 500 chars total. Used for YouTube search. If omitted, auto-generated from meta fields.",
+      "hashtags": ["#Maths", "#SSCPrep", "#RRBPrep", "#NumberSystem", "#DivisibilityRules", "#MathsShortcuts", "#ExamPreparation"],
+      "_hashtags_comment": "Array of hashtag strings (with # prefix). Appended to description. Max 15 hashtags. If omitted, auto-generated from tags.",
+      "playlist_id": "",
+      "_playlist_id_comment": "OPTIONAL. YouTube playlist ID to add this video to after upload. Leave empty if not needed. Find it in the playlist URL: ?list=PLxxxxxx",
+      "privacy": "public",
+      "_privacy_comment": "Values: public | private | unlisted. Default: public",
+      "category": "27",
+      "_category_comment": "YouTube category ID. 27 = Education (recommended). Other common: 28=Science&Tech, 22=People&Blogs, 26=Howto&Style",
+      "language": "en",
+      "_language_comment": "BCP-47 language code. en=English, hi=Hindi, ta=Tamil, te=Telugu, mr=Marathi, bn=Bengali",
+      "license": "youtube",
+      "_license_comment": "Values: youtube (standard) | creativeCommon (CC BY)",
+      "made_for_kids": false,
+      "_made_for_kids_comment": "Set true ONLY for content specifically made for children under 13. false for exam prep / competitive exams."
+    },
+
     "question": {
       "_comment": "The main MCQ question. Shown permanently in the header once revealed.",
       "text": "Which number is divisible by both 9 and 11?",

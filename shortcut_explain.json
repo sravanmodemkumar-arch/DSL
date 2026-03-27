@@ -19,6 +19,18 @@
       "grade": "Class 6 to Competitive Exams",
       "language": "English"
     },
+    "youtube": {
+      "title": "Divisibility by 9 & 11 | Fast Shortcut Method | SSC UPSC Banking Railway",
+      "description": "Master the divisibility rules for 9 and 11 with this fast shortcut method — perfect for SSC CGL, UPSC, Banking, and Railway exams.\n\n📌 What you will learn:\n• Rule of 9: Add all digits — if sum ÷ 9 = 0 remainder, number is divisible by 9\n• Rule of 11: Alternate +/− signs from left — if result = 0 or divisible by 11, number passes\n• Step-by-step checking of all 4 options\n\n🎯 Exams covered: SSC CGL | UPSC | IBPS | RRB NTPC | Banking | State PSC\n\n🔔 Subscribe for daily maths shortcuts, concept videos and solved MCQs!\n👍 Like if this helped | 💬 Comment your doubts below",
+      "tags": ["divisibility rules", "divisibility by 9 and 11", "number system tricks", "SSC CGL maths", "UPSC maths", "RRB NTPC maths", "banking exam maths", "maths shortcut tricks", "digit sum rule", "alternating sum rule", "competitive exam maths", "number theory"],
+      "hashtags": ["#Maths", "#SSCPrep", "#UPSCPrep", "#RRBPrep", "#NumberSystem", "#DivisibilityRules", "#MathsShortcuts", "#ExamPreparation", "#BankingExam"],
+      "playlist_id": "",
+      "privacy": "public",
+      "category": "27",
+      "language": "en",
+      "license": "youtube",
+      "made_for_kids": false
+    },
     "question": {
       "text": "Which of the following numbers is divisible completely by both 9 and 11?",
       "audio": "Which of the following numbers is divisible completely by both nine and eleven?",
