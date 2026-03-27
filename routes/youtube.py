@@ -75,6 +75,10 @@ def auth():
     if not _has_secrets():
         return redirect(url_for("youtube.index") + "?error=no_secrets")
 
+    # Allow HTTP for local development
+    import os as _os
+    _os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
     try:
         from google_auth_oauthlib.flow import Flow
         from models import Setting
@@ -100,6 +104,9 @@ def auth():
 @youtube_bp.route("/oauth-callback")
 def oauth_callback():
     """Handle Google OAuth callback — exchange code for token and save."""
+    import os as _os
+    _os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
     error = request.args.get("error")
     if error:
         return redirect(url_for("youtube.index") + f"?error={error}")
