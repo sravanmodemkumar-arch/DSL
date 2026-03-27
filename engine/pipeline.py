@@ -267,7 +267,7 @@ class VideoPipeline:
         except subprocess.CalledProcessError:
             # GPU failed — fall back to CPU (no lock needed)
             if is_gpu:
-                cpu_threads = str(max(1, int((os.cpu_count() or 1) * 0.90)))
+                cpu_threads = str(max(1, int((os.cpu_count() or 1) * 0.70)))
                 _run("libx264", ["-preset", "fast"], use_lock=False, threads=cpu_threads)
             else:
                 raise RuntimeError("FFmpeg libx264 encoding failed.")
