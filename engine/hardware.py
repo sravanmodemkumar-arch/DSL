@@ -1,4 +1,4 @@
-"""Dynamic hardware detection — CPU & GPU profiling for 95% utilization."""
+"""Dynamic hardware detection — CPU & GPU profiling for 90% utilization."""
 
 import os
 import shutil
@@ -210,8 +210,8 @@ def _check_ffmpeg_decoder(ffmpeg, decoder_name):
         return False
 
 
-def compute_allocation(hw=None, target_utilization=0.95):
-    """Compute optimal CPU/GPU allocation for 95% utilization.
+def compute_allocation(hw=None, target_utilization=0.90):
+    """Compute optimal CPU/GPU allocation for 90% utilization.
 
     Returns dict with:
         frame_workers     — number of ProcessPoolExecutor workers for frame rendering
@@ -231,7 +231,7 @@ def compute_allocation(hw=None, target_utilization=0.95):
     is_gpu = hw["gpu_encoder"] != "libx264"
 
     # ── Frame rendering workers (CPU-bound, uses ProcessPoolExecutor) ─────
-    # Use 95% of logical cores for rendering.
+    # Use 90% of logical cores for rendering.
     # Each worker ~200-400 MB RAM for Pillow frame rendering.
     # Cap by available RAM: max workers = available_ram / 0.4 GB per worker
     target_workers = max(1, int(logical * target_utilization))
@@ -243,7 +243,7 @@ def compute_allocation(hw=None, target_utilization=0.95):
         # GPU encoding: let FFmpeg auto-manage threads, GPU handles heavy lifting
         encode_threads = "0"
     else:
-        # CPU encoding: use 95% of cores
+        # CPU encoding: use 90% of cores
         encode_threads = str(max(1, int(logical * target_utilization)))
 
     # ── Chunk strategy ────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ def print_hardware_summary(hw=None, alloc=None):
     if hw["gpu_vram_mb"]:
         print(f"        {hw['gpu_vram_mb']} MB VRAM | Encoder: {hw['gpu_encoder']}")
     print("-" * 60)
-    print(f"  ALLOCATION (95% target)")
+    print(f"  ALLOCATION (90% target)")
     print(f"  Frame workers : {alloc['frame_workers']} processes")
     print(f"  Encode threads: {alloc['encode_threads']}")
     print(f"  GPU encode    : {'YES' if alloc['is_gpu_encode'] else 'NO (CPU libx264)'}")

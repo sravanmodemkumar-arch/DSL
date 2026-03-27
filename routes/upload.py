@@ -241,7 +241,7 @@ def process():
     '''
 
 
-# ── Queue processor — trigger-based parallel with 95% utilization ─────────────
+# ── Queue processor — trigger-based parallel with 90% utilization ─────────────
 #
 # Trigger points (all call _check_and_start_queued):
 #   1. New upload          2. Job completed       3. Job failed
@@ -250,7 +250,7 @@ def process():
 #
 # Each queued job gets its own thread. Cores are distributed dynamically:
 #   total_active = currently processing + newly queued
-#   cores_per_video = 95% of logical cores / total_active
+#   cores_per_video = 90% of logical cores / total_active
 
 _active_jobs = {}              # job_id -> thread, tracks running jobs
 _active_lock = threading.Lock()
@@ -320,7 +320,7 @@ def _check_and_start_queued(app):
     """Check for queued jobs and start as many as possible in parallel.
 
     Logic:
-      total_workers = 95% of logical cores (e.g. 15 on 16-core)
+      total_workers = 90% of logical cores (e.g. 15 on 16-core)
       max_concurrent = total_workers // MIN_CORES_PER_VIDEO (e.g. 15//3 = 5)
       slots_free = max_concurrent - currently_active
       Start up to slots_free new jobs, each getting total_workers // total_active cores.
@@ -368,7 +368,7 @@ def _check_and_start_queued(app):
 
     print(f"[Queue] {len(new_ids)} new + {active_count} active "
           f"= {total_active} videos x {cores} cores "
-          f"(total {total_workers} @ 95%, max {max_concurrent} concurrent)")
+          f"(total {total_workers} @ 90%, max {max_concurrent} concurrent)")
 
     for jid in new_ids:
         t = threading.Thread(
