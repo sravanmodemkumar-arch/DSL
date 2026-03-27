@@ -24,6 +24,8 @@ DEFAULTS = {
     "auto_youtube_upload": "false",
     "youtube_default_privacy": "public",
     "youtube_default_category": "27",
+    "youtube_api_key": "",
+    "youtube_redirect_uri": "http://localhost:5000/youtube/oauth-callback",
     "storage_path": "",
     "ffmpeg_path": "ffmpeg",
     "watermark_enabled": "false",

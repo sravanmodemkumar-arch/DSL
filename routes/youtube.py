@@ -77,10 +77,13 @@ def auth():
 
     try:
         from google_auth_oauthlib.flow import Flow
+        from models import Setting
+        redirect_uri = Setting.get("youtube_redirect_uri", "") or \
+                       url_for("youtube.oauth_callback", _external=True)
         flow = Flow.from_client_secrets_file(
             _secrets_path(),
             scopes=SCOPES,
-            redirect_uri=url_for("youtube.oauth_callback", _external=True),
+            redirect_uri=redirect_uri,
         )
         auth_url, state = flow.authorization_url(
             access_type="offline",
@@ -102,11 +105,14 @@ def oauth_callback():
 
     try:
         from google_auth_oauthlib.flow import Flow
+        from models import Setting
+        redirect_uri = Setting.get("youtube_redirect_uri", "") or \
+                       url_for("youtube.oauth_callback", _external=True)
         flow = Flow.from_client_secrets_file(
             _secrets_path(),
             scopes=SCOPES,
             state=session.get("oauth_state"),
-            redirect_uri=url_for("youtube.oauth_callback", _external=True),
+            redirect_uri=redirect_uri,
         )
         flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials

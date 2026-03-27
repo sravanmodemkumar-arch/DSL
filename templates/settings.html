@@ -363,8 +363,9 @@
                         <div class="text-xs text-gray-500 space-y-0.5 mt-1">
                             <p>1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-accent hover:underline">Google Cloud Console</a> → APIs &amp; Services → Credentials</p>
                             <p>2. Create OAuth 2.0 Client ID → type: <strong>Web application</strong></p>
-                            <p>3. Add redirect URI: <code class="bg-dark-bg px-1 rounded text-accent">http://localhost:5000/youtube/oauth-callback</code></p>
+                            <p>3. Add the redirect URI below to Google Cloud Console</p>
                             <p>4. Download JSON → upload here → click Connect</p>
+                            <p class="text-yellow-400 mt-1">Note: YouTube upload requires OAuth — an API key alone cannot upload videos.</p>
                         </div>
                         <a href="/youtube/auth"
                             class="inline-block mt-2 px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs hover:bg-red-500/30 transition">
@@ -372,6 +373,21 @@
                         </a>
                     </div>
 
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">OAuth Redirect URI</label>
+                        <input type="text" name="youtube_redirect_uri"
+                            value="{{ settings.youtube_redirect_uri or 'http://localhost:5000/youtube/oauth-callback' }}"
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">For cloud: use <code>https://yourdomain.com/youtube/oauth-callback</code> — add this same URI in Google Cloud Console</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">YouTube API Key <span class="text-gray-600">(read-only operations only)</span></label>
+                        <input type="text" name="youtube_api_key"
+                            value="{{ settings.youtube_api_key }}"
+                            placeholder="AIza..."
+                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
+                        <p class="text-xs text-gray-500 mt-1">API key is for reading YouTube data only. Uploading always requires OAuth.</p>
+                    </div>
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Auto Upload after Generation</label>
                         <select name="auto_youtube_upload" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
