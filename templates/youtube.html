@@ -8,10 +8,79 @@
             <h2 class="text-2xl font-bold">YouTube Management</h2>
             <p class="text-gray-400 text-sm mt-1">Upload videos and manage YouTube links</p>
         </div>
-        <button hx-post="/youtube/bulk-upload" hx-target="#bulk-result" hx-swap="innerHTML" hx-confirm="Upload all ready videos to YouTube?"
+        {% if auth.connected %}
+        <button hx-post="/youtube/bulk-upload" hx-target="#bulk-result" hx-swap="innerHTML"
+            hx-confirm="Upload all ready videos to YouTube?"
             class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500/30 transition text-sm">
             Bulk Upload ({{ not_uploaded }} ready)
         </button>
+        {% endif %}
+    </div>
+
+    {% if request.args.get('error') %}
+    <div class="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-sm text-red-300">
+        Error: {{ request.args.get('error') }}
+    </div>
+    {% endif %}
+    {% if request.args.get('connected') %}
+    <div class="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-sm text-green-300">
+        YouTube account connected successfully!
+    </div>
+    {% endif %}
+
+    <!-- Auth Panel -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5">
+        <h3 class="text-sm font-semibold mb-4">YouTube Account</h3>
+
+        {% if not auth.has_secrets %}
+        <!-- No credentials file -->
+        <div class="space-y-3">
+            <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 text-sm text-yellow-300">
+                <strong>Setup required:</strong> Place your <code class="bg-black/30 px-1 rounded">client_secrets.json</code>
+                file in the project root to enable YouTube API uploads.
+            </div>
+            <div class="text-xs text-gray-400 space-y-1">
+                <p>1. Go to <strong>Google Cloud Console</strong> → APIs &amp; Services → Credentials</p>
+                <p>2. Create an <strong>OAuth 2.0 Client ID</strong> (type: Web application)</p>
+                <p>3. Add authorized redirect URI: <code class="bg-dark-bg px-1 rounded text-accent">http://localhost:5000/youtube/oauth-callback</code></p>
+                <p>4. Download the JSON file and save it as <code class="bg-dark-bg px-1 rounded text-accent">client_secrets.json</code> in the project root</p>
+                <p>5. Restart the server and return here to connect</p>
+            </div>
+        </div>
+
+        {% elif auth.connected %}
+        <!-- Connected -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-green-400"></div>
+                <div>
+                    <p class="text-sm font-medium text-green-400">YouTube account connected</p>
+                    <p class="text-xs text-gray-500">OAuth token saved — ready to upload</p>
+                </div>
+            </div>
+            <form action="/youtube/disconnect" method="post">
+                <button type="submit" class="text-xs px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-gray-400 transition">
+                    Disconnect
+                </button>
+            </form>
+        </div>
+
+        {% else %}
+        <!-- Has secrets but no token yet -->
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                <div>
+                    <p class="text-sm font-medium text-yellow-400">Not connected</p>
+                    <p class="text-xs text-gray-500">client_secrets.json found — click to authorize</p>
+                </div>
+            </div>
+            <a href="/youtube/auth"
+                class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-lg hover:bg-red-500/30 transition text-sm">
+                Connect YouTube Account
+            </a>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Stats -->
@@ -27,12 +96,6 @@
     </div>
 
     <div id="bulk-result"></div>
-
-    <!-- Info Banner -->
-    <div class="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-sm text-blue-300">
-        YouTube API is optional. You can manually add YouTube URLs after uploading videos through YouTube Studio.
-        To enable API uploads, place <code class="bg-black/30 px-1 rounded">client_secrets.json</code> in the project root.
-    </div>
 
     <!-- Video List -->
     <div class="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
@@ -67,10 +130,15 @@
                     </td>
                     <td class="px-4 py-3">
                         {% if v.youtube_url %}
-                        <a href="{{ v.youtube_url }}" target="_blank" class="text-xs text-accent hover:underline truncate block max-w-[200px]">{{ v.youtube_url }}</a>
+                        <a href="{{ v.youtube_url }}" target="_blank"
+                            class="text-xs text-accent hover:underline truncate block max-w-[200px]">
+                            {{ v.youtube_url }}
+                        </a>
                         {% else %}
-                        <form hx-post="/youtube/update-url/{{ v.video_id }}" hx-target="#yt-row-{{ v.video_id }}" hx-swap="outerHTML" class="flex gap-1">
-                            <input type="text" name="youtube_url" placeholder="Paste URL..."
+                        <!-- Manual URL entry (works without API) -->
+                        <form hx-post="/youtube/update-url/{{ v.video_id }}"
+                            hx-target="#yt-row-{{ v.video_id }}" hx-swap="outerHTML" class="flex gap-1">
+                            <input type="text" name="youtube_url" placeholder="Paste YouTube URL..."
                                 class="flex-1 bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs focus:border-accent/50 focus:outline-none">
                             <button class="bg-white/10 px-2 py-1 rounded text-xs hover:bg-white/20">Save</button>
                         </form>
@@ -78,8 +146,15 @@
                     </td>
                     <td class="px-4 py-3">
                         {% if v.youtube_status != 'published' %}
-                        <button hx-post="/youtube/upload/{{ v.video_id }}" hx-target="#yt-row-{{ v.video_id }}" hx-swap="outerHTML"
-                            class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Upload</button>
+                        {% if auth.connected %}
+                        <button hx-post="/youtube/upload/{{ v.video_id }}"
+                            hx-target="#yt-row-{{ v.video_id }}" hx-swap="outerHTML"
+                            class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">
+                            Upload via API
+                        </button>
+                        {% else %}
+                        <span class="text-xs text-gray-600">Connect account to upload</span>
+                        {% endif %}
                         {% endif %}
                     </td>
                 </tr>
