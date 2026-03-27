@@ -31,6 +31,13 @@ def create_app():
     # Init database
     db.init_app(app)
     with app.app_context():
+        # Enable WAL mode for concurrent multi-video write support
+        from sqlalchemy import text
+        with db.engine.connect() as _conn:
+            _conn.execute(text("PRAGMA journal_mode=WAL"))
+            _conn.execute(text("PRAGMA synchronous=NORMAL"))
+            _conn.execute(text("PRAGMA busy_timeout=30000"))
+            _conn.commit()
         db.create_all()
 
     # Register blueprints

@@ -303,7 +303,7 @@ def _build_metadata(video):
     question  = q_data.get("question", {})
 
     # ── Helper: exam list ─────────────────────────────────────────────────────
-    raw_exam = meta.get("exam", video.exam_tags or "")
+    raw_exam = meta.get("exam", video.exam_tags or "") or ""
     if isinstance(raw_exam, list):
         exam_list = raw_exam
     else:

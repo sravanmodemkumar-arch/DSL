@@ -21,7 +21,8 @@
         <div class="flex items-center gap-2">
             {% if job.status in ('queued', 'processing') %}
             <button hx-post="/queue/{{ job.id }}/cancel" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
-                class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Cancel</button>
+                hx-confirm="Cancel this job and delete all its files?"
+                class="text-xs px-2 py-1 rounded bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30">Cancel</button>
             {% endif %}
             {% if job.status == 'failed' %}
             <button hx-post="/queue/{{ job.id }}/retry" hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
@@ -30,6 +31,12 @@
             {% if job.status == 'queued' %}
             <button hx-post="/queue/{{ job.id }}/priority" hx-target="#job-{{ job.id }}" hx-swap="outerHTML" hx-vals='{"priority": 1}'
                 class="text-xs px-2 py-1 rounded bg-accent/20 text-accent hover:bg-accent/30">Bump</button>
+            {% endif %}
+            {% if job.status in ('cancelled', 'failed') %}
+            <button hx-post="/queue/{{ job.id }}/delete"
+                hx-target="#job-{{ job.id }}" hx-swap="outerHTML"
+                hx-confirm="Delete this job and all its files permanently?"
+                class="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30">Delete</button>
             {% endif %}
         </div>
     </div>

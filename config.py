@@ -1,34 +1,58 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  # reads .env file from project root
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+
+def _bool(key, default="false"):
+    return os.environ.get(key, default).lower() in ("true", "1", "yes")
+
+
+def _int(key, default):
+    try:
+        return int(os.environ.get(key, default))
+    except ValueError:
+        return int(default)
+
+
+def _float(key, default):
+    try:
+        return float(os.environ.get(key, default))
+    except ValueError:
+        return float(default)
+
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "stem-video-gen-secret-key-change-in-prod")
     SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'stemvideo.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "connect_args": {"timeout": 30, "check_same_thread": False},
+    }
 
     # Storage paths
-    STORAGE_DIR = os.path.join(BASE_DIR, "storage")
-    VIDEOS_DIR = os.path.join(STORAGE_DIR, "videos")
-    JSON_DIR = os.path.join(STORAGE_DIR, "json")
-    ASSETS_DIR = os.path.join(STORAGE_DIR, "assets")
-    AUDIO_DIR = os.path.join(STORAGE_DIR, "audio")
-    EXPORTS_DIR = os.path.join(STORAGE_DIR, "exports")
+    STORAGE_DIR  = os.path.join(BASE_DIR, "storage")
+    VIDEOS_DIR   = os.path.join(BASE_DIR, "storage", "videos")
+    JSON_DIR     = os.path.join(BASE_DIR, "storage", "json")
+    ASSETS_DIR   = os.path.join(BASE_DIR, "storage", "assets")
+    AUDIO_DIR    = os.path.join(BASE_DIR, "storage", "audio")
+    EXPORTS_DIR  = os.path.join(BASE_DIR, "storage", "exports")
 
-    # Upload limits
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB
+    # Upload
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024   # 50 MB
     ALLOWED_EXTENSIONS = {"json", "zip"}
 
     # Video defaults
-    DEFAULT_RESOLUTION = "1080p"
-    DEFAULT_QUALITY_PRESET = "P5"
-    DEFAULT_DURATION_MINUTES = 8
-    DEFAULT_FPS = 30
-    DEFAULT_THEME = "dark"
+    DEFAULT_RESOLUTION    = os.environ.get("DEFAULT_RESOLUTION",    "1080p")
+    DEFAULT_QUALITY_PRESET = os.environ.get("DEFAULT_QUALITY_PRESET", "P5")
+    DEFAULT_THEME         = os.environ.get("DEFAULT_THEME",         "dark")
+    DEFAULT_FPS           = _int("DEFAULT_FPS", "30")
 
     # Resolution map
     RESOLUTIONS = {
-        "360p":  (640, 360),
+        "360p":  (640,  360),
         "720p":  (1280, 720),
         "1080p": (1920, 1080),
         "2K":    (2560, 1440),
@@ -46,67 +70,53 @@ class Config:
         "P7": {"bitrate": "25M", "fps": 60, "antialiasing": True,  "label": "Maximum"},
     }
 
-    # TTS settings
-    # Engines: edge_tts (best, free) | gtts | pyttsx3
-    TTS_ENGINE = "edge_tts"
-    TTS_LANG = "en"
-    # edge_tts voices — Indian English:
-    #   en-IN-NeerjaNeural           — Indian female, clear & natural  ← recommended
-    #   en-IN-NeerjaExpressiveNeural — Indian female, expressive
-    #   en-IN-PrabhatNeural          — Indian male, clear & natural
-    #   en-IN-AaravNeural            — Indian male, young & clear
-    #   en-IN-AnanyaNeural           — Indian female, warm
-    #   en-IN-KavyaNeural            — Indian female, bright
-    #   en-IN-KunalNeural            — Indian male, deep
-    #   en-IN-RehaanNeural           — Indian male, casual
-    # edge_tts voices — Indian regional languages:
-    #   hi-IN-SwaraNeural   — Hindi female    hi-IN-MadhurNeural  — Hindi male
-    #   ta-IN-PallaviNeural — Tamil female    ta-IN-ValluvarNeural — Tamil male
-    #   te-IN-ShrutiNeural  — Telugu female   te-IN-MohanNeural   — Telugu male
-    #   mr-IN-AarohiNeural  — Marathi female  mr-IN-ManoharNeural — Marathi male
-    #   bn-IN-TanishaaNeural — Bengali female bn-IN-BashkarNeural — Bengali male
-    #   gu-IN-DhwaniNeural  — Gujarati female gu-IN-NiranjanNeural — Gujarati male
-    #   kn-IN-SapnaNeural   — Kannada female  kn-IN-GaganNeural   — Kannada male
-    #   ml-IN-SobhanaNeural — Malayalam female ml-IN-MidhunNeural — Malayalam male
-    # edge_tts voices — International:
-    #   en-US-JennyNeural — US female   en-US-GuyNeural — US male
-    #   en-GB-SoniaNeural — British female
-    # gtts TLD: co.in | com | co.uk | com.au
-    TTS_TLD = "en-IN-PrabhatNeural"  # Indian male neural voice
+    # TTS
+    # Engines:  edge_tts (best, free) | gtts | pyttsx3
+    # Voices (edge_tts):
+    #   en-IN-NeerjaNeural  — Indian female (clear)       en-IN-PrabhatNeural — Indian male (clear)
+    #   en-IN-AaravNeural   — Indian male (young)         en-IN-AnanyaNeural  — Indian female (warm)
+    #   hi-IN-SwaraNeural   — Hindi female                hi-IN-MadhurNeural  — Hindi male
+    #   ta-IN-PallaviNeural — Tamil female                te-IN-ShrutiNeural  — Telugu female
+    TTS_ENGINE = os.environ.get("TTS_ENGINE", "edge_tts")
+    TTS_LANG   = os.environ.get("TTS_LANG",   "en")
+    TTS_TLD    = os.environ.get("TTS_VOICE",  "en-IN-PrabhatNeural")  # voice name for edge_tts
 
     # Background Music
-    BGM_ENABLED = True
-    BGM_STYLE = "lotus"  # calm_waves|zen_garden|morning_dew|deep_focus|soft_piano|crystal_bowl|forest_stream|twilight|lotus|silent_mind|bansuri
-    BGM_VOLUME = 0.30  # 0.0 to 1.0
-    # Optional: list of MP3/WAV files — one is picked randomly per video
-    # Leave empty [] to use procedural generation
-    BGM_FILES = [
-        os.path.join(ASSETS_DIR, "bgm", "viacheslavstarostin-educational-education-school-music-340837.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "delosound-educational-education-school-music-2-432211.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "hitslab-study-educational-learning-music-345519.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "krasnoshchok-educational-educational-learning-study-music-409483.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "mondamusic-educational-education-school-music-499164.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "sigmamusicart-background-educational-environment-music-369011.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "soundore-the-music-free-educational-506592.mp3"),
-        os.path.join(ASSETS_DIR, "bgm", "viacheslavstarostin-background-backsound-educational-music-366035.mp3"),
+    # Styles: calm_waves | zen_garden | morning_dew | deep_focus | soft_piano
+    #         crystal_bowl | forest_stream | twilight | lotus | silent_mind | bansuri
+    BGM_ENABLED = _bool("BGM_ENABLED", "true")
+    BGM_STYLE   = os.environ.get("BGM_STYLE",  "lotus")
+    BGM_VOLUME  = _float("BGM_VOLUME", "0.30")
+    BGM_FILES   = [
+        os.path.join(BASE_DIR, "storage", "assets", "bgm", f)
+        for f in [
+            "viacheslavstarostin-educational-education-school-music-340837.mp3",
+            "delosound-educational-education-school-music-2-432211.mp3",
+            "hitslab-study-educational-learning-music-345519.mp3",
+            "krasnoshchok-educational-educational-learning-study-music-409483.mp3",
+            "mondamusic-educational-education-school-music-499164.mp3",
+            "sigmamusicart-background-educational-environment-music-369011.mp3",
+            "soundore-the-music-free-educational-506592.mp3",
+            "viacheslavstarostin-background-backsound-educational-music-366035.mp3",
+        ]
     ]
 
     # Watermark
-    WATERMARK_ENABLED  = False
-    WATERMARK_TEXT     = ""          # e.g. "© MyChannel"
-    WATERMARK_IMAGE    = os.path.join(ASSETS_DIR, "watermark", "watermark.png")
-    WATERMARK_OPACITY  = 0.35        # 0.0 invisible → 1.0 fully opaque
+    WATERMARK_ENABLED = _bool("WATERMARK_ENABLED", "false")
+    WATERMARK_TEXT    = os.environ.get("WATERMARK_TEXT",    "")
+    WATERMARK_IMAGE   = os.path.join(BASE_DIR, "storage", "assets", "watermark", "watermark.png")
+    WATERMARK_OPACITY = _float("WATERMARK_OPACITY", "0.35")
 
-    # Worker settings
-    MAX_WORKERS = 4
-    JOB_TIMEOUT = 600  # 10 minutes per video
+    # Workers
+    MAX_WORKERS = _int("MAX_WORKERS", "4")
+    JOB_TIMEOUT = _int("JOB_TIMEOUT", "600")
 
-    # YouTube
+    # YouTube OAuth
     YOUTUBE_CLIENT_SECRETS = os.path.join(BASE_DIR, "client_secrets.json")
     YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 
 
-# Theme colors
+# Theme colors (not in .env — complex colour maps)
 THEMES = {
     "dark": {
         "bg": "#0f0f23",

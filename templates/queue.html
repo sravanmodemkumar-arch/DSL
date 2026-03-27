@@ -8,11 +8,19 @@
             <h2 class="text-2xl font-bold">Processing Queue</h2>
             <p class="text-gray-400 text-sm mt-1">Monitor video generation jobs</p>
         </div>
-        <button hx-post="/queue/clear-completed" hx-swap="none"
-            hx-on::after-request="htmx.ajax('GET', '/queue/list?status={{ status_filter }}', {target:'#queue-list', swap:'innerHTML'})"
-            class="bg-white/10 text-gray-300 px-4 py-2 rounded-lg hover:bg-white/20 transition text-sm">
-            Clear Completed
-        </button>
+        <div class="flex gap-2">
+            <button hx-post="/queue/clear-completed" hx-swap="none"
+                hx-on::after-request="htmx.ajax('GET', '/queue/list?status={{ status_filter }}', {target:'#queue-list', swap:'innerHTML'})"
+                class="bg-white/10 text-gray-300 px-4 py-2 rounded-lg hover:bg-white/20 transition text-sm">
+                Clear Completed
+            </button>
+            <button hx-post="/queue/clear-cancelled" hx-swap="none"
+                hx-confirm="Delete all cancelled and failed jobs and their files?"
+                hx-on::after-request="htmx.ajax('GET', '/queue/list?status={{ status_filter }}', {target:'#queue-list', swap:'innerHTML'})"
+                class="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/30 transition text-sm">
+                Clear Cancelled/Failed
+            </button>
+        </div>
     </div>
 
     <!-- Stats -->

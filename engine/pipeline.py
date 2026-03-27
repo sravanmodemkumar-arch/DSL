@@ -3,8 +3,19 @@
 import os
 import shutil
 import subprocess
+import threading
 import concurrent.futures
 from datetime import datetime, timezone
+
+# ── Module-level GPU encoding lock ────────────────────────────────────────────
+# Serialises FFmpeg GPU encodes across concurrently running videos.
+# CPU encodes (libx264) are NOT serialised — they run fully in parallel.
+_GPU_ENCODE_LOCK = threading.Lock()
+
+# ── Encoder detection cache ───────────────────────────────────────────────────
+# Avoids repeated `ffmpeg -encoders` subprocess calls per video.
+_ENCODER_CACHE: tuple | None = None
+_ENCODER_CACHE_LOCK = threading.Lock()
 
 from .audio import generate_audio_for_question, concatenate_audio
 from .renderer import FrameRenderer
@@ -40,7 +51,8 @@ class VideoPipeline:
     # ── Public ───────────────────────────────────────────────────────────────
 
     def process_question(self, question_data, output_dir, resolution="1080p",
-                         quality_preset="P5", theme="dark", progress_callback=None):
+                         quality_preset="P5", theme="dark", progress_callback=None,
+                         frame_workers=None):
         """Process one question JSON → MP4. Auto-cleans temp files on success."""
         qid = question_data.get("id", "unknown")
         width, height = self.resolutions.get(resolution, (1920, 1080))
@@ -116,7 +128,7 @@ class VideoPipeline:
             self._render_parallel(
                 timeline, total_frames, fps, question_data,
                 width, height, theme_colors, watermark_cfg, frames_dir,
-                progress_callback,
+                progress_callback, frame_workers,
             )
             _cb(progress_callback, "rendering", 85)
 
@@ -147,11 +159,19 @@ class VideoPipeline:
             # ── Cleanup: frames + all temp audio (auto after each question) ──
             shutil.rmtree(frames_dir, ignore_errors=True)
             self._cleanup_temp_audio(qid, output_dir)
+            result["audio_path"] = ""   # audio deleted; only .mp4 + thumb remain
 
             _cb(progress_callback, "completed", 100)
             return result
 
         except Exception as e:
+            # Best-effort cleanup of partial files on failure
+            try:
+                shutil.rmtree(frames_dir, ignore_errors=True)
+                self._cleanup_temp_audio(qid, output_dir)
+                os.rmdir(output_dir)   # removes output_dir only if now empty
+            except Exception:
+                pass
             result["error"] = str(e)
             _cb(progress_callback, "failed", 0)
             raise
@@ -160,10 +180,14 @@ class VideoPipeline:
 
     def _render_parallel(self, timeline, total_frames, fps, question_data,
                          width, height, theme_colors, watermark_cfg, frames_dir,
-                         progress_callback):
-        """Split frame rendering across all available CPU cores (90% utilisation)."""
-        cpu_count = os.cpu_count() or 1
-        workers = max(1, int(cpu_count * 0.9))
+                         progress_callback, frame_workers=None):
+        """Split frame rendering across CPU cores. Uses frame_workers if given,
+        otherwise auto-uses 90% of all available cores (single-video mode)."""
+        if frame_workers is not None:
+            workers = max(1, frame_workers)
+        else:
+            cpu_count = os.cpu_count() or 1
+            workers = max(1, int(cpu_count * 0.9))
 
         # Divide frames into equal chunks for each worker
         chunk_size = max(1, (total_frames + workers - 1) // workers)
@@ -190,7 +214,17 @@ class VideoPipeline:
     # ── Encoding ──────────────────────────────────────────────────────────────
 
     def _detect_encoder(self, ffmpeg_bin):
-        """Return (encoder_name, extra_flags). Prefers GPU, falls back to CPU."""
+        """Return (encoder_name, extra_flags). Cached after first call."""
+        global _ENCODER_CACHE
+        with _ENCODER_CACHE_LOCK:
+            if _ENCODER_CACHE is not None:
+                return _ENCODER_CACHE
+            result = self._probe_encoder(ffmpeg_bin)
+            _ENCODER_CACHE = result
+            return result
+
+    def _probe_encoder(self, ffmpeg_bin):
+        """Detect best available encoder. Prefers GPU, falls back to CPU."""
         try:
             out = subprocess.run(
                 [ffmpeg_bin, "-hide_banner", "-encoders"],
@@ -204,16 +238,18 @@ class VideoPipeline:
                 return "h264_qsv",   ["-preset", "medium", "-look_ahead", "1"]
         except Exception:
             pass
-        # CPU — use 90% of cores
+        # CPU fallback
         threads = str(max(1, int((os.cpu_count() or 1) * 0.9)))
         return "libx264", ["-preset", "fast", "-threads", threads]
 
     def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height):
-        """Encode frames + audio → MP4 using best available encoder."""
+        """Encode frames + audio → MP4 using best available encoder.
+        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel."""
         ffmpeg = self._get_ffmpeg_path()
         encoder, enc_flags = self._detect_encoder(ffmpeg)
+        is_gpu = encoder != "libx264"
 
-        def _run(enc, flags):
+        def _run(enc, flags, use_lock):
             cmd = [
                 ffmpeg, "-y",
                 "-framerate", str(fps),
@@ -229,15 +265,19 @@ class VideoPipeline:
                 "-s", f"{width}x{height}",
                 output_path,
             ]
-            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+            if use_lock:
+                with _GPU_ENCODE_LOCK:   # one GPU encode at a time
+                    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+            else:
+                subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
 
         try:
-            _run(encoder, enc_flags)
+            _run(encoder, enc_flags, use_lock=is_gpu)
         except subprocess.CalledProcessError:
-            # GPU failed — fall back to libx264
-            if encoder != "libx264":
+            # GPU failed — fall back to CPU (no lock needed)
+            if is_gpu:
                 threads = str(max(1, int((os.cpu_count() or 1) * 0.9)))
-                _run("libx264", ["-preset", "fast", "-threads", threads])
+                _run("libx264", ["-preset", "fast", "-threads", threads], use_lock=False)
             else:
                 raise RuntimeError("FFmpeg libx264 encoding failed.")
         except FileNotFoundError:

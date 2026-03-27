@@ -237,7 +237,10 @@ def watermark_upload():
     dest = os.path.join(wm_dir, "watermark" + ext)
     # Remove old watermark files
     for old in os.listdir(wm_dir):
-        os.remove(os.path.join(wm_dir, old))
+        try:
+            os.remove(os.path.join(wm_dir, old))
+        except OSError:
+            pass
     f.save(dest)
 
     # Save path to settings so pipeline picks it up
