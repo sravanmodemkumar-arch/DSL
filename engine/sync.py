@@ -141,7 +141,11 @@ def get_active_state(timeline, current_time, question_data):
 
     Elements accumulate by target type — same target replaces, different targets coexist.
     This ensures persistent elements (digit_boxes + running_sum) stay visible together.
+
+    Supports multiple video modes: mcq, topic, true_false, fill_blank,
+    numerical, match, assertion, sequence.
     """
+    mode = question_data.get("mode", "mcq")
     question_text = ""
     options_data = []
     correct_option = ""
@@ -374,15 +378,34 @@ def get_active_state(timeline, current_time, question_data):
     # --- Build final elements list ---
     elements = []
 
-    # Question (always at top once shown)
-    if question_shown and question_text:
+    # Topic header (for topic/match/sequence modes)
+    topic_block = question_data.get("topic_header", question_data.get("topic", {}))
+    if isinstance(topic_block, str):
+        topic_block = {"title": topic_block}
+    if topic_block and mode in ("topic", "match", "sequence"):
+        elements.append({
+            "type": "topic_header",
+            "title": topic_block.get("title", ""),
+            "subtitle": topic_block.get("subtitle", ""),
+        })
+
+    # Assertion header (for assertion mode)
+    if mode == "assertion" and question_shown:
+        elements.append({
+            "type": "question_block",
+            "text": question_text,
+            "assertion": q_block.get("assertion", ""),
+            "reason": q_block.get("reason", ""),
+        })
+    # Question (always at top once shown) — for mcq, true_false, fill_blank, numerical
+    elif question_shown and question_text and mode not in ("topic", "match", "sequence"):
         elements.append({
             "type": "question_block",
             "text": question_text,
         })
 
-    # Options (persist once shown)
-    if options_shown and options_data:
+    # Options (persist once shown) — only for mcq, true_false
+    if options_shown and options_data and mode in ("mcq", "true_false"):
         elements.append({
             "type": "options_grid",
             "data": options_data,
@@ -408,6 +431,14 @@ def get_active_state(timeline, current_time, question_data):
         "analogy",           # A:B::C:? (Reasoning)
         "number_line",       # number line (Math)
         "video_clip",        # embedded video asset
+        "manim_scene",       # pre-rendered Manim animation
+        # Multi-mode elements
+        "title_card",        # topic mode intro card
+        "section_header",    # topic mode section divider
+        "blank_reveal",      # fill-in-the-blank display
+        "match_columns",     # match-the-following columns
+        "sequence_list",     # sequence/ordering items
+        "numerical_answer",  # numerical answer box
         "image", "svg",
         # Math
         "formula_block", "equation", "division_block",
@@ -433,4 +464,5 @@ def get_active_state(timeline, current_time, question_data):
         "progress": progress,
         "narration": active_narration,
         "current_time": current_time,
+        "mode": mode,
     }

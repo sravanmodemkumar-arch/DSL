@@ -46,7 +46,7 @@ class Config:
 
     # Video defaults
     DEFAULT_RESOLUTION    = os.environ.get("DEFAULT_RESOLUTION",    "1080p")
-    DEFAULT_QUALITY_PRESET = os.environ.get("DEFAULT_QUALITY_PRESET", "P5")
+    DEFAULT_QUALITY_PRESET = os.environ.get("DEFAULT_QUALITY_PRESET", "P7")
     DEFAULT_THEME         = os.environ.get("DEFAULT_THEME",         "dark")
     DEFAULT_FPS           = _int("DEFAULT_FPS", "30")
 

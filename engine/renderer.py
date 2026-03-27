@@ -203,18 +203,27 @@ class FrameRenderer:
         return Image.new("RGB", (self.width, self.height), self._rgb("bg"))
 
     def render_frame(self, state):
-        """Render a frame — single consistent layout throughout the video.
+        """Render a frame — layout adapts based on video mode.
 
-        Always uses the compact dark header (question + options) with a white
-        explanation body below. No separate full-screen intro mode.
+        Modes:
+          mcq (default) — dark header (question + options) + white body
+          topic         — slim title bar + full body (no question/options)
+          true_false    — question + T/F pills + body
+          fill_blank    — question with blank + body
+          numerical     — question (no options) + body
+          match         — full body for match columns
+          assertion     — assertion/reason header + body
+          sequence      — full body for sequence items
         """
         frame = self.create_blank_frame()
         draw = ImageDraw.Draw(frame)
         elements = state.get("elements", [])
+        mode = state.get("mode", "mcq")
 
-        # Separate elements
+        # Separate elements by role
         question_el = None
         options_el = None
+        topic_el = None
         work_elems = []
 
         for el in elements:
@@ -223,13 +232,27 @@ class FrameRenderer:
                 question_el = el
             elif etype == "options_grid":
                 options_el = el
+            elif etype == "topic_header":
+                topic_el = el
             elif etype != "step_label":
                 work_elems.append(el)
 
         work_elems = [el for el in work_elems if self._is_renderable(el)]
 
-        # Always draw the compact header
-        self._draw_header(draw, frame, question_el, options_el)
+        # Draw header based on mode — returns body_top y coordinate
+        if mode == "topic":
+            body_top = self._draw_topic_bar(draw, frame, topic_el)
+        elif mode in ("match", "sequence"):
+            body_top = self._draw_minimal_bar(draw, frame, topic_el)
+        elif mode == "numerical":
+            body_top = self._draw_numerical_header(draw, frame, question_el)
+        elif mode == "fill_blank":
+            body_top = self._draw_header(draw, frame, question_el, None)
+        elif mode == "assertion":
+            body_top = self._draw_assertion_header(draw, frame, question_el)
+        else:
+            # mcq, true_false — standard header
+            body_top = self._draw_header(draw, frame, question_el, options_el)
 
         # Karaoke strip: reserve bottom strip when narration word timestamps exist
         narration    = state.get("narration")
@@ -238,12 +261,10 @@ class FrameRenderer:
         karaoke_gap  = 0
         if narration and narration.get("word_timestamps"):
             karaoke_h   = int(90 * self.scale)
-            karaoke_gap = int(16 * self.scale)   # gap between body and strip
+            karaoke_gap = int(16 * self.scale)
 
         if work_elems:
 
-            # PPT body starts at y=259px (37px below header stripe)
-            body_top    = int(259 * self.scale)
             body_bottom = self.height - int(30 * self.scale) - karaoke_h - karaoke_gap
 
             # Evenly distribute ALL available space — (n+1) slots so there's
@@ -252,11 +273,11 @@ class FrameRenderer:
             total_h = sum(heights)
             avail_h = body_bottom - body_top
             n = len(work_elems)
-            slots = n + 1  # gaps: before first, between each, after last
+            slots = n + 1
             gap = int((avail_h - total_h) / slots) if avail_h > total_h else int(20 * self.scale)
-            gap = max(gap, int(20 * self.scale))  # minimum comfortable gap
+            gap = max(gap, int(20 * self.scale))
 
-            y_work = body_top + gap  # leading gap before first element
+            y_work = body_top + gap
 
             for el in work_elems:
                 if y_work > body_bottom:
@@ -269,7 +290,7 @@ class FrameRenderer:
                 )
                 y_work += gap
 
-        # Karaoke strip at bottom (with gap above it)
+        # Karaoke strip at bottom
         if karaoke_h > 0:
             strip_y = self.height - int(30 * self.scale) - karaoke_h
             self._draw_karaoke_strip(draw, narration, current_time, strip_y, karaoke_h)
@@ -458,6 +479,30 @@ class FrameRenderer:
             return self._draw_analogy(draw, frame, el, y)
         elif etype == "number_line":
             return self._draw_number_line(draw, frame, el, y)
+        elif etype == "builtin_visual":
+            return self._draw_builtin_visual(draw, frame, el, y)
+        elif etype == "subject_image":
+            return self._draw_subject_image(draw, frame, el, y)
+        elif etype == "matplotlib_plot":
+            return self._draw_matplotlib_plot(draw, frame, el, y)
+        elif etype == "rdkit_mol":
+            return self._draw_rdkit_mol(draw, frame, el, y)
+        elif etype == "manim_scene":
+            return self._draw_manim_scene(draw, frame, el, y,
+                                          current_time=current_time)
+        # ── Multi-mode elements ──
+        elif etype == "title_card":
+            return self._draw_title_card(draw, frame, el, y)
+        elif etype == "section_header":
+            return self._draw_section_header(draw, frame, el, y)
+        elif etype == "blank_reveal":
+            return self._draw_blank_reveal(draw, frame, el, y)
+        elif etype == "match_columns":
+            return self._draw_match_columns(draw, frame, el, y)
+        elif etype == "sequence_list":
+            return self._draw_sequence_list(draw, frame, el, y)
+        elif etype == "numerical_answer":
+            return self._draw_numerical_answer(draw, frame, el, y)
         return y   # unknown type — skip silently
 
     # ------------------------------------------------------------------
@@ -646,8 +691,137 @@ class FrameRenderer:
         return y + card_h
 
     # ------------------------------------------------------------------
+    def _draw_topic_bar(self, draw, frame, topic_el):
+        """Slim title bar for topic/explanation mode — no question, no options.
+        Returns body_top y coordinate."""
+        s = self.scale
+        bar_h = int(100 * s)
+
+        # Dark navy background
+        draw.rectangle([0, 0, self.width, bar_h], fill=self._rgb("header_bg"))
+        # Orange accent stripe
+        draw.rectangle([0, bar_h, self.width, bar_h + self.stripe_h],
+                       fill=self._rgb("accent_stripe"))
+
+        if topic_el:
+            pad_x = int(58 * s)
+            title = topic_el.get("title", "")
+            subtitle = topic_el.get("subtitle", "")
+
+            if title:
+                tf = _get_font(int(42 * s), bold=True)
+                draw.text((pad_x, int(12 * s)), title,
+                          fill=self._rgb("header_text"), font=tf)
+            if subtitle:
+                sf = _get_font(int(28 * s))
+                draw.text((pad_x, int(58 * s)), subtitle,
+                          fill=self._rgb("question_label"), font=sf)
+
+        return bar_h + self.stripe_h + int(20 * s)
+
+    def _draw_minimal_bar(self, draw, frame, topic_el):
+        """Minimal header for match/sequence modes. Returns body_top."""
+        s = self.scale
+        bar_h = int(70 * s)
+
+        draw.rectangle([0, 0, self.width, bar_h], fill=self._rgb("header_bg"))
+        draw.rectangle([0, bar_h, self.width, bar_h + self.stripe_h],
+                       fill=self._rgb("accent_stripe"))
+
+        if topic_el:
+            title = topic_el.get("title", "")
+            if title:
+                tf = _get_font(int(36 * s), bold=True)
+                draw.text((int(58 * s), int(16 * s)), title,
+                          fill=self._rgb("header_text"), font=tf)
+
+        return bar_h + self.stripe_h + int(15 * s)
+
+    def _draw_numerical_header(self, draw, frame, question_el):
+        """Header with question only (no options) for numerical mode. Returns body_top."""
+        s = self.scale
+        bar_h = int(120 * s)
+
+        draw.rectangle([0, 0, self.width, bar_h], fill=self._rgb("header_bg"))
+        draw.rectangle([0, bar_h, self.width, bar_h + self.stripe_h],
+                       fill=self._rgb("accent_stripe"))
+
+        if question_el:
+            text = question_el.get("text", "")
+            pad_x = int(58 * s)
+            q_font = _get_font(int(38 * s), bold=True)
+            label_font = _get_font(int(38 * s), bold=True)
+
+            q_y = int(15 * s)
+            draw.text((pad_x, q_y), "Q: ", fill=self._rgb("question_label"), font=label_font)
+            q_offset = draw.textlength("Q: ", font=label_font)
+
+            max_w = self.content_w - q_offset - int(20 * s)
+            lines = self._wrap_text(text, q_font, max_w)
+            line_h = int(q_font.size * 1.25)
+            for i, line in enumerate(lines):
+                x = pad_x + (q_offset if i == 0 else int(20 * s))
+                draw.text((x, q_y + i * line_h), line,
+                          fill=self._rgb("header_text"), font=q_font)
+
+            # "Numerical Answer" badge
+            badge_font = _get_font(int(24 * s))
+            badge_text = "NUMERICAL TYPE"
+            bw = draw.textlength(badge_text, font=badge_font) + int(20 * s)
+            bx = self.width - int(58 * s) - bw
+            by = int(15 * s)
+            draw.rounded_rectangle([bx, by, bx + bw, by + int(34 * s)],
+                                   radius=int(6 * s), fill=self._rgb("orange"))
+            draw.text((bx + int(10 * s), by + int(4 * s)), badge_text,
+                      fill=(255, 255, 255), font=badge_font)
+
+        return bar_h + self.stripe_h + int(20 * s)
+
+    def _draw_assertion_header(self, draw, frame, question_el):
+        """Header for assertion-reason mode. Shows assertion + reason. Returns body_top."""
+        s = self.scale
+        bar_h = int(180 * s)
+
+        draw.rectangle([0, 0, self.width, bar_h], fill=self._rgb("header_bg"))
+        draw.rectangle([0, bar_h, self.width, bar_h + self.stripe_h],
+                       fill=self._rgb("accent_stripe"))
+
+        if question_el:
+            pad_x = int(58 * s)
+            assertion = question_el.get("assertion", "")
+            reason = question_el.get("reason", "")
+            q_font = _get_font(int(32 * s), bold=True)
+            label_font = _get_font(int(28 * s), bold=True)
+
+            # Assertion
+            a_y = int(12 * s)
+            draw.text((pad_x, a_y), "Assertion (A): ",
+                      fill=self._rgb("question_label"), font=label_font)
+            a_offset = draw.textlength("Assertion (A): ", font=label_font)
+            if assertion:
+                lines = self._wrap_text(assertion, q_font, self.content_w - a_offset)
+                for i, line in enumerate(lines[:2]):
+                    draw.text((pad_x + a_offset if i == 0 else pad_x + int(20 * s),
+                               a_y + i * int(q_font.size * 1.25)),
+                              line, fill=self._rgb("header_text"), font=q_font)
+
+            # Reason
+            r_y = int(95 * s)
+            draw.text((pad_x, r_y), "Reason (R): ",
+                      fill=(255, 180, 100), font=label_font)
+            r_offset = draw.textlength("Reason (R): ", font=label_font)
+            if reason:
+                lines = self._wrap_text(reason, q_font, self.content_w - r_offset)
+                for i, line in enumerate(lines[:2]):
+                    draw.text((pad_x + r_offset if i == 0 else pad_x + int(20 * s),
+                               r_y + i * int(q_font.size * 1.25)),
+                              line, fill=self._rgb("header_text"), font=q_font)
+
+        return bar_h + self.stripe_h + int(15 * s)
+
     def _draw_header(self, draw, frame, question_el, options_el):
-        """Draw the dark navy header bar with question and options row."""
+        """Draw the dark navy header bar with question and options row.
+        Returns body_top y coordinate."""
         s = self.scale
 
         # Navy header background
@@ -663,7 +837,7 @@ class FrameRenderer:
         )
 
         if not question_el and not options_el:
-            return
+            return int(259 * s)
 
         # PPT exact: Q text at y=9.6px, options at y=105.6px
         # Left padding: 57.6px (3% of 1920)
@@ -732,6 +906,207 @@ class FrameRenderer:
 
                 draw.text((opt_x[i], opt_y), label, fill=color, font=opt_font)
 
+        return int(259 * s)  # body_top
+
+    # ------------------------------------------------------------------
+    # New element renderers — topic/match/sequence/fill_blank/numerical
+    # ------------------------------------------------------------------
+
+    def _draw_title_card(self, draw, frame, element, y):
+        """Full-width intro title card for topic mode. Centered large text."""
+        s = self.scale
+        avail_h = int(self.height * 0.35)
+        cx, cw = self.content_x, self.content_w
+        title = element.get("title", "")
+        subtitle = element.get("subtitle", "")
+        badge = element.get("badge", "")
+
+        # Dark gradient background card
+        draw.rounded_rectangle([cx, y, cx + cw, y + avail_h],
+                               radius=int(16 * s), fill=(25, 30, 55))
+
+        my = y + avail_h // 2
+        if title:
+            tf = _get_font(int(56 * s), bold=True)
+            tw = draw.textlength(title, font=tf)
+            draw.text((cx + (cw - tw) / 2, my - int(60 * s)),
+                      title, fill=(255, 255, 255), font=tf)
+        if subtitle:
+            sf = _get_font(int(32 * s))
+            sw = draw.textlength(subtitle, font=sf)
+            draw.text((cx + (cw - sw) / 2, my + int(10 * s)),
+                      subtitle, fill=(180, 200, 255), font=sf)
+        if badge:
+            bf = _get_font(int(22 * s), bold=True)
+            bw = draw.textlength(badge, font=bf) + int(24 * s)
+            bx = cx + (cw - bw) // 2
+            by = my + int(55 * s)
+            draw.rounded_rectangle([bx, by, bx + bw, by + int(30 * s)],
+                                   radius=int(8 * s), fill=(255, 103, 0))
+            draw.text((bx + int(12 * s), by + int(4 * s)), badge,
+                      fill=(255, 255, 255), font=bf)
+        return y + avail_h
+
+    def _draw_section_header(self, draw, frame, element, y):
+        """Section divider bar — used in topic mode between sections."""
+        s = self.scale
+        h = int(65 * s)
+        cx, cw = self.content_x, self.content_w
+        title = element.get("title", "")
+        subtitle = element.get("subtitle", "")
+        color = element.get("color", "blue")
+
+        accent = self._rgb(color)
+        draw.rounded_rectangle([cx, y, cx + cw, y + h],
+                               radius=int(8 * s), fill=accent)
+
+        if title:
+            tf = _get_font(int(34 * s), bold=True)
+            draw.text((cx + int(20 * s), y + int(6 * s)), title,
+                      fill=(255, 255, 255), font=tf)
+        if subtitle:
+            sf = _get_font(int(22 * s))
+            draw.text((cx + int(20 * s), y + int(38 * s)), subtitle,
+                      fill=(220, 220, 255), font=sf)
+
+        return y + h
+
+    def _draw_blank_reveal(self, draw, frame, element, y):
+        """Fill-in-the-blank display with optional answer reveal."""
+        s = self.scale
+        h = int(120 * s)
+        cx, cw = self.content_x, self.content_w
+        sentence = element.get("sentence", "")
+        answer = element.get("answer", "")
+        revealed = element.get("revealed", False)
+
+        draw.rounded_rectangle([cx, y, cx + cw, y + h],
+                               radius=int(10 * s), fill=(240, 245, 255))
+
+        tf = _get_font(int(36 * s), bold=True)
+
+        if "___" in sentence and revealed and answer:
+            # Split around blank, draw normally then answer in green
+            parts = sentence.split("___", 1)
+            x = cx + int(30 * s)
+            text_y = y + (h - tf.size) // 2
+            draw.text((x, text_y), parts[0], fill=(30, 30, 60), font=tf)
+            x += draw.textlength(parts[0], font=tf)
+            af = _get_font(int(36 * s), bold=True)
+            draw.text((x, text_y), answer, fill=(0, 160, 60), font=af)
+            x += draw.textlength(answer, font=af)
+            if len(parts) > 1:
+                draw.text((x, text_y), parts[1], fill=(30, 30, 60), font=tf)
+        else:
+            tw = draw.textlength(sentence, font=tf)
+            draw.text((cx + (cw - tw) / 2, y + (h - tf.size) // 2),
+                      sentence, fill=(30, 30, 60), font=tf)
+        return y + h
+
+    def _draw_match_columns(self, draw, frame, element, y):
+        """Two columns for Match-the-Following. Lines connect when revealed."""
+        s = self.scale
+        cx, cw = self.content_x, self.content_w
+        left_items = element.get("left", [])
+        right_items = element.get("right", [])
+        revealed = element.get("revealed", False)
+        matches = element.get("matches", {})  # {"0":"2", "1":"0", ...}
+
+        n = max(len(left_items), len(right_items))
+        row_h = int(55 * s)
+        h = int(50 * s) + n * row_h
+        col_w = int(cw * 0.38)
+        gap = cw - 2 * col_w
+
+        # Column headers
+        hf = _get_font(int(28 * s), bold=True)
+        draw.text((cx + col_w // 2 - int(50 * s), y), "Column A",
+                  fill=(21, 101, 192), font=hf)
+        draw.text((cx + col_w + gap + col_w // 2 - int(50 * s), y), "Column B",
+                  fill=(255, 103, 0), font=hf)
+        y += int(40 * s)
+
+        rf = _get_font(int(28 * s))
+        for i in range(n):
+            iy = y + i * row_h
+            # Left item
+            if i < len(left_items):
+                draw.rounded_rectangle([cx, iy, cx + col_w, iy + row_h - int(8 * s)],
+                                       radius=int(6 * s), fill=(230, 240, 255))
+                draw.text((cx + int(15 * s), iy + int(12 * s)),
+                          f"{i+1}. {left_items[i]}", fill=(30, 30, 60), font=rf)
+            # Right item
+            if i < len(right_items):
+                rx = cx + col_w + gap
+                draw.rounded_rectangle([rx, iy, rx + col_w, iy + row_h - int(8 * s)],
+                                       radius=int(6 * s), fill=(255, 240, 230))
+                letter = chr(65 + i)  # A, B, C...
+                draw.text((rx + int(15 * s), iy + int(12 * s)),
+                          f"{letter}. {right_items[i]}", fill=(30, 30, 60), font=rf)
+
+            # Connection lines when revealed
+            if revealed and str(i) in matches:
+                j = int(matches[str(i)])
+                lx = cx + col_w
+                ly = iy + row_h // 2
+                rx2 = cx + col_w + gap
+                ry = y + j * row_h + row_h // 2
+                draw.line([(lx, ly), (rx2, ry)], fill=(0, 160, 60), width=int(3 * s))
+
+        return y + n * row_h
+
+    def _draw_sequence_list(self, draw, frame, element, y):
+        """Sequence/ordering items — shuffled or revealed in correct order."""
+        s = self.scale
+        cx, cw = self.content_x, self.content_w
+        items = element.get("items", [])
+        revealed = element.get("revealed", False)
+        heading = element.get("heading", "Arrange in correct order")
+
+        hf = _get_font(int(30 * s), bold=True)
+        draw.text((cx, y), heading, fill=(21, 101, 192), font=hf)
+        y += int(45 * s)
+
+        rf = _get_font(int(30 * s))
+        row_h = int(55 * s)
+        for i, item in enumerate(items):
+            iy = y + i * row_h
+            color = (220, 255, 220) if revealed else (240, 240, 250)
+            border = (0, 160, 60) if revealed else (180, 180, 200)
+            draw.rounded_rectangle([cx, iy, cx + cw, iy + row_h - int(8 * s)],
+                                   radius=int(8 * s), fill=color, outline=border,
+                                   width=int(2 * s))
+            num_color = (0, 160, 60) if revealed else (100, 100, 140)
+            draw.text((cx + int(20 * s), iy + int(12 * s)),
+                      f"{i+1}.", fill=num_color, font=_get_font(int(30 * s), bold=True))
+            draw.text((cx + int(55 * s), iy + int(12 * s)),
+                      item, fill=(30, 30, 60), font=rf)
+
+        return y + len(items) * row_h
+
+    def _draw_numerical_answer(self, draw, frame, element, y):
+        """Highlighted answer box for numerical-type questions (no options)."""
+        s = self.scale
+        h = int(110 * s)
+        cx, cw = self.content_x, self.content_w
+        value = element.get("value", "")
+        unit = element.get("unit", "")
+        label = element.get("label", "Answer")
+
+        draw.rounded_rectangle([cx, y, cx + cw, y + h],
+                               radius=int(12 * s), fill=(0, 160, 60))
+        # Label
+        lf = _get_font(int(24 * s), bold=True)
+        draw.text((cx + int(20 * s), y + int(10 * s)), label,
+                  fill=(200, 255, 200), font=lf)
+        # Value
+        vf = _get_font(int(48 * s), bold=True)
+        display = f"{value} {unit}".strip()
+        tw = draw.textlength(display, font=vf)
+        draw.text((cx + (cw - tw) / 2, y + int(40 * s)),
+                  display, fill=(255, 255, 255), font=vf)
+        return y + h
+
     # ------------------------------------------------------------------
     # Height estimation
     # ------------------------------------------------------------------
@@ -770,6 +1145,20 @@ class FrameRenderer:
         elif etype == "table":
             rows = element.get("rows", [])
             return int((len(rows) + 1) * 64 * s + 20 * s)
+        # Multi-mode elements
+        elif etype == "title_card":
+            return int(self.height * 0.35)
+        elif etype == "section_header":
+            return int(65 * s)
+        elif etype == "blank_reveal":
+            return int(120 * s)
+        elif etype == "match_columns":
+            n = max(len(element.get("left", [])), len(element.get("right", [])))
+            return int(50 * s + n * 55 * s)
+        elif etype == "sequence_list":
+            return int(45 * s + len(element.get("items", [])) * 55 * s)
+        elif etype == "numerical_answer":
+            return int(110 * s)
         return int(80 * s)
 
     # ------------------------------------------------------------------
@@ -2253,10 +2642,2607 @@ class FrameRenderer:
             lines.append(current)
         return lines or [""]
 
+    # ------------------------------------------------------------------
+    # builtin_visual — pure Pillow subject illustrations (no external files)
+    # ------------------------------------------------------------------
+
+    def _draw_builtin_visual(self, draw, frame, element, y):
+        """Draw a copyright-free subject illustration using pure Pillow geometry.
+
+        JSON:
+          { "target": "builtin_visual",
+            "visual": "cell|dna|atom|circuit|beaker|pendulum|
+                       food_chain|force|optics|clock|teacher|leaf",
+            "label":  "Animal Cell Structure",
+            "color":  "blue|green|orange|red"   (optional tint)
+          }
+        """
+        visual = element.get("visual", "")
+        label  = element.get("label", "")
+        color  = element.get("color", "blue")
+        s      = self.scale
+
+        color_map = {
+            "blue":   (21,  101, 192),
+            "green":  (46,  125, 50),
+            "orange": (239, 108, 0),
+            "red":    (198, 40,  40),
+            "purple": (94,  53,  177),
+        }
+        accent = color_map.get(color, color_map["blue"])
+        bg_col = tuple(min(255, c + 210) for c in accent)   # very light tint
+
+        card_h = int(280 * s)
+        cx     = self.content_x
+        cw     = self.content_w
+        lbl_f  = _get_font(int(34 * s), bold=True)
+
+        # Card background
+        draw.rounded_rectangle(
+            [cx, y, cx + cw, y + card_h],
+            radius=int(12 * s), fill=bg_col,
+        )
+        draw.rectangle([cx, y, cx + int(6 * s), y + card_h], fill=accent)
+
+        # Label at top-left
+        if label:
+            draw.text((cx + int(24 * s), y + int(14 * s)), label,
+                      fill=accent, font=lbl_f)
+
+        # Drawing canvas for the illustration (centred inside card)
+        draw_y   = y + (lbl_f.size + int(28 * s) if label else int(20 * s))
+        draw_h   = card_h - (lbl_f.size + int(40 * s) if label else int(30 * s))
+        draw_cx  = cx + cw // 2
+        draw_cy  = draw_y + draw_h // 2
+
+        fn = {
+            # ── Biology ──────────────────────────────────────────────────
+            "cell":                self._vi_cell,
+            "plant_cell":          self._vi_plant_cell,
+            "dna":                 self._vi_dna,
+            "leaf":                self._vi_leaf,
+            "food_chain":          self._vi_food_chain,
+            "heart":               self._vi_heart,
+            "neuron":              self._vi_neuron,
+            "eye":                 self._vi_eye,
+            "blood_cells":         self._vi_blood_cells,
+            "mitosis":             self._vi_mitosis,
+            "osmosis":             self._vi_osmosis,
+            "punnett_square":      self._vi_punnett_square,
+            "ecosystem_pyramid":   self._vi_ecosystem_pyramid,
+            "water_cycle":         self._vi_water_cycle,
+            "nitrogen_cycle":      self._vi_nitrogen_cycle,
+            "virus":               self._vi_virus,
+            "bacteria":            self._vi_bacteria,
+            "digestive_system":    self._vi_digestive_system,
+            # ── Physics ──────────────────────────────────────────────────
+            "atom":                self._vi_atom,
+            "circuit":             self._vi_circuit,
+            "pendulum":            self._vi_pendulum,
+            "optics":              self._vi_optics,
+            "force":               self._vi_force,
+            "wave":                self._vi_wave,
+            "concave_mirror":      self._vi_concave_mirror,
+            "convex_mirror":       self._vi_convex_mirror,
+            "bar_magnet":          self._vi_bar_magnet,
+            "solenoid":            self._vi_solenoid,
+            "projectile":          self._vi_projectile,
+            "inclined_plane":      self._vi_inclined_plane,
+            "transformer":         self._vi_transformer,
+            "capacitor":           self._vi_capacitor,
+            "nuclear_fission":     self._vi_nuclear_fission,
+            "photoelectric":       self._vi_photoelectric,
+            "circular_motion":     self._vi_circular_motion,
+            "pulley":              self._vi_pulley,
+            "pressure_column":     self._vi_pressure_column,
+            "carnot_engine":       self._vi_carnot_engine,
+            # ── Chemistry ────────────────────────────────────────────────
+            "beaker":              self._vi_beaker,
+            "molecule":            self._vi_molecule,
+            "periodic_element":    self._vi_periodic_element,
+            "ph_scale":            self._vi_ph_scale,
+            "electrolysis":        self._vi_electrolysis,
+            "galvanic_cell":       self._vi_galvanic_cell,
+            "bond_ionic":          self._vi_bond_ionic,
+            "bond_covalent":       self._vi_bond_covalent,
+            "benzene":             self._vi_benzene,
+            "activation_energy":   self._vi_activation_energy,
+            "test_tube":           self._vi_test_tube,
+            "distillation":        self._vi_distillation,
+            # ── Math ─────────────────────────────────────────────────────
+            "clock":               self._vi_clock,
+            "venn_diagram":        self._vi_venn_diagram,
+            "coordinate_plane":    self._vi_coordinate_plane,
+            "pie_chart":           self._vi_pie_chart,
+            "bar_chart":           self._vi_bar_chart,
+            "triangle_parts":      self._vi_triangle_parts,
+            "circle_parts":        self._vi_circle_parts,
+            "number_pattern":      self._vi_number_pattern,
+            "fraction_visual":     self._vi_fraction_visual,
+            "normal_distribution": self._vi_normal_distribution,
+            # ── Geography ────────────────────────────────────────────────
+            "compass":             self._vi_compass,
+            "rock_cycle":          self._vi_rock_cycle,
+            "climate_zones":       self._vi_climate_zones,
+            "river_landforms":     self._vi_river_landforms,
+            # ── Civics / Polity ───────────────────────────────────────────
+            "government_structure":self._vi_government_structure,
+            "parliament":          self._vi_parliament,
+            # ── Economics ────────────────────────────────────────────────
+            "supply_demand":       self._vi_supply_demand,
+            "production_possibility": self._vi_ppf,
+            # ── Computer Science ─────────────────────────────────────────
+            "flowchart":           self._vi_flowchart,
+            "binary_tree":         self._vi_binary_tree,
+            "stack_visual":        self._vi_stack_visual,
+            "queue_visual":        self._vi_queue_visual,
+            "array_visual":        self._vi_array_visual,
+            "osi_layers":          self._vi_osi_layers,
+            # ── Reasoning ────────────────────────────────────────────────
+            "seating_circle":      self._vi_seating_circle,
+            "direction_sense":     self._vi_direction_sense,
+            "blood_relation":      self._vi_blood_relation,
+            # ── Universal ────────────────────────────────────────────────
+            "teacher":             self._vi_teacher,
+            "comparison_table":    self._vi_comparison_table,
+            "steps_visual":        self._vi_steps_visual,
+            "lightbulb":           self._vi_lightbulb,
+            "trophy":              self._vi_trophy,
+            "timeline_visual":     self._vi_timeline_visual,
+        }.get(visual)
+
+        if fn:
+            fn(draw, frame, cx, draw_y, cw, draw_h, draw_cx, draw_cy, accent, s)
+
+        return y + card_h
+
+    # ── Individual illustration drawers ─────────────────────────────────
+
+    def _vi_cell(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Animal cell — oval membrane + nucleus + organelles."""
+        rw = int(cw * 0.38)
+        rh = int(dh * 0.72)
+        # Outer membrane
+        draw.ellipse([mx - rw, my - rh, mx + rw, my + rh],
+                     outline=accent, width=int(4 * s))
+        # Nucleus (dark filled ellipse, offset left)
+        nw, nh = int(rw * 0.40), int(rh * 0.38)
+        nx, ny = mx - int(rw * 0.18), my - int(rh * 0.08)
+        draw.ellipse([nx - nw, ny - nh, nx + nw, ny + nh],
+                     fill=tuple(max(0, c - 40) for c in accent),
+                     outline=(255, 255, 255), width=int(2 * s))
+        # Nucleolus (white dot inside nucleus)
+        nd = int(nw * 0.28)
+        draw.ellipse([nx - nd, ny - nd, nx + nd, ny + nd], fill=(255, 255, 255))
+        # Mitochondria (small rounded rect, right side)
+        for i, (ox, oy) in enumerate([(int(rw*0.35), 0), (int(rw*0.20), int(rh*0.40))]):
+            mw2, mh2 = int(rw * 0.22), int(rh * 0.14)
+            draw.rounded_rectangle(
+                [mx + ox - mw2, my + oy - mh2, mx + ox + mw2, my + oy + mh2],
+                radius=int(mh2 * 0.5), outline=accent, width=int(2 * s),
+            )
+        # Vacuole (small circle, bottom right)
+        vr = int(rh * 0.12)
+        draw.ellipse([mx + int(rw*0.15) - vr, my + int(rh*0.40) - vr,
+                      mx + int(rw*0.15) + vr, my + int(rh*0.40) + vr],
+                     outline=accent, width=int(2 * s))
+
+    def _vi_dna(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """DNA double helix — two sine-wave strands with rungs."""
+        import math
+        x0, x1 = cx + int(cw * 0.12), cx + int(cw * 0.88)
+        amp     = int(dh * 0.30)
+        steps   = 40
+        pts_a, pts_b = [], []
+        for i in range(steps + 1):
+            t  = i / steps
+            x  = x0 + int(t * (x1 - x0))
+            ya = my + int(amp * math.sin(t * 4 * math.pi))
+            yb = my + int(amp * math.sin(t * 4 * math.pi + math.pi))
+            pts_a.append((x, ya))
+            pts_b.append((x, yb))
+        # Draw strands
+        for i in range(len(pts_a) - 1):
+            draw.line([pts_a[i], pts_a[i + 1]], fill=accent, width=int(3 * s))
+            draw.line([pts_b[i], pts_b[i + 1]],
+                      fill=tuple(min(255, c + 80) for c in accent), width=int(3 * s))
+        # Base pair rungs every ~4 steps
+        for i in range(0, steps + 1, 4):
+            draw.line([pts_a[i], pts_b[i]], fill=(150, 150, 150), width=int(2 * s))
+
+    def _vi_atom(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Bohr model atom — nucleus + 3 electron orbits."""
+        import math
+        # Nucleus
+        nr = int(min(cw, dh) * 0.07)
+        draw.ellipse([mx - nr, my - nr, mx + nr, my + nr], fill=accent)
+        # Orbits
+        orbits = [(int(cw * 0.22), 0), (int(cw * 0.30), 55), (int(cw * 0.40), 30)]
+        for rx, angle_deg in orbits:
+            ry = int(rx * 0.45)
+            # Rotate bounding box by angle
+            a  = math.radians(angle_deg)
+            # Draw rotated ellipse approximation using arc-like polygon
+            pts = []
+            for t in range(0, 361, 8):
+                rad = math.radians(t)
+                ex  = rx * math.cos(rad)
+                ey  = ry * math.sin(rad)
+                # rotate by angle
+                px2 = ex * math.cos(a) - ey * math.sin(a)
+                py2 = ex * math.sin(a) + ey * math.cos(a)
+                pts.append((mx + int(px2 * s * 0.9), my + int(py2 * s * 0.9)))
+            if len(pts) >= 2:
+                draw.line(pts, fill=accent, width=int(2 * s))
+            # Electron dot
+            er   = int(6 * s)
+            e_t  = 0.7  # t position for electron
+            rad2 = math.radians(t * e_t)
+            ex   = rx * math.cos(rad2)
+            ey   = ry * math.sin(rad2)
+            px2  = ex * math.cos(a) - ey * math.sin(a)
+            py2  = ex * math.sin(a) + ey * math.cos(a)
+            ex2  = mx + int(px2 * s * 0.9)
+            ey2  = my + int(py2 * s * 0.9)
+            draw.ellipse([ex2 - er, ey2 - er, ex2 + er, ey2 + er],
+                         fill=(255, 220, 50))
+
+    def _vi_circuit(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Simple series circuit — battery, resistor, bulb."""
+        # Outer rectangle loop
+        lx = cx + int(cw * 0.10)
+        rx = cx + int(cw * 0.90)
+        ty = my - int(dh * 0.28)
+        by = my + int(dh * 0.28)
+        w  = int(3 * s)
+        lw = int(rx - lx)
+        lh = int(by - ty)
+        # Draw wires
+        draw.line([(lx, ty), (rx, ty)], fill=(80, 80, 80), width=w)   # top
+        draw.line([(lx, by), (rx, by)], fill=(80, 80, 80), width=w)   # bottom
+        draw.line([(lx, ty), (lx, by)], fill=(80, 80, 80), width=w)   # left
+        # Right wire in two halves (bulb in middle)
+        draw.line([(rx, ty), (rx, my - int(dh*0.12))], fill=(80,80,80), width=w)
+        draw.line([(rx, my + int(dh*0.12)), (rx, by)], fill=(80,80,80), width=w)
+        # Battery on bottom-left
+        bx = lx + int(lw * 0.20)
+        for i, (h, col) in enumerate([(14, accent), (9, (200,200,200))]):
+            bh = int(h * s)
+            bxi = bx + i * int(10 * s)
+            draw.line([(bxi, by - int(20*s)), (bxi, by + int(20*s))],
+                      fill=col, width=int(4 * s))
+        # Resistor (zigzag) on top-center
+        zx0 = lx + int(lw * 0.35)
+        zx1 = lx + int(lw * 0.65)
+        zy  = ty
+        zpts = [(zx0, zy)]
+        segs = 6
+        sw   = (zx1 - zx0) // segs
+        for i in range(segs):
+            zxm = zx0 + i * sw + sw // 2
+            zpts.append((zxm, zy - int(14 * s) if i % 2 == 0 else zy + int(14 * s)))
+        zpts.append((zx1, zy))
+        draw.line(zpts, fill=accent, width=w)
+        # Bulb on right (circle + cross)
+        br  = int(18 * s)
+        draw.ellipse([rx - br, my - br, rx + br, my + br],
+                     outline=(255, 200, 0), width=int(3 * s))
+        draw.line([(rx - int(br*0.6), my - int(br*0.6)),
+                   (rx + int(br*0.6), my + int(br*0.6))],
+                  fill=(255, 200, 0), width=int(2 * s))
+        draw.line([(rx + int(br*0.6), my - int(br*0.6)),
+                   (rx - int(br*0.6), my + int(br*0.6))],
+                  fill=(255, 200, 0), width=int(2 * s))
+
+    def _vi_beaker(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Chemistry beaker with liquid and bubbles."""
+        bw  = int(cw * 0.28)
+        bh  = int(dh * 0.82)
+        bx0 = mx - bw // 2
+        bx1 = mx + bw // 2
+        by0 = my - bh // 2
+        by1 = my + bh // 2
+        w   = int(3 * s)
+        # Beaker outline (trapezoid — wider at top)
+        tw  = int(bw * 1.12)
+        draw.polygon([
+            (mx - tw // 2, by0), (mx + tw // 2, by0),
+            (mx + bw // 2, by1), (mx - bw // 2, by1),
+        ], outline=accent, width=w)
+        # Liquid fill (2/3 height)
+        liq_y  = by0 + bh // 3
+        liq_col = tuple(min(255, c + 150) for c in accent)
+        draw.polygon([
+            (mx - bw // 2 + w, liq_y), (mx + bw // 2 - w, liq_y),
+            (mx + bw // 2 - w, by1 - w), (mx - bw // 2 + w, by1 - w),
+        ], fill=liq_col)
+        # Spout
+        draw.line([(mx + tw // 2, by0), (mx + tw // 2 + int(20 * s), by0 - int(10 * s))],
+                  fill=accent, width=w)
+        # Bubbles
+        import math
+        for i, (bxo, byo, br) in enumerate([
+            (int(-bw * 0.15), int(bh * 0.12), int(7 * s)),
+            (int(bw * 0.10),  int(bh * 0.25), int(5 * s)),
+            (int(-bw * 0.05), int(bh * 0.38), int(6 * s)),
+        ]):
+            bxc = mx + bxo
+            byc = liq_y + byo
+            draw.ellipse([bxc - br, byc - br, bxc + br, byc + br],
+                         outline=(255, 255, 255), width=int(2 * s))
+
+    def _vi_pendulum(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Simple pendulum — pivot + string + bob + arc path."""
+        import math
+        pivot_y = my - int(dh * 0.38)
+        str_len = int(dh * 0.60)
+        angle   = 35   # degrees from vertical
+        rad     = math.radians(angle)
+        bob_x   = mx + int(str_len * math.sin(rad))
+        bob_y   = pivot_y + int(str_len * math.cos(rad))
+        bob_r   = int(18 * s)
+        # Ceiling mount
+        draw.line([(mx - int(30*s), pivot_y), (mx + int(30*s), pivot_y)],
+                  fill=(100, 100, 100), width=int(4 * s))
+        draw.rectangle([mx - int(6*s), pivot_y - int(4*s),
+                         mx + int(6*s), pivot_y + int(4*s)], fill=(100,100,100))
+        # Arc (dashed path) — draw arc approximation with dots
+        for t in range(-35, 36, 5):
+            ar = math.radians(t)
+            ax = mx + int(str_len * math.sin(ar))
+            ay = pivot_y + int(str_len * math.cos(ar))
+            r2 = int(3 * s)
+            draw.ellipse([ax - r2, ay - r2, ax + r2, ay + r2],
+                         fill=(180, 180, 180))
+        # String
+        draw.line([(mx, pivot_y), (bob_x, bob_y)], fill=accent, width=int(2 * s))
+        # Pivot dot
+        pr = int(6 * s)
+        draw.ellipse([mx - pr, pivot_y - pr, mx + pr, pivot_y + pr], fill=accent)
+        # Bob
+        draw.ellipse([bob_x - bob_r, bob_y - bob_r,
+                      bob_x + bob_r, bob_y + bob_r], fill=accent)
+        # Velocity arrow
+        draw.line([(bob_x - int(28*s), bob_y + int(8*s)),
+                   (bob_x - int(6*s),  bob_y + int(8*s))],
+                  fill=(239,108,0), width=int(3*s))
+        draw.polygon([(bob_x - int(6*s), bob_y + int(8*s)),
+                      (bob_x - int(14*s), bob_y + int(2*s)),
+                      (bob_x - int(14*s), bob_y + int(14*s))],
+                     fill=(239,108,0))
+
+    def _vi_food_chain(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Food chain: Sun → Grass → Rabbit → Fox (horizontal with arrows)."""
+        labels = ["Sun", "Grass", "Rabbit", "Fox"]
+        n      = len(labels)
+        step   = cw // (n + 1)
+        fy     = my
+        r      = int(dh * 0.28)
+        colors = [(255, 200, 0), (46, 125, 50), (150, 100, 50), (198, 40, 40)]
+        xs     = [cx + step * (i + 1) for i in range(n)]
+        lbl_f  = _get_font(int(26 * s), bold=True)
+        for i, (lx, lbl, col) in enumerate(zip(xs, labels, colors)):
+            draw.ellipse([lx - r, fy - r, lx + r, fy + r], fill=col)
+            tw = draw.textlength(lbl, font=lbl_f)
+            draw.text((lx - tw // 2, fy + r + int(6 * s)), lbl,
+                      fill=(60, 60, 60), font=lbl_f)
+            if i < n - 1:
+                ax0 = lx + r + int(4 * s)
+                ax1 = xs[i + 1] - r - int(4 * s)
+                draw.line([(ax0, fy), (ax1, fy)], fill=accent, width=int(2 * s))
+                draw.polygon([(ax1, fy), (ax1 - int(12*s), fy - int(6*s)),
+                               (ax1 - int(12*s), fy + int(6*s))], fill=accent)
+
+    def _vi_force(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Force diagram — object with labelled force arrows."""
+        # Central box (object)
+        bw, bh = int(cw * 0.14), int(dh * 0.24)
+        draw.rounded_rectangle([mx - bw, my - bh, mx + bw, my + bh],
+                                radius=int(8 * s), fill=(230, 230, 230),
+                                outline=accent, width=int(3 * s))
+        obj_f = _get_font(int(26 * s), bold=True)
+        draw.text((mx - int(draw.textlength("Object", font=obj_f) / 2),
+                   my - obj_f.size // 2), "Object", fill=accent, font=obj_f)
+        # Arrows: up (Normal), down (Weight), right (Applied), left (Friction)
+        arr = int(dh * 0.30)
+        arrow_defs = [
+            (0,  -arr - bh, 0, -bh, "Normal N",   (46, 125, 50)),
+            (0,   bh,       0,  arr + bh, "Weight W",  (198, 40, 40)),
+            (bw,  0,        bw + arr, 0,  "F applied", (21, 101, 192)),
+            (-bw - arr, 0,  -bw, 0, "Friction f", (239, 108, 0)),
+        ]
+        lbl_f = _get_font(int(24 * s), bold=False)
+        for x0, y0, x1, y1, lbl, col in arrow_defs:
+            draw.line([(mx + x0, my + y0), (mx + x1, my + y1)],
+                      fill=col, width=int(3 * s))
+            # Arrowhead
+            dx = x1 - x0
+            dy2 = y1 - y0
+            length = max(1, (dx**2 + dy2**2) ** 0.5)
+            ux, uy = dx / length, dy2 / length
+            perp = (-uy * 8 * s, ux * 8 * s)
+            tip  = (mx + x1, my + y1)
+            draw.polygon([
+                tip,
+                (tip[0] - ux * 16 * s + perp[0], tip[1] - uy * 16 * s + perp[1]),
+                (tip[0] - ux * 16 * s - perp[0], tip[1] - uy * 16 * s - perp[1]),
+            ], fill=col)
+            draw.text((mx + x1 + int(4 * s), my + y1 - int(14 * s)),
+                      lbl, fill=col, font=lbl_f)
+
+    def _vi_optics(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Convex lens with incident and refracted rays."""
+        import math
+        # Lens (vertical oval)
+        lw, lh = int(cw * 0.04), int(dh * 0.65)
+        draw.ellipse([mx - lw, my - lh // 2, mx + lw, my + lh // 2],
+                     fill=(173, 216, 230), outline=accent, width=int(3 * s))
+        # Optical axis
+        ax0 = cx + int(cw * 0.06)
+        ax1 = cx + int(cw * 0.94)
+        draw.line([(ax0, my), (ax1, my)], fill=(180, 180, 180), width=int(1 * s))
+        # Focal point
+        focal = int(cw * 0.22)
+        fr    = int(5 * s)
+        draw.ellipse([mx + focal - fr, my - fr, mx + focal + fr, my + fr],
+                     fill=(239, 108, 0))
+        f_f = _get_font(int(22 * s))
+        draw.text((mx + focal + int(8 * s), my - int(22 * s)), "F",
+                  fill=(239, 108, 0), font=f_f)
+        # Incident rays (parallel, from left)
+        for offset in [-int(dh * 0.22), 0, int(dh * 0.22)]:
+            ix0, iy0 = ax0, my + offset
+            ix1, iy1 = mx, my + offset
+            draw.line([(ix0, iy0), (ix1, iy1)], fill=accent, width=int(2 * s))
+            # Refracted to focal point
+            draw.line([(ix1, iy1), (mx + focal, my)],
+                      fill=(239, 108, 0), width=int(2 * s))
+
+    def _vi_clock(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Analog clock — for Time & Work problems."""
+        import math
+        cr  = int(min(cw, dh) * 0.38)
+        # Clock face
+        draw.ellipse([mx - cr, my - cr, mx + cr, my + cr],
+                     fill=(255, 255, 255), outline=accent, width=int(4 * s))
+        # Hour marks
+        for i in range(12):
+            ang  = math.radians(i * 30 - 90)
+            r0   = cr - int(8 * s)
+            r1   = cr - int(18 * s) if i % 3 == 0 else cr - int(12 * s)
+            x0   = mx + int(r0 * math.cos(ang))
+            y0   = my + int(r0 * math.sin(ang))
+            x1   = mx + int(r1 * math.cos(ang))
+            y1   = my + int(r1 * math.sin(ang))
+            draw.line([(x0, y0), (x1, y1)], fill=accent,
+                      width=int(3 * s) if i % 3 == 0 else int(2 * s))
+        # Hour hand (pointing to 10)
+        ha  = math.radians(10 * 30 - 90)
+        draw.line([(mx, my), (mx + int(cr * 0.55 * math.cos(ha)),
+                              my + int(cr * 0.55 * math.sin(ha)))],
+                  fill=accent, width=int(5 * s))
+        # Minute hand (pointing to 12)
+        ma  = math.radians(-90)
+        draw.line([(mx, my), (mx + int(cr * 0.78 * math.cos(ma)),
+                              my + int(cr * 0.78 * math.sin(ma)))],
+                  fill=(50, 50, 50), width=int(3 * s))
+        # Centre dot
+        dr = int(7 * s)
+        draw.ellipse([mx - dr, my - dr, mx + dr, my + dr], fill=accent)
+
+    def _vi_teacher(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Stick-figure teacher with speech bubble."""
+        # Head
+        hr  = int(dh * 0.14)
+        hx  = mx - int(cw * 0.10)
+        hy  = my - int(dh * 0.28)
+        draw.ellipse([hx - hr, hy - hr, hx + hr, hy + hr],
+                     fill=(255, 220, 177), outline=accent, width=int(2 * s))
+        # Body
+        by0 = hy + hr
+        by1 = my + int(dh * 0.20)
+        draw.line([(hx, by0), (hx, by1)], fill=accent, width=int(3 * s))
+        # Arms — left raised, right pointing
+        draw.line([(hx, by0 + int(dh * 0.08)),
+                   (hx - int(cw * 0.10), by0 - int(dh * 0.05))],
+                  fill=accent, width=int(3 * s))
+        draw.line([(hx, by0 + int(dh * 0.08)),
+                   (hx + int(cw * 0.14), by0 + int(dh * 0.04))],
+                  fill=accent, width=int(3 * s))
+        # Legs
+        draw.line([(hx, by1), (hx - int(cw * 0.06), by1 + int(dh * 0.18))],
+                  fill=accent, width=int(3 * s))
+        draw.line([(hx, by1), (hx + int(cw * 0.06), by1 + int(dh * 0.18))],
+                  fill=accent, width=int(3 * s))
+        # Speech bubble
+        bx0 = hx + int(cw * 0.08)
+        bx1 = cx + int(cw * 0.90)
+        bby0 = hy - int(dh * 0.26)
+        bby1 = hy + int(dh * 0.08)
+        draw.rounded_rectangle([bx0, bby0, bx1, bby1],
+                                radius=int(12 * s), fill=(255, 255, 255),
+                                outline=accent, width=int(2 * s))
+        # Bubble tail
+        draw.polygon([(bx0, bby0 + int((bby1-bby0)*0.6)),
+                      (bx0 - int(18*s), bby0 + int((bby1-bby0)*0.75)),
+                      (bx0, bby0 + int((bby1-bby0)*0.85))],
+                     fill=(255, 255, 255), outline=accent)
+        sf = _get_font(int(26 * s), bold=True)
+        btext = "Let's learn!"
+        draw.text((bx0 + int(16 * s), bby0 + int((bby1 - bby0 - sf.size) / 2)),
+                  btext, fill=accent, font=sf)
+
+    def _vi_leaf(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Leaf cross-section — for biology (photosynthesis, plant structure)."""
+        import math
+        lw = int(cw * 0.36)
+        lh = int(dh * 0.50)
+        # Leaf outline (ellipse)
+        draw.ellipse([mx - lw, my - lh, mx + lw, my + lh],
+                     fill=(200, 240, 200), outline=(46, 125, 50), width=int(3 * s))
+        # Midrib
+        draw.line([(mx - lw, my), (mx + lw, my)],
+                  fill=(46, 125, 50), width=int(3 * s))
+        # Veins (diagonal)
+        for i, side in enumerate([-1, 1]):
+            for frac in [0.25, 0.50, 0.70]:
+                vx0 = mx + int(side * lw * frac)
+                vy0 = my
+                vx1 = vx0 + int(side * lw * 0.18)
+                vy1 = my - int(lh * 0.50)
+                draw.line([(vx0, vy0), (vx1, vy1)],
+                          fill=(46, 125, 50), width=int(2 * s))
+        # Sun arrow (top-right)
+        sun_x, sun_y = cx + int(cw * 0.82), dy + int(dh * 0.12)
+        sr = int(12 * s)
+        draw.ellipse([sun_x - sr, sun_y - sr, sun_x + sr, sun_y + sr],
+                     fill=(255, 200, 0))
+        draw.line([(sun_x, sun_y + sr + int(4*s)), (mx, my - lh)],
+                  fill=(255, 200, 0), width=int(2 * s))
+
+    def _vi_molecule(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Simple molecule diagram (e.g. H2O / CO2 style)."""
+        # Central atom (Carbon / Oxygen)
+        cr  = int(dh * 0.18)
+        draw.ellipse([mx - cr, my - cr, mx + cr, my + cr], fill=accent)
+        cf  = _get_font(int(28 * s), bold=True)
+        draw.text((mx - int(draw.textlength("C", font=cf) / 2), my - cf.size // 2),
+                  "C", fill=(255, 255, 255), font=cf)
+        # Bonded atoms (left and right — Oxygen)
+        bond_dist = int(cw * 0.28)
+        or2       = int(cr * 0.80)
+        for side, lbl in [(-1, "O"), (1, "O")]:
+            bx = mx + side * bond_dist
+            by = my
+            # Bond line(s) — double bond
+            draw.line([(mx + side * cr, my - int(4*s)),
+                       (bx - side * or2, my - int(4*s))],
+                      fill=(100, 100, 100), width=int(2 * s))
+            draw.line([(mx + side * cr, my + int(4*s)),
+                       (bx - side * or2, my + int(4*s))],
+                      fill=(100, 100, 100), width=int(2 * s))
+            col = (198, 40, 40)
+            draw.ellipse([bx - or2, by - or2, bx + or2, by + or2], fill=col)
+            draw.text((bx - int(draw.textlength(lbl, font=cf) / 2), by - cf.size // 2),
+                      lbl, fill=(255, 255, 255), font=cf)
+
+    def _vi_wave(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Transverse wave — amplitude, wavelength labels."""
+        import math
+        x0, x1 = cx + int(cw * 0.06), cx + int(cw * 0.94)
+        amp = int(dh * 0.32)
+        steps = 60
+        pts = []
+        for i in range(steps + 1):
+            t  = i / steps
+            x  = x0 + int(t * (x1 - x0))
+            y2 = my + int(amp * math.sin(t * 4 * math.pi))
+            pts.append((x, y2))
+        for i in range(len(pts) - 1):
+            draw.line([pts[i], pts[i + 1]], fill=accent, width=int(3 * s))
+        # Equilibrium line
+        draw.line([(x0, my), (x1, my)], fill=(180, 180, 180),
+                  width=int(1 * s))
+        # Amplitude arrow
+        peak_x = x0 + (x1 - x0) // 8
+        draw.line([(peak_x, my), (peak_x, my - amp)],
+                  fill=(239, 108, 0), width=int(2 * s))
+        af = _get_font(int(24 * s))
+        draw.text((peak_x + int(6 * s), my - amp // 2 - af.size // 2),
+                  "A", fill=(239, 108, 0), font=af)
+        # Wavelength arrow (one full cycle)
+        lam_x0 = x0 + (x1 - x0) // 4
+        lam_x1 = x0 + (x1 - x0) * 3 // 4
+        lam_y  = my + amp + int(20 * s)
+        draw.line([(lam_x0, lam_y), (lam_x1, lam_y)],
+                  fill=(21, 101, 192), width=int(2 * s))
+        lf = _get_font(int(24 * s))
+        tw = draw.textlength("λ", font=lf)
+        draw.text(((lam_x0 + lam_x1) // 2 - int(tw / 2), lam_y + int(4 * s)),
+                  "λ", fill=(21, 101, 192), font=lf)
+
+    # ── BIOLOGY: New visuals ─────────────────────────────────────────
+
+    def _vi_plant_cell(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Plant cell — rectangular wall, chloroplasts, central vacuole."""
+        rw, rh = int(cw * 0.38), int(dh * 0.72)
+        draw.rectangle([mx - rw, my - rh, mx + rw, my + rh], outline=accent, width=int(4 * s))
+        draw.rectangle([mx - rw + int(8 * s), my - rh + int(8 * s),
+                        mx + rw - int(8 * s), my + rh - int(8 * s)],
+                       outline=accent, width=int(2 * s))
+        vw, vh = int(rw * 0.55), int(rh * 0.50)
+        draw.ellipse([mx - vw, my - vh, mx + vw, my + vh],
+                     outline=(100, 180, 255), width=int(3 * s))
+        f = _get_font(int(18 * s))
+        draw.text((mx - int(30 * s), my - int(8 * s)), "Vacuole",
+                  fill=(100, 150, 200), font=f)
+        nw, nh = int(rw * 0.28), int(rh * 0.25)
+        nx = mx - int(rw * 0.50)
+        draw.ellipse([nx - nw, my - nh, nx + nw, my + nh],
+                     fill=tuple(max(0, c - 40) for c in accent),
+                     outline=(255, 255, 255), width=int(2 * s))
+        for ox, oy in [(int(rw * 0.35), -int(rh * 0.45)),
+                       (int(rw * 0.50), int(rh * 0.20)),
+                       (-int(rw * 0.15), int(rh * 0.55))]:
+            ew, eh = int(rw * 0.14), int(rh * 0.08)
+            draw.ellipse([mx + ox - ew, my + oy - eh, mx + ox + ew, my + oy + eh],
+                         fill=(34, 139, 34))
+        draw.text((mx + int(rw * 0.20), my - int(rh * 0.55)),
+                  "Chloroplast", fill=(34, 139, 34), font=f)
+
+    def _vi_heart(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Heart — 4 chambers RA/LA/RV/LV."""
+        rw, rh = int(cw * 0.30), int(dh * 0.40)
+        draw.ellipse([mx - rw, my - rh, mx + rw, my + rh],
+                     outline=(200, 60, 60), width=int(4 * s))
+        draw.line([(mx, my - rh), (mx, my + rh)], fill=(200, 60, 60), width=int(3 * s))
+        draw.line([(mx - rw, my), (mx + rw, my)], fill=(200, 60, 60), width=int(3 * s))
+        f = _get_font(int(20 * s), bold=True)
+        draw.text((mx - rw // 2 - int(12 * s), my - rh // 2 - int(10 * s)),
+                  "LA", fill=(200, 60, 60), font=f)
+        draw.text((mx + rw // 4 - int(4 * s), my - rh // 2 - int(10 * s)),
+                  "RA", fill=(100, 60, 200), font=f)
+        draw.text((mx - rw // 2 - int(12 * s), my + rh // 4 - int(4 * s)),
+                  "LV", fill=(200, 60, 60), font=f)
+        draw.text((mx + rw // 4 - int(4 * s), my + rh // 4 - int(4 * s)),
+                  "RV", fill=(100, 60, 200), font=f)
+        sf = _get_font(int(16 * s))
+        draw.text((mx - rw - int(60 * s), my - rh // 2),
+                  "Oxygenated", fill=(200, 60, 60), font=sf)
+        draw.text((mx + rw + int(8 * s), my - rh // 2),
+                  "Deoxygenated", fill=(100, 60, 200), font=sf)
+
+    def _vi_neuron(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Neuron — dendrites, cell body, axon, terminal."""
+        bx, by = mx - int(cw * 0.25), my
+        br = int(dh * 0.18)
+        draw.ellipse([bx - br, by - br, bx + br, by + br],
+                     fill=accent, outline=(255, 255, 255), width=int(2 * s))
+        f = _get_font(int(14 * s))
+        draw.text((bx - int(14 * s), by - int(7 * s)), "Cell Body",
+                  fill=(255, 255, 255), font=f)
+        for dy2 in [-int(dh * 0.30), 0, int(dh * 0.30)]:
+            dx = bx - br
+            draw.line([(dx, by + dy2), (dx - int(cw * 0.12), by + dy2 - int(10 * s))],
+                      fill=accent, width=int(2 * s))
+            draw.line([(dx, by + dy2), (dx - int(cw * 0.12), by + dy2 + int(10 * s))],
+                      fill=accent, width=int(2 * s))
+        ax_end = mx + int(cw * 0.30)
+        draw.line([(bx + br, by), (ax_end, by)], fill=accent, width=int(3 * s))
+        for i in range(4):
+            sx = bx + br + int(i * (ax_end - bx - br) / 4) + int(10 * s)
+            sw = int((ax_end - bx - br) / 4 * 0.6)
+            draw.rounded_rectangle([sx, by - int(10 * s), sx + sw, by + int(10 * s)],
+                                   radius=int(5 * s), fill=(200, 200, 220))
+        for dy2 in [-int(12 * s), 0, int(12 * s)]:
+            draw.ellipse([ax_end, by + dy2 - int(5 * s),
+                          ax_end + int(10 * s), by + dy2 + int(5 * s)], fill=accent)
+        draw.text((bx - br - int(cw * 0.10), my - int(dh * 0.38)),
+                  "Dendrites", fill=accent, font=f)
+        draw.text((mx - int(10 * s), my + int(16 * s)), "Axon", fill=accent, font=f)
+
+    def _vi_eye(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Eye cross-section — cornea, lens, retina, optic nerve."""
+        rw, rh = int(cw * 0.32), int(dh * 0.38)
+        draw.ellipse([mx - rw, my - rh, mx + rw, my + rh],
+                     outline=accent, width=int(3 * s))
+        lw = int(rw * 0.15)
+        draw.ellipse([mx - int(rw * 0.30) - lw, my - int(rh * 0.50),
+                      mx - int(rw * 0.30) + lw, my + int(rh * 0.50)],
+                     outline=(100, 150, 255), width=int(3 * s))
+        draw.arc([mx - rw, my - rh, mx + rw, my + rh], -60, 60,
+                 fill=(200, 80, 80), width=int(6 * s))
+        draw.line([(mx + rw, my), (mx + rw + int(40 * s), my + int(20 * s))],
+                  fill=(200, 150, 50), width=int(4 * s))
+        draw.arc([mx - rw, my - rh, mx + rw, my + rh], 150, 210,
+                 fill=(150, 220, 255), width=int(5 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(rw * 0.55), my - int(rh * 0.20)),
+                  "Lens", fill=(100, 150, 255), font=f)
+        draw.text((mx + int(rw * 0.55), my - int(5 * s)),
+                  "Retina", fill=(200, 80, 80), font=f)
+        draw.text((mx + rw + int(10 * s), my + int(25 * s)),
+                  "Optic Nerve", fill=(200, 150, 50), font=f)
+        draw.text((mx - rw - int(50 * s), my - int(5 * s)),
+                  "Cornea", fill=(150, 220, 255), font=f)
+
+    def _vi_blood_cells(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Three blood cell types: RBC, WBC, Platelet."""
+        f = _get_font(int(18 * s), bold=True)
+        sf = _get_font(int(15 * s))
+        gap = int(cw * 0.28)
+        for i, (label, color, sub) in enumerate([
+            ("RBC", (200, 60, 60), "Red Blood Cell"),
+            ("WBC", (100, 100, 220), "White Blood Cell"),
+            ("Platelet", (180, 150, 220), "Thrombocyte"),
+        ]):
+            cx2 = mx + (i - 1) * gap
+            r = int(dh * 0.22) if i < 2 else int(dh * 0.12)
+            draw.ellipse([cx2 - r, my - r, cx2 + r, my + r],
+                         fill=color, outline=(255, 255, 255), width=int(2 * s))
+            if i == 0:
+                draw.ellipse([cx2 - int(r * 0.4), my - int(r * 0.4),
+                              cx2 + int(r * 0.4), my + int(r * 0.4)],
+                             fill=tuple(max(0, c - 30) for c in color))
+            elif i == 1:
+                for ox, oy in [(-int(r * 0.2), -int(r * 0.2)),
+                               (int(r * 0.2), int(r * 0.2))]:
+                    draw.ellipse([cx2 + ox - int(r * 0.3), my + oy - int(r * 0.3),
+                                  cx2 + ox + int(r * 0.3), my + oy + int(r * 0.3)],
+                                 fill=tuple(min(255, c + 40) for c in color))
+            tw = draw.textlength(label, font=f)
+            draw.text((cx2 - tw // 2, my + r + int(8 * s)), label, fill=color, font=f)
+            tw2 = draw.textlength(sub, font=sf)
+            draw.text((cx2 - tw2 // 2, my + r + int(8 * s) + f.size + int(4 * s)),
+                      sub, fill=(120, 120, 120), font=sf)
+
+    def _vi_mitosis(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Mitosis — 4 phase boxes with arrows."""
+        f = _get_font(int(16 * s), bold=True)
+        phases = ["Prophase", "Metaphase", "Anaphase", "Telophase"]
+        n = len(phases)
+        bw = int(cw * 0.18)
+        bh = int(dh * 0.60)
+        gap = (cw - n * bw) / (n + 1)
+        colors = [(180, 80, 80), (80, 140, 200), (80, 180, 80), (200, 140, 60)]
+        for i, (ph, col) in enumerate(zip(phases, colors)):
+            x = cx + int(gap * (i + 1) + bw * i)
+            draw.rounded_rectangle([x, my - bh // 2, x + bw, my + bh // 2],
+                                   radius=int(8 * s), outline=col, width=int(3 * s))
+            tw = draw.textlength(ph, font=f)
+            draw.text((x + (bw - tw) // 2, my + bh // 2 + int(8 * s)),
+                      ph, fill=col, font=f)
+            if i < n - 1:
+                ax = x + bw + int(gap * 0.2)
+                draw.line([(ax, my), (ax + int(gap * 0.5), my)],
+                          fill=(150, 150, 150), width=int(2 * s))
+
+    def _vi_osmosis(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Osmosis — membrane with water molecules moving."""
+        rw, rh = int(cw * 0.38), int(dh * 0.40)
+        draw.rectangle([mx - rw, my - rh, mx + rw, my + rh],
+                       outline=(150, 150, 150), width=int(2 * s))
+        for i in range(8):
+            y1 = my - rh + i * (2 * rh) // 8
+            y2 = y1 + rh // 8
+            draw.line([(mx, y1), (mx, y2)], fill=accent, width=int(3 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(30 * s), my - rh - int(22 * s)),
+                  "Membrane", fill=accent, font=f)
+        positions_left = [(-0.7, -0.5), (-0.5, -0.2), (-0.8, 0.1), (-0.3, 0.3),
+                          (-0.6, 0.5), (-0.4, -0.6), (-0.2, 0.0), (-0.7, 0.4),
+                          (-0.5, 0.6), (-0.3, -0.4), (-0.6, -0.1), (-0.4, 0.2)]
+        for px, py in positions_left:
+            x = mx + int(rw * px)
+            y2 = my + int(rh * py)
+            draw.ellipse([x - int(4 * s), y2 - int(4 * s),
+                          x + int(4 * s), y2 + int(4 * s)], fill=(100, 180, 255))
+        positions_right = [(0.3, -0.3), (0.5, 0.1), (0.7, 0.4), (0.4, -0.5), (0.6, 0.2)]
+        for px, py in positions_right:
+            x = mx + int(rw * px)
+            y2 = my + int(rh * py)
+            draw.ellipse([x - int(4 * s), y2 - int(4 * s),
+                          x + int(4 * s), y2 + int(4 * s)], fill=(100, 180, 255))
+        draw.line([(mx - int(30 * s), my + rh + int(15 * s)),
+                   (mx + int(30 * s), my + rh + int(15 * s))],
+                  fill=(239, 108, 0), width=int(2 * s))
+        draw.text((mx - rw + int(5 * s), my + rh + int(6 * s)),
+                  "High", fill=(100, 180, 255), font=f)
+        draw.text((mx + rw - int(30 * s), my + rh + int(6 * s)),
+                  "Low", fill=(100, 180, 255), font=f)
+
+    def _vi_punnett_square(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Punnett square 2x2 genetics grid."""
+        sz = int(min(cw * 0.12, dh * 0.28))
+        f = _get_font(int(22 * s), bold=True)
+        sf = _get_font(int(18 * s))
+        x0, y0 = mx - sz, my - sz
+        alleles = [["BB", "Bb"], ["Bb", "bb"]]
+        parents = ["B", "b"]
+        for r in range(2):
+            for c in range(2):
+                x = x0 + c * sz
+                y = y0 + r * sz
+                col = (80, 180, 80) if "B" in alleles[r][c] else (200, 100, 100)
+                draw.rectangle([x, y, x + sz, y + sz], outline=accent, width=int(2 * s))
+                txt = alleles[r][c]
+                tw = draw.textlength(txt, font=f)
+                draw.text((x + (sz - tw) // 2, y + (sz - f.size) // 2),
+                          txt, fill=col, font=f)
+        for c in range(2):
+            tw = draw.textlength(parents[c], font=sf)
+            draw.text((x0 + c * sz + (sz - tw) // 2, y0 - int(24 * s)),
+                      parents[c], fill=accent, font=sf)
+        for r in range(2):
+            draw.text((x0 - int(24 * s), y0 + r * sz + (sz - sf.size) // 2),
+                      parents[r], fill=accent, font=sf)
+
+    def _vi_ecosystem_pyramid(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Energy pyramid — 4 tiers."""
+        f = _get_font(int(16 * s), bold=True)
+        tiers = ["Tertiary", "Secondary", "Primary", "Producers"]
+        colors = [(200, 60, 60), (239, 108, 0), (80, 140, 200), (46, 125, 50)]
+        n = len(tiers)
+        tier_h = int(dh * 0.20)
+        top_w = int(cw * 0.18)
+        bot_w = int(cw * 0.70)
+        y0 = my - int(n * tier_h / 2)
+        for i, (t, col) in enumerate(zip(tiers, colors)):
+            w = top_w + int((bot_w - top_w) * i / (n - 1))
+            y = y0 + i * tier_h
+            draw.rectangle([mx - w // 2, y, mx + w // 2, y + tier_h - int(4 * s)], fill=col)
+            tw = draw.textlength(t, font=f)
+            draw.text((mx - tw // 2, y + (tier_h - int(4 * s) - f.size) // 2),
+                      t, fill=(255, 255, 255), font=f)
+
+    def _vi_water_cycle(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Water cycle — sun, cloud, rain, river, evaporation."""
+        f = _get_font(int(15 * s))
+        sr = int(dh * 0.10)
+        sx, sy = cx + int(cw * 0.12), dy + int(dh * 0.18)
+        draw.ellipse([sx - sr, sy - sr, sx + sr, sy + sr], fill=(255, 200, 0))
+        draw.text((sx - int(10 * s), sy + sr + int(4 * s)), "Sun",
+                  fill=(200, 150, 0), font=f)
+        clx, cly = mx + int(cw * 0.15), dy + int(dh * 0.15)
+        for ox, oy, cr in [(0, 0, int(18 * s)), (int(15 * s), -int(5 * s), int(14 * s)),
+                           (-int(15 * s), -int(3 * s), int(12 * s))]:
+            draw.ellipse([clx + ox - cr, cly + oy - cr, clx + ox + cr, cly + oy + cr],
+                         fill=(180, 200, 230))
+        for i in range(4):
+            rx = clx - int(12 * s) + i * int(10 * s)
+            ry = cly + int(20 * s) + i * int(5 * s)
+            draw.line([(rx, ry), (rx - int(3 * s), ry + int(10 * s))],
+                      fill=(100, 150, 255), width=int(2 * s))
+        draw.text((clx - int(15 * s), cly + int(35 * s)), "Rain",
+                  fill=(100, 150, 255), font=f)
+        gy = my + int(dh * 0.30)
+        draw.line([(cx + int(cw * 0.05), gy), (cx + int(cw * 0.95), gy)],
+                  fill=(139, 90, 43), width=int(3 * s))
+        draw.line([(mx - int(cw * 0.15), gy + int(8 * s)),
+                   (mx + int(cw * 0.20), gy + int(8 * s))],
+                  fill=(60, 120, 220), width=int(4 * s))
+        draw.line([(mx - int(cw * 0.12), gy - int(5 * s)),
+                   (mx - int(cw * 0.05), dy + int(dh * 0.35))],
+                  fill=(200, 100, 100), width=int(2 * s))
+        draw.text((mx - int(cw * 0.22), my - int(dh * 0.08)),
+                  "Evaporation", fill=(200, 100, 100), font=f)
+
+    def _vi_nitrogen_cycle(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Nitrogen cycle — circular flow."""
+        f = _get_font(int(14 * s))
+        nodes = ["N2 (Air)", "Bacteria", "Plants", "Animals", "Decomposers"]
+        n = len(nodes)
+        r = int(min(cw, dh) * 0.30)
+        colors = [(100, 150, 255), (200, 100, 100), (46, 125, 50),
+                  (200, 150, 60), (150, 100, 60)]
+        for i, (nd, col) in enumerate(zip(nodes, colors)):
+            angle = -math.pi / 2 + 2 * math.pi * i / n
+            nx = mx + int(r * math.cos(angle))
+            ny = my + int(r * math.sin(angle))
+            nr = int(dh * 0.10)
+            draw.ellipse([nx - nr, ny - nr, nx + nr, ny + nr],
+                         fill=col, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(nd, font=f)
+            draw.text((nx - tw // 2, ny - f.size // 2), nd,
+                      fill=(255, 255, 255), font=f)
+
+    def _vi_virus(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Virus — icosahedral with spikes."""
+        r = int(min(cw, dh) * 0.18)
+        pts = [(mx + int(r * math.cos(math.pi * 2 * i / 6)),
+                my + int(r * math.sin(math.pi * 2 * i / 6))) for i in range(6)]
+        draw.polygon(pts, fill=tuple(min(255, c + 180) for c in accent),
+                     outline=accent, width=int(3 * s))
+        for i in range(12):
+            angle = math.pi * 2 * i / 12
+            x1 = mx + int(r * math.cos(angle))
+            y1 = my + int(r * math.sin(angle))
+            x2 = mx + int((r + int(18 * s)) * math.cos(angle))
+            y2 = my + int((r + int(18 * s)) * math.sin(angle))
+            draw.line([(x1, y1), (x2, y2)], fill=accent, width=int(2 * s))
+            draw.ellipse([x2 - int(4 * s), y2 - int(4 * s),
+                          x2 + int(4 * s), y2 + int(4 * s)], fill=accent)
+        draw.ellipse([mx - int(r * 0.35), my - int(r * 0.35),
+                      mx + int(r * 0.35), my + int(r * 0.35)],
+                     outline=accent, width=int(2 * s))
+        f = _get_font(int(14 * s))
+        draw.text((mx - int(12 * s), my - int(7 * s)), "DNA", fill=accent, font=f)
+
+    def _vi_bacteria(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Bacteria — rod shape with flagella."""
+        rw, rh = int(cw * 0.20), int(dh * 0.16)
+        draw.rounded_rectangle([mx - rw, my - rh, mx + rw, my + rh],
+                               radius=rh, fill=accent)
+        draw.ellipse([mx - int(rw * 0.30), my - int(rh * 0.40),
+                      mx + int(rw * 0.30), my + int(rh * 0.40)],
+                     outline=(255, 255, 255), width=int(2 * s))
+        for dy2 in [-int(8 * s), 0, int(8 * s)]:
+            pts = []
+            for i in range(15):
+                x = mx + rw + int(i * 4 * s)
+                y = my + dy2 + int(5 * s * math.sin(i * 0.8))
+                pts.append((x, y))
+            for j in range(len(pts) - 1):
+                draw.line([pts[j], pts[j + 1]], fill=accent, width=int(2 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(20 * s), my + rh + int(10 * s)),
+                  "Rod Bacterium", fill=accent, font=f)
+
+    def _vi_digestive_system(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Digestive system — simplified vertical path."""
+        f = _get_font(int(15 * s))
+        parts = ["Mouth", "Esophagus", "Stomach", "Sm. Intestine", "Lg. Intestine"]
+        n = len(parts)
+        step_h = int(dh * 0.17)
+        y0 = dy + int(dh * 0.04)
+        colors = [(200, 120, 120), (180, 140, 100), (200, 160, 80),
+                  (120, 180, 120), (100, 140, 160)]
+        for i, (p, col) in enumerate(zip(parts, colors)):
+            y = y0 + i * step_h
+            bw = int(cw * 0.22)
+            draw.rounded_rectangle([mx - bw, y, mx + bw, y + step_h - int(6 * s)],
+                                   radius=int(6 * s), fill=col)
+            tw = draw.textlength(p, font=f)
+            draw.text((mx - tw // 2, y + (step_h - int(6 * s) - f.size) // 2),
+                      p, fill=(255, 255, 255), font=f)
+            if i < n - 1:
+                draw.line([(mx, y + step_h - int(6 * s)), (mx, y + step_h)],
+                          fill=(150, 150, 150), width=int(2 * s))
+
+    # ── PHYSICS: New visuals ─────────────────────────────────────────
+
+    def _vi_concave_mirror(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Concave mirror — curved mirror with C, F, rays converging."""
+        draw.line([(cx + int(cw * 0.05), my), (cx + int(cw * 0.95), my)],
+                  fill=(180, 180, 180), width=int(1 * s))
+        mr_x = cx + int(cw * 0.80)
+        draw.arc([mr_x - int(cw * 0.30), my - int(dh * 0.40),
+                  mr_x + int(cw * 0.10), my + int(dh * 0.40)],
+                 120, 240, fill=accent, width=int(4 * s))
+        f = _get_font(int(16 * s))
+        fp_x = cx + int(cw * 0.55)
+        cp_x = cx + int(cw * 0.35)
+        draw.ellipse([fp_x - int(3 * s), my - int(3 * s),
+                      fp_x + int(3 * s), my + int(3 * s)], fill=(239, 108, 0))
+        draw.text((fp_x - int(3 * s), my + int(8 * s)), "F",
+                  fill=(239, 108, 0), font=f)
+        draw.ellipse([cp_x - int(3 * s), my - int(3 * s),
+                      cp_x + int(3 * s), my + int(3 * s)], fill=(200, 60, 60))
+        draw.text((cp_x - int(3 * s), my + int(8 * s)), "C",
+                  fill=(200, 60, 60), font=f)
+        draw.line([(cx + int(cw * 0.10), my - int(dh * 0.25)), (mr_x, my - int(dh * 0.25))],
+                  fill=(255, 200, 0), width=int(2 * s))
+        draw.line([(mr_x, my - int(dh * 0.25)), (fp_x, my)],
+                  fill=(255, 200, 0), width=int(2 * s))
+
+    def _vi_convex_mirror(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Convex mirror — diverging rays."""
+        draw.line([(cx + int(cw * 0.05), my), (cx + int(cw * 0.95), my)],
+                  fill=(180, 180, 180), width=int(1 * s))
+        mr_x = cx + int(cw * 0.80)
+        draw.arc([mr_x - int(cw * 0.10), my - int(dh * 0.40),
+                  mr_x + int(cw * 0.30), my + int(dh * 0.40)],
+                 -60, 60, fill=accent, width=int(4 * s))
+        f = _get_font(int(16 * s))
+        fp_x = cx + int(cw * 0.90)
+        draw.text((fp_x, my + int(8 * s)), "F", fill=(239, 108, 0), font=f)
+        draw.line([(cx + int(cw * 0.10), my - int(dh * 0.20)), (mr_x, my - int(dh * 0.20))],
+                  fill=(255, 200, 0), width=int(2 * s))
+        draw.line([(mr_x, my - int(dh * 0.20)),
+                   (mr_x - int(cw * 0.15), my - int(dh * 0.35))],
+                  fill=(255, 200, 0), width=int(2 * s))
+        draw.text((mx - int(20 * s), my + int(dh * 0.35)),
+                  "Convex Mirror", fill=accent, font=f)
+
+    def _vi_bar_magnet(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Bar magnet with field lines N/S."""
+        mw, mh = int(cw * 0.28), int(dh * 0.14)
+        draw.rectangle([mx - mw, my - mh, mx, my + mh], fill=(200, 60, 60))
+        draw.rectangle([mx, my - mh, mx + mw, my + mh], fill=(80, 80, 200))
+        f = _get_font(int(22 * s), bold=True)
+        draw.text((mx - mw // 2 - int(6 * s), my - int(10 * s)),
+                  "N", fill=(255, 255, 255), font=f)
+        draw.text((mx + mw // 2 - int(6 * s), my - int(10 * s)),
+                  "S", fill=(255, 255, 255), font=f)
+        for dy2 in [-int(dh * 0.30), -int(dh * 0.18), int(dh * 0.18), int(dh * 0.30)]:
+            draw.arc([mx - mw - int(cw * 0.12), my + dy2 - int(dh * 0.08),
+                      mx + mw + int(cw * 0.12), my + dy2 + int(dh * 0.08)],
+                     0, 180 if dy2 < 0 else 180, fill=(150, 150, 150), width=int(1 * s))
+
+    def _vi_solenoid(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Solenoid — coil with magnetic field."""
+        x0, x1 = cx + int(cw * 0.15), cx + int(cw * 0.85)
+        coil_y_top = my - int(dh * 0.20)
+        coil_y_bot = my + int(dh * 0.20)
+        turns = 8
+        for i in range(turns):
+            tx = x0 + int(i * (x1 - x0) / turns)
+            tx2 = x0 + int((i + 0.5) * (x1 - x0) / turns)
+            draw.arc([tx, coil_y_top, tx2, coil_y_bot], 0, 180,
+                     fill=accent, width=int(2 * s))
+            draw.arc([tx, coil_y_top, tx2, coil_y_bot], 180, 360,
+                     fill=tuple(max(0, c - 60) for c in accent), width=int(2 * s))
+        draw.line([(mx, my), (x1 + int(20 * s), my)],
+                  fill=(200, 60, 60), width=int(2 * s))
+        f = _get_font(int(16 * s))
+        draw.text((x1 + int(5 * s), my - int(20 * s)), "B field",
+                  fill=(200, 60, 60), font=f)
+
+    def _vi_projectile(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Projectile motion — parabolic path with velocity components."""
+        x0 = cx + int(cw * 0.10)
+        y_ground = my + int(dh * 0.35)
+        draw.line([(x0, y_ground), (cx + int(cw * 0.90), y_ground)],
+                  fill=(150, 150, 150), width=int(2 * s))
+        pts = []
+        for i in range(30):
+            t = i / 29
+            px = x0 + int(t * cw * 0.75)
+            py = y_ground - int(4 * dh * 0.55 * t * (1 - t))
+            pts.append((px, py))
+        for i in range(len(pts) - 1):
+            draw.line([pts[i], pts[i + 1]], fill=accent, width=int(3 * s))
+        draw.ellipse([pts[0][0] - int(5 * s), pts[0][1] - int(5 * s),
+                      pts[0][0] + int(5 * s), pts[0][1] + int(5 * s)], fill=accent)
+        f = _get_font(int(16 * s))
+        draw.text((x0 + int(10 * s), y_ground - int(dh * 0.15)),
+                  "Vx", fill=(80, 140, 200), font=f)
+        draw.text((x0 - int(5 * s), y_ground - int(dh * 0.45)),
+                  "Vy", fill=(200, 60, 60), font=f)
+        peak = pts[14]
+        draw.text((peak[0] - int(20 * s), peak[1] - int(20 * s)),
+                  "Max Height", fill=accent, font=f)
+
+    def _vi_inclined_plane(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Inclined plane — ramp with force decomposition."""
+        bx = cx + int(cw * 0.12)
+        by = my + int(dh * 0.35)
+        tx = cx + int(cw * 0.75)
+        ty = my - int(dh * 0.30)
+        draw.polygon([(bx, by), (tx, by), (tx, ty)], outline=accent, width=int(3 * s))
+        obj_x = (bx + tx) // 2
+        obj_y = (by + ty) // 2 + int(dh * 0.02)
+        draw.rectangle([obj_x - int(12 * s), obj_y - int(12 * s),
+                        obj_x + int(12 * s), obj_y + int(12 * s)],
+                       fill=(239, 108, 0), outline=(255, 255, 255), width=int(2 * s))
+        f = _get_font(int(16 * s))
+        draw.line([(obj_x, obj_y), (obj_x, obj_y + int(30 * s))],
+                  fill=(200, 60, 60), width=int(2 * s))
+        draw.text((obj_x + int(5 * s), obj_y + int(20 * s)),
+                  "mg", fill=(200, 60, 60), font=f)
+        draw.text((bx + int(cw * 0.05), by + int(8 * s)),
+                  "theta", fill=accent, font=f)
+
+    def _vi_transformer(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Transformer — primary/secondary coils + iron core."""
+        core_w = int(cw * 0.06)
+        core_h = int(dh * 0.50)
+        draw.rectangle([mx - int(cw * 0.15), my - core_h // 2,
+                        mx - int(cw * 0.15) + core_w, my + core_h // 2],
+                       fill=(100, 100, 100))
+        draw.rectangle([mx + int(cw * 0.15) - core_w, my - core_h // 2,
+                        mx + int(cw * 0.15), my + core_h // 2],
+                       fill=(100, 100, 100))
+        draw.rectangle([mx - int(cw * 0.15), my - core_h // 2,
+                        mx + int(cw * 0.15), my - core_h // 2 + core_w],
+                       fill=(100, 100, 100))
+        draw.rectangle([mx - int(cw * 0.15), my + core_h // 2 - core_w,
+                        mx + int(cw * 0.15), my + core_h // 2],
+                       fill=(100, 100, 100))
+        for i in range(6):
+            cy = my - core_h // 2 + int((i + 0.5) * core_h / 6)
+            draw.arc([mx - int(cw * 0.30), cy - int(8 * s),
+                      mx - int(cw * 0.15), cy + int(8 * s)],
+                     90, 270, fill=(200, 60, 60), width=int(2 * s))
+        for i in range(8):
+            cy = my - core_h // 2 + int((i + 0.5) * core_h / 8)
+            draw.arc([mx + int(cw * 0.15), cy - int(6 * s),
+                      mx + int(cw * 0.30), cy + int(6 * s)],
+                     -90, 90, fill=(80, 140, 200), width=int(2 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(cw * 0.38), my + core_h // 2 + int(8 * s)),
+                  "Primary", fill=(200, 60, 60), font=f)
+        draw.text((mx + int(cw * 0.10), my + core_h // 2 + int(8 * s)),
+                  "Secondary", fill=(80, 140, 200), font=f)
+
+    def _vi_capacitor(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Capacitor — parallel plates with E-field lines."""
+        pw = int(4 * s)
+        ph = int(dh * 0.55)
+        gap = int(cw * 0.12)
+        draw.rectangle([mx - gap // 2 - pw, my - ph // 2,
+                        mx - gap // 2, my + ph // 2], fill=(200, 60, 60))
+        draw.rectangle([mx + gap // 2, my - ph // 2,
+                        mx + gap // 2 + pw, my + ph // 2], fill=(80, 80, 200))
+        for i in range(5):
+            ly = my - ph // 2 + int((i + 0.5) * ph / 5)
+            draw.line([(mx - gap // 2 + int(4 * s), ly),
+                       (mx + gap // 2 - int(4 * s), ly)],
+                      fill=(150, 150, 150), width=int(1 * s))
+        f = _get_font(int(18 * s), bold=True)
+        draw.text((mx - gap // 2 - pw - int(20 * s), my - int(10 * s)),
+                  "+", fill=(200, 60, 60), font=f)
+        draw.text((mx + gap // 2 + pw + int(8 * s), my - int(10 * s)),
+                  "-", fill=(80, 80, 200), font=f)
+        sf = _get_font(int(16 * s))
+        draw.text((mx - int(8 * s), my + ph // 2 + int(8 * s)),
+                  "E", fill=(150, 150, 150), font=sf)
+
+    def _vi_nuclear_fission(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Nuclear fission — large atom splits into two + neutrons."""
+        r = int(dh * 0.18)
+        draw.ellipse([mx - int(cw * 0.28) - r, my - r,
+                      mx - int(cw * 0.28) + r, my + r],
+                     fill=(100, 150, 255), outline=accent, width=int(3 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(cw * 0.28) - int(16 * s), my - int(8 * s)),
+                  "U-235", fill=(255, 255, 255), font=f)
+        draw.line([(mx - int(cw * 0.10), my), (mx + int(cw * 0.05), my)],
+                  fill=(239, 108, 0), width=int(2 * s))
+        r2 = int(r * 0.65)
+        draw.ellipse([mx + int(cw * 0.15) - r2, my - int(dh * 0.18) - r2,
+                      mx + int(cw * 0.15) + r2, my - int(dh * 0.18) + r2],
+                     fill=(80, 180, 80), outline=accent, width=int(2 * s))
+        draw.ellipse([mx + int(cw * 0.15) - r2, my + int(dh * 0.18) - r2,
+                      mx + int(cw * 0.15) + r2, my + int(dh * 0.18) + r2],
+                     fill=(200, 100, 100), outline=accent, width=int(2 * s))
+        for dx, dy2 in [(int(cw * 0.28), -int(dh * 0.10)),
+                        (int(cw * 0.30), int(dh * 0.15)),
+                        (int(cw * 0.32), 0)]:
+            draw.ellipse([mx + dx - int(4 * s), my + dy2 - int(4 * s),
+                          mx + dx + int(4 * s), my + dy2 + int(4 * s)],
+                         fill=(255, 200, 0))
+        draw.text((mx + int(cw * 0.25), my + int(dh * 0.30)),
+                  "neutrons", fill=(200, 150, 0), font=f)
+
+    def _vi_photoelectric(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Photoelectric effect — photon hitting metal, electron ejected."""
+        pw, ph = int(cw * 0.15), int(dh * 0.50)
+        plate_x = mx
+        draw.rectangle([plate_x - pw // 2, my - ph // 2,
+                        plate_x + pw // 2, my + ph // 2],
+                       fill=(160, 160, 180), outline=accent, width=int(2 * s))
+        f = _get_font(int(16 * s))
+        draw.text((plate_x - int(16 * s), my + ph // 2 + int(8 * s)),
+                  "Metal", fill=accent, font=f)
+        for i in range(3):
+            wy = my - int(dh * 0.15) + i * int(dh * 0.15)
+            wx = plate_x - pw // 2 - int(cw * 0.25)
+            pts = []
+            for j in range(12):
+                x = wx + int(j * cw * 0.02)
+                y = wy + int(5 * s * math.sin(j * 1.2))
+                pts.append((x, y))
+            for j in range(len(pts) - 1):
+                draw.line([pts[j], pts[j + 1]], fill=(255, 200, 0), width=int(2 * s))
+        draw.text((wx - int(10 * s), my - int(dh * 0.30)),
+                  "Photons", fill=(255, 200, 0), font=f)
+        for i in range(2):
+            ex = plate_x + pw // 2 + int(cw * 0.08) + i * int(cw * 0.10)
+            ey = my - int(dh * 0.10) + i * int(dh * 0.15)
+            draw.ellipse([ex - int(4 * s), ey - int(4 * s),
+                          ex + int(4 * s), ey + int(4 * s)], fill=(80, 140, 200))
+            draw.line([(plate_x + pw // 2, ey), (ex, ey)],
+                      fill=(80, 140, 200), width=int(1 * s))
+        draw.text((plate_x + pw // 2 + int(cw * 0.12), my - int(dh * 0.25)),
+                  "e-", fill=(80, 140, 200), font=f)
+
+    def _vi_circular_motion(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Circular motion — circle with centripetal and velocity arrows."""
+        r = int(min(cw, dh) * 0.28)
+        draw.ellipse([mx - r, my - r, mx + r, my + r],
+                     outline=accent, width=int(2 * s))
+        obj_x, obj_y = mx + r, my
+        draw.ellipse([obj_x - int(8 * s), obj_y - int(8 * s),
+                      obj_x + int(8 * s), obj_y + int(8 * s)], fill=(239, 108, 0))
+        draw.line([(obj_x, obj_y), (mx + int(r * 0.5), obj_y)],
+                  fill=(200, 60, 60), width=int(3 * s))
+        draw.line([(obj_x, obj_y), (obj_x, obj_y - int(r * 0.5))],
+                  fill=(80, 140, 200), width=int(3 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx + int(r * 0.4), obj_y + int(10 * s)),
+                  "Fc", fill=(200, 60, 60), font=f)
+        draw.text((obj_x + int(8 * s), obj_y - int(r * 0.4)),
+                  "v", fill=(80, 140, 200), font=f)
+        draw.ellipse([mx - int(3 * s), my - int(3 * s),
+                      mx + int(3 * s), my + int(3 * s)], fill=accent)
+
+    def _vi_pulley(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Pulley system — fixed pulley with rope and weights."""
+        pr = int(dh * 0.10)
+        py_top = dy + int(dh * 0.08)
+        draw.line([(mx, dy), (mx, py_top)], fill=(100, 100, 100), width=int(3 * s))
+        draw.ellipse([mx - pr, py_top - pr, mx + pr, py_top + pr],
+                     outline=accent, width=int(3 * s))
+        draw.ellipse([mx - int(3 * s), py_top - int(3 * s),
+                      mx + int(3 * s), py_top + int(3 * s)], fill=accent)
+        left_x = mx - pr
+        right_x = mx + pr
+        lh = int(dh * 0.50)
+        rh_val = int(dh * 0.35)
+        draw.line([(left_x, py_top), (left_x, py_top + lh)],
+                  fill=(139, 90, 43), width=int(2 * s))
+        draw.line([(right_x, py_top), (right_x, py_top + rh_val)],
+                  fill=(139, 90, 43), width=int(2 * s))
+        bsz = int(dh * 0.10)
+        draw.rectangle([left_x - bsz, py_top + lh, left_x + bsz, py_top + lh + bsz],
+                       fill=(200, 60, 60))
+        draw.rectangle([right_x - bsz, py_top + rh_val, right_x + bsz, py_top + rh_val + bsz],
+                       fill=(80, 140, 200))
+        f = _get_font(int(16 * s))
+        draw.text((left_x - bsz, py_top + lh + bsz + int(5 * s)),
+                  "m1", fill=(200, 60, 60), font=f)
+        draw.text((right_x - bsz, py_top + rh_val + bsz + int(5 * s)),
+                  "m2", fill=(80, 140, 200), font=f)
+
+    def _vi_pressure_column(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Fluid pressure column — container with height h and P=rho*g*h."""
+        cw2 = int(cw * 0.20)
+        ch = int(dh * 0.65)
+        x0 = mx - cw2 // 2
+        y0 = my - ch // 2
+        draw.rectangle([x0, y0, x0 + cw2, y0 + ch],
+                       outline=accent, width=int(3 * s))
+        fluid_h = int(ch * 0.70)
+        draw.rectangle([x0 + int(3 * s), y0 + ch - fluid_h,
+                        x0 + cw2 - int(3 * s), y0 + ch - int(3 * s)],
+                       fill=(100, 150, 255, 128))
+        f = _get_font(int(16 * s))
+        draw.line([(x0 + cw2 + int(10 * s), y0 + ch - fluid_h),
+                   (x0 + cw2 + int(10 * s), y0 + ch)],
+                  fill=(239, 108, 0), width=int(2 * s))
+        draw.text((x0 + cw2 + int(16 * s), my - int(5 * s)),
+                  "h", fill=(239, 108, 0), font=f)
+        bf = _get_font(int(18 * s), bold=True)
+        draw.text((mx - int(cw * 0.25), my + ch // 2 + int(12 * s)),
+                  "P = rho g h", fill=accent, font=bf)
+
+    def _vi_carnot_engine(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Carnot engine — hot/cold reservoir + engine + work output."""
+        f = _get_font(int(16 * s), bold=True)
+        bw, bh = int(cw * 0.22), int(dh * 0.18)
+        draw.rounded_rectangle([mx - bw // 2, my - int(dh * 0.38) - bh // 2,
+                                mx + bw // 2, my - int(dh * 0.38) + bh // 2],
+                               radius=int(6 * s), fill=(200, 60, 60))
+        draw.text((mx - int(12 * s), my - int(dh * 0.38) - int(8 * s)),
+                  "HOT", fill=(255, 255, 255), font=f)
+        draw.rounded_rectangle([mx - bw // 2, my - bh // 2,
+                                mx + bw // 2, my + bh // 2],
+                               radius=int(6 * s), fill=(239, 180, 0))
+        draw.text((mx - int(20 * s), my - int(8 * s)),
+                  "Engine", fill=(255, 255, 255), font=f)
+        draw.rounded_rectangle([mx - bw // 2, my + int(dh * 0.38) - bh // 2,
+                                mx + bw // 2, my + int(dh * 0.38) + bh // 2],
+                               radius=int(6 * s), fill=(80, 120, 200))
+        draw.text((mx - int(16 * s), my + int(dh * 0.38) - int(8 * s)),
+                  "COLD", fill=(255, 255, 255), font=f)
+        draw.line([(mx, my - int(dh * 0.38) + bh // 2), (mx, my - bh // 2)],
+                  fill=(200, 60, 60), width=int(2 * s))
+        draw.line([(mx, my + bh // 2), (mx, my + int(dh * 0.38) - bh // 2)],
+                  fill=(80, 120, 200), width=int(2 * s))
+        sf = _get_font(int(14 * s))
+        draw.text((mx + int(5 * s), my - int(dh * 0.22)), "Qh",
+                  fill=(200, 60, 60), font=sf)
+        draw.text((mx + int(5 * s), my + int(dh * 0.22)), "Qc",
+                  fill=(80, 120, 200), font=sf)
+        draw.line([(mx + bw // 2, my), (mx + bw // 2 + int(cw * 0.15), my)],
+                  fill=(46, 125, 50), width=int(3 * s))
+        draw.text((mx + bw // 2 + int(cw * 0.05), my - int(18 * s)),
+                  "W", fill=(46, 125, 50), font=f)
+
+    # ── CHEMISTRY: New visuals ───────────────────────────────────────
+
+    def _vi_periodic_element(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Periodic element card — atomic number, symbol, name, mass."""
+        bw, bh = int(cw * 0.25), int(dh * 0.70)
+        draw.rounded_rectangle([mx - bw, my - bh // 2, mx + bw, my + bh // 2],
+                               radius=int(10 * s), outline=accent, width=int(4 * s))
+        sf = _get_font(int(18 * s))
+        draw.text((mx - bw + int(12 * s), my - bh // 2 + int(10 * s)),
+                  "26", fill=accent, font=sf)
+        bf = _get_font(int(52 * s), bold=True)
+        tw = draw.textlength("Fe", font=bf)
+        draw.text((mx - tw // 2, my - int(25 * s)), "Fe", fill=accent, font=bf)
+        nf = _get_font(int(22 * s))
+        tw2 = draw.textlength("Iron", font=nf)
+        draw.text((mx - tw2 // 2, my + int(30 * s)), "Iron", fill=accent, font=nf)
+        mf = _get_font(int(16 * s))
+        tw3 = draw.textlength("55.845", font=mf)
+        draw.text((mx - tw3 // 2, my + bh // 2 - int(28 * s)),
+                  "55.845", fill=(120, 120, 120), font=mf)
+
+    def _vi_ph_scale(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """pH scale — gradient bar 0-14."""
+        bw = int(cw * 0.80)
+        bh = int(dh * 0.22)
+        x0 = mx - bw // 2
+        seg_w = bw // 15
+        colors_ph = [
+            (255, 0, 0), (255, 50, 0), (255, 100, 0), (255, 150, 0),
+            (255, 200, 0), (255, 255, 0), (200, 255, 0), (0, 255, 0),
+            (0, 200, 100), (0, 150, 200), (0, 100, 255), (0, 50, 255),
+            (50, 0, 255), (100, 0, 200), (150, 0, 150),
+        ]
+        for i in range(15):
+            draw.rectangle([x0 + i * seg_w, my - bh // 2,
+                            x0 + (i + 1) * seg_w, my + bh // 2],
+                           fill=colors_ph[i])
+        sf = _get_font(int(14 * s))
+        for i in range(0, 15, 2):
+            tx = x0 + i * seg_w + seg_w // 2
+            draw.text((tx - int(4 * s), my + bh // 2 + int(5 * s)),
+                      str(i), fill=(80, 80, 80), font=sf)
+        f = _get_font(int(18 * s), bold=True)
+        draw.text((x0, my - bh // 2 - int(24 * s)),
+                  "Acidic", fill=(255, 0, 0), font=f)
+        tw = draw.textlength("Basic", font=f)
+        draw.text((x0 + bw - tw, my - bh // 2 - int(24 * s)),
+                  "Basic", fill=(0, 0, 200), font=f)
+        tw2 = draw.textlength("Neutral", font=f)
+        draw.text((mx - tw2 // 2, my - bh // 2 - int(24 * s)),
+                  "Neutral", fill=(0, 150, 0), font=f)
+
+    def _vi_electrolysis(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Electrolysis — container with two electrodes + bubbles."""
+        cw2 = int(cw * 0.45)
+        ch = int(dh * 0.50)
+        x0 = mx - cw2 // 2
+        y0 = my - ch // 2
+        draw.rectangle([x0, y0, x0 + cw2, y0 + ch],
+                       outline=accent, width=int(3 * s))
+        draw.rectangle([x0 + int(3 * s), y0 + ch // 4, x0 + cw2 - int(3 * s), y0 + ch],
+                       fill=(200, 220, 255))
+        ew = int(4 * s)
+        lx = x0 + int(cw2 * 0.25)
+        rx = x0 + int(cw2 * 0.75)
+        draw.rectangle([lx - ew, y0 + int(ch * 0.15), lx + ew, y0 + ch - int(5 * s)],
+                       fill=(100, 100, 100))
+        draw.rectangle([rx - ew, y0 + int(ch * 0.15), rx + ew, y0 + ch - int(5 * s)],
+                       fill=(100, 100, 100))
+        f = _get_font(int(16 * s))
+        draw.text((lx - int(20 * s), y0 - int(20 * s)),
+                  "Anode +", fill=(200, 60, 60), font=f)
+        draw.text((rx - int(28 * s), y0 - int(20 * s)),
+                  "Cathode -", fill=(80, 80, 200), font=f)
+        for by2 in [int(ch * 0.35), int(ch * 0.50), int(ch * 0.65)]:
+            draw.ellipse([lx + int(8 * s), y0 + by2 - int(3 * s),
+                          lx + int(14 * s), y0 + by2 + int(3 * s)],
+                         fill=(200, 200, 255))
+            draw.ellipse([rx + int(8 * s), y0 + by2 - int(3 * s),
+                          rx + int(14 * s), y0 + by2 + int(3 * s)],
+                         fill=(200, 200, 255))
+
+    def _vi_galvanic_cell(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Galvanic cell — Zn/Cu cells with salt bridge."""
+        f = _get_font(int(16 * s), bold=True)
+        hw = int(cw * 0.18)
+        hh = int(dh * 0.35)
+        lx = mx - int(cw * 0.20)
+        rx = mx + int(cw * 0.20)
+        draw.rectangle([lx - hw, my - hh // 2, lx + hw, my + hh // 2],
+                       outline=(100, 100, 100), width=int(2 * s))
+        draw.rectangle([lx - hw + int(2 * s), my, lx + hw - int(2 * s), my + hh // 2],
+                       fill=(180, 200, 220))
+        draw.rectangle([rx - hw, my - hh // 2, rx + hw, my + hh // 2],
+                       outline=(200, 120, 50), width=int(2 * s))
+        draw.rectangle([rx - hw + int(2 * s), my, rx + hw - int(2 * s), my + hh // 2],
+                       fill=(180, 220, 255))
+        draw.text((lx - int(8 * s), my + hh // 2 + int(6 * s)),
+                  "Zn", fill=(100, 100, 100), font=f)
+        draw.text((rx - int(8 * s), my + hh // 2 + int(6 * s)),
+                  "Cu", fill=(200, 120, 50), font=f)
+        draw.arc([mx - int(cw * 0.15), my - hh // 2 - int(dh * 0.10),
+                  mx + int(cw * 0.15), my - hh // 2 + int(dh * 0.10)],
+                 0, 180, fill=(200, 200, 0), width=int(3 * s))
+        sf = _get_font(int(14 * s))
+        draw.text((mx - int(30 * s), my - hh // 2 - int(dh * 0.18)),
+                  "Salt Bridge", fill=(180, 180, 0), font=sf)
+
+    def _vi_bond_ionic(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Ionic bond — Na+ and Cl- with attraction."""
+        r = int(dh * 0.20)
+        gap = int(cw * 0.20)
+        draw.ellipse([mx - gap - r, my - r, mx - gap + r, my + r],
+                     fill=(200, 60, 60), outline=(255, 255, 255), width=int(2 * s))
+        draw.ellipse([mx + gap - r, my - r, mx + gap + r, my + r],
+                     fill=(80, 140, 200), outline=(255, 255, 255), width=int(2 * s))
+        f = _get_font(int(24 * s), bold=True)
+        draw.text((mx - gap - int(18 * s), my - int(12 * s)),
+                  "Na+", fill=(255, 255, 255), font=f)
+        draw.text((mx + gap - int(14 * s), my - int(12 * s)),
+                  "Cl-", fill=(255, 255, 255), font=f)
+        for i in range(3):
+            dx = mx - gap + r + int((2 * gap - 2 * r) * (i + 1) / 4)
+            draw.line([(dx, my - int(3 * s)), (dx + int(8 * s), my - int(3 * s))],
+                      fill=(239, 108, 0), width=int(2 * s))
+        sf = _get_font(int(16 * s))
+        draw.text((mx - int(40 * s), my + r + int(12 * s)),
+                  "Ionic Bond", fill=accent, font=sf)
+
+    def _vi_bond_covalent(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Covalent bond — two atoms with shared electron cloud."""
+        r = int(dh * 0.22)
+        overlap = int(r * 0.40)
+        draw.ellipse([mx - overlap - r, my - r, mx - overlap + r, my + r],
+                     outline=(200, 60, 60), width=int(3 * s))
+        draw.ellipse([mx + overlap - r, my - r, mx + overlap + r, my + r],
+                     outline=(80, 140, 200), width=int(3 * s))
+        draw.ellipse([mx - int(r * 0.25), my - int(r * 0.35),
+                      mx + int(r * 0.25), my + int(r * 0.35)],
+                     fill=(220, 200, 255))
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(35 * s), my + r + int(10 * s)),
+                  "Shared electrons", fill=(140, 100, 200), font=f)
+
+    def _vi_benzene(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Benzene — hexagonal ring with circle inside."""
+        r = int(min(cw, dh) * 0.25)
+        pts = [(mx + int(r * math.cos(math.pi / 2 + math.pi * 2 * i / 6)),
+                my - int(r * math.sin(math.pi / 2 + math.pi * 2 * i / 6)))
+               for i in range(6)]
+        draw.polygon(pts, outline=accent, width=int(3 * s))
+        inner_r = int(r * 0.55)
+        draw.ellipse([mx - inner_r, my - inner_r, mx + inner_r, my + inner_r],
+                     outline=accent, width=int(2 * s))
+        for pt in pts:
+            draw.ellipse([pt[0] - int(5 * s), pt[1] - int(5 * s),
+                          pt[0] + int(5 * s), pt[1] + int(5 * s)], fill=accent)
+        f = _get_font(int(16 * s))
+        draw.text((mx - int(15 * s), my + r + int(12 * s)),
+                  "C6H6", fill=accent, font=f)
+
+    def _vi_activation_energy(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Activation energy — reaction progress hill diagram."""
+        x0, x1 = cx + int(cw * 0.08), cx + int(cw * 0.92)
+        y_base = my + int(dh * 0.35)
+        draw.line([(x0, y_base), (x1, y_base)], fill=(150, 150, 150), width=int(1 * s))
+        draw.line([(x0, y_base), (x0, my - int(dh * 0.40))],
+                  fill=(150, 150, 150), width=int(1 * s))
+        reactant_y = my + int(dh * 0.10)
+        peak_y = my - int(dh * 0.32)
+        product_y = my + int(dh * 0.20)
+        pts = []
+        for i in range(40):
+            t = i / 39
+            px = x0 + int(t * (x1 - x0))
+            if t < 0.15:
+                py = reactant_y
+            elif t < 0.50:
+                frac = (t - 0.15) / 0.35
+                py = reactant_y + int((peak_y - reactant_y) * math.sin(frac * math.pi / 2))
+            elif t < 0.65:
+                frac = (t - 0.50) / 0.15
+                py = peak_y + int((product_y - peak_y) * frac * frac)
+            else:
+                py = product_y
+            pts.append((px, py))
+        for i in range(len(pts) - 1):
+            draw.line([pts[i], pts[i + 1]], fill=accent, width=int(3 * s))
+        f = _get_font(int(16 * s))
+        ea_x = x0 + int((x1 - x0) * 0.30)
+        draw.line([(ea_x, reactant_y), (ea_x, peak_y)],
+                  fill=(239, 108, 0), width=int(2 * s))
+        draw.text((ea_x + int(6 * s), (reactant_y + peak_y) // 2),
+                  "Ea", fill=(239, 108, 0), font=f)
+        draw.text((x0 + int(10 * s), reactant_y - int(18 * s)),
+                  "Reactants", fill=accent, font=f)
+        draw.text((x1 - int(70 * s), product_y - int(18 * s)),
+                  "Products", fill=accent, font=f)
+
+    def _vi_test_tube(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Test tube with colored liquid and bubbles."""
+        tw_half = int(cw * 0.06)
+        th = int(dh * 0.65)
+        y0 = my - th // 2
+        draw.rounded_rectangle([mx - tw_half, y0, mx + tw_half, y0 + th],
+                               radius=tw_half, outline=accent, width=int(3 * s))
+        liquid_h = int(th * 0.55)
+        draw.rounded_rectangle([mx - tw_half + int(3 * s), y0 + th - liquid_h,
+                                mx + tw_half - int(3 * s), y0 + th - int(3 * s)],
+                               radius=tw_half - int(3 * s), fill=(100, 200, 150))
+        for i, (bx, by) in enumerate([(int(3 * s), -int(th * 0.15)),
+                                      (-int(5 * s), -int(th * 0.25)),
+                                      (int(1 * s), -int(th * 0.35))]):
+            br = int(3 * s + i)
+            draw.ellipse([mx + bx - br, y0 + th + by - br,
+                          mx + bx + br, y0 + th + by + br],
+                         outline=(255, 255, 255), width=int(1 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx + tw_half + int(10 * s), my - int(8 * s)),
+                  "Solution", fill=accent, font=f)
+
+    def _vi_distillation(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Distillation — flask + condenser + collection."""
+        f = _get_font(int(14 * s))
+        fw = int(cw * 0.10)
+        fh = int(dh * 0.30)
+        fx = mx - int(cw * 0.25)
+        fy = my
+        draw.rounded_rectangle([fx - fw, fy - fh // 2, fx + fw, fy + fh // 2],
+                               radius=int(8 * s), outline=accent, width=int(2 * s))
+        draw.rectangle([fx - fw + int(2 * s), fy, fx + fw - int(2 * s), fy + fh // 2],
+                       fill=(180, 220, 255))
+        draw.text((fx - int(12 * s), fy + fh // 2 + int(5 * s)),
+                  "Flask", fill=accent, font=f)
+        cx2 = mx + int(cw * 0.05)
+        draw.line([(fx + fw, fy - fh // 4), (cx2, fy - fh // 4)],
+                  fill=(150, 150, 150), width=int(2 * s))
+        draw.line([(cx2, fy - fh // 4), (mx + int(cw * 0.20), fy + fh // 4)],
+                  fill=(150, 150, 150), width=int(2 * s))
+        draw.text((cx2 - int(5 * s), fy - fh // 4 - int(18 * s)),
+                  "Condenser", fill=(150, 150, 150), font=f)
+        cf_x = mx + int(cw * 0.25)
+        draw.rounded_rectangle([cf_x - fw, fy, cf_x + fw, fy + fh // 2],
+                               radius=int(6 * s), outline=accent, width=int(2 * s))
+        draw.text((cf_x - int(20 * s), fy + fh // 2 + int(5 * s)),
+                  "Collect", fill=accent, font=f)
+
+    # ── MATH: New visuals ────────────────────────────────────────────
+
+    def _vi_venn_diagram(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Venn diagram — two overlapping circles A, B."""
+        r = int(min(cw, dh) * 0.26)
+        offset = int(r * 0.55)
+        draw.ellipse([mx - offset - r, my - r, mx - offset + r, my + r],
+                     outline=(200, 60, 60), width=int(3 * s))
+        draw.ellipse([mx + offset - r, my - r, mx + offset + r, my + r],
+                     outline=(80, 140, 200), width=int(3 * s))
+        f = _get_font(int(24 * s), bold=True)
+        draw.text((mx - offset - int(12 * s), my - int(12 * s)),
+                  "A", fill=(200, 60, 60), font=f)
+        draw.text((mx + offset - int(8 * s), my - int(12 * s)),
+                  "B", fill=(80, 140, 200), font=f)
+        sf = _get_font(int(16 * s))
+        draw.text((mx - int(16 * s), my + r + int(10 * s)),
+                  "A n B", fill=accent, font=sf)
+
+    def _vi_coordinate_plane(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Coordinate plane — X-Y axes with quadrant labels."""
+        ax_len = int(min(cw, dh) * 0.38)
+        draw.line([(mx - ax_len, my), (mx + ax_len, my)],
+                  fill=accent, width=int(2 * s))
+        draw.line([(mx, my + ax_len), (mx, my - ax_len)],
+                  fill=accent, width=int(2 * s))
+        draw.polygon([(mx + ax_len - int(8 * s), my - int(5 * s)),
+                      (mx + ax_len - int(8 * s), my + int(5 * s)),
+                      (mx + ax_len, my)], fill=accent)
+        draw.polygon([(mx - int(5 * s), my - ax_len + int(8 * s)),
+                      (mx + int(5 * s), my - ax_len + int(8 * s)),
+                      (mx, my - ax_len)], fill=accent)
+        f = _get_font(int(18 * s))
+        draw.text((mx + ax_len - int(20 * s), my + int(8 * s)),
+                  "X", fill=accent, font=f)
+        draw.text((mx + int(8 * s), my - ax_len + int(4 * s)),
+                  "Y", fill=accent, font=f)
+        sf = _get_font(int(16 * s))
+        draw.text((mx + int(ax_len * 0.3), my - int(ax_len * 0.5)),
+                  "I", fill=(150, 150, 150), font=sf)
+        draw.text((mx - int(ax_len * 0.5), my - int(ax_len * 0.5)),
+                  "II", fill=(150, 150, 150), font=sf)
+        draw.text((mx - int(ax_len * 0.6), my + int(ax_len * 0.3)),
+                  "III", fill=(150, 150, 150), font=sf)
+        draw.text((mx + int(ax_len * 0.3), my + int(ax_len * 0.3)),
+                  "IV", fill=(150, 150, 150), font=sf)
+
+    def _vi_pie_chart(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Pie chart — 4 sectors with labels."""
+        r = int(min(cw, dh) * 0.28)
+        angles = [0, 90, 200, 300, 360]
+        colors = [(200, 60, 60), (80, 140, 200), (46, 125, 50), (239, 108, 0)]
+        labels = ["25%", "30%", "28%", "17%"]
+        for i in range(4):
+            draw.pieslice([mx - r, my - r, mx + r, my + r],
+                          angles[i], angles[i + 1], fill=colors[i],
+                          outline=(255, 255, 255), width=int(2 * s))
+        f = _get_font(int(16 * s), bold=True)
+        label_r = r + int(20 * s)
+        for i in range(4):
+            mid_angle = (angles[i] + angles[i + 1]) / 2
+            lx = mx + int(label_r * math.cos(math.radians(mid_angle)))
+            ly = my + int(label_r * math.sin(math.radians(mid_angle)))
+            draw.text((lx - int(12 * s), ly - int(8 * s)),
+                      labels[i], fill=colors[i], font=f)
+
+    def _vi_bar_chart(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Bar chart — 4 bars with values."""
+        values = [65, 85, 45, 70]
+        labels = ["A", "B", "C", "D"]
+        colors = [(200, 60, 60), (80, 140, 200), (46, 125, 50), (239, 108, 0)]
+        n = len(values)
+        max_v = max(values)
+        chart_w = int(cw * 0.70)
+        chart_h = int(dh * 0.60)
+        x0 = mx - chart_w // 2
+        y_base = my + chart_h // 2
+        bar_w = int(chart_w / n * 0.60)
+        gap = int(chart_w / n * 0.40)
+        draw.line([(x0, y_base), (x0 + chart_w, y_base)],
+                  fill=(150, 150, 150), width=int(1 * s))
+        f = _get_font(int(16 * s))
+        for i in range(n):
+            bh = int(chart_h * values[i] / max_v)
+            bx = x0 + int(i * chart_w / n) + gap // 2
+            draw.rectangle([bx, y_base - bh, bx + bar_w, y_base], fill=colors[i])
+            draw.text((bx + bar_w // 2 - int(4 * s), y_base + int(5 * s)),
+                      labels[i], fill=colors[i], font=f)
+            draw.text((bx + bar_w // 2 - int(8 * s), y_base - bh - int(18 * s)),
+                      str(values[i]), fill=colors[i], font=f)
+
+    def _vi_triangle_parts(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Triangle with labeled angles and sides."""
+        hw, hh = int(cw * 0.28), int(dh * 0.35)
+        pts = [(mx, my - hh), (mx - hw, my + hh), (mx + hw, my + hh)]
+        draw.polygon(pts, outline=accent, width=int(3 * s))
+        f = _get_font(int(18 * s), bold=True)
+        draw.text((mx - int(4 * s), my - hh - int(22 * s)),
+                  "A", fill=(200, 60, 60), font=f)
+        draw.text((mx - hw - int(22 * s), my + hh + int(4 * s)),
+                  "B", fill=(80, 140, 200), font=f)
+        draw.text((mx + hw + int(6 * s), my + hh + int(4 * s)),
+                  "C", fill=(46, 125, 50), font=f)
+        sf = _get_font(int(16 * s))
+        draw.text(((pts[1][0] + pts[2][0]) // 2 - int(4 * s), my + hh + int(22 * s)),
+                  "a", fill=accent, font=sf)
+        draw.text((mx + hw // 2 + int(8 * s), my - int(4 * s)),
+                  "b", fill=accent, font=sf)
+        draw.text((mx - hw // 2 - int(18 * s), my - int(4 * s)),
+                  "c", fill=accent, font=sf)
+
+    def _vi_circle_parts(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Circle with radius, diameter, chord, arc labeled."""
+        r = int(min(cw, dh) * 0.28)
+        draw.ellipse([mx - r, my - r, mx + r, my + r],
+                     outline=accent, width=int(3 * s))
+        draw.ellipse([mx - int(3 * s), my - int(3 * s),
+                      mx + int(3 * s), my + int(3 * s)], fill=accent)
+        draw.line([(mx, my), (mx + r, my)], fill=(200, 60, 60), width=int(2 * s))
+        draw.line([(mx - r, my), (mx + r, my)],
+                  fill=(80, 140, 200), width=int(2 * s))
+        chord_y = my - int(r * 0.50)
+        chord_hw = int(r * math.cos(math.asin(0.50)))
+        draw.line([(mx - chord_hw, chord_y), (mx + chord_hw, chord_y)],
+                  fill=(46, 125, 50), width=int(2 * s))
+        f = _get_font(int(16 * s))
+        draw.text((mx + r // 2 - int(4 * s), my + int(6 * s)),
+                  "r", fill=(200, 60, 60), font=f)
+        draw.text((mx - int(4 * s), my + int(20 * s)),
+                  "d", fill=(80, 140, 200), font=f)
+        draw.text((mx - int(15 * s), chord_y - int(20 * s)),
+                  "chord", fill=(46, 125, 50), font=f)
+
+    def _vi_number_pattern(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Number pattern — sequence boxes with arrows."""
+        nums = [2, 5, 8, 11, 14]
+        n = len(nums)
+        bsz = int(min(cw * 0.12, dh * 0.35))
+        gap = int(cw * 0.04)
+        total_w = n * bsz + (n - 1) * gap
+        x0 = mx - total_w // 2
+        f = _get_font(int(22 * s), bold=True)
+        sf = _get_font(int(16 * s))
+        for i, num in enumerate(nums):
+            x = x0 + i * (bsz + gap)
+            draw.rounded_rectangle([x, my - bsz // 2, x + bsz, my + bsz // 2],
+                                   radius=int(6 * s), outline=accent, width=int(2 * s))
+            tw = draw.textlength(str(num), font=f)
+            draw.text((x + (bsz - tw) // 2, my - f.size // 2),
+                      str(num), fill=accent, font=f)
+            if i < n - 1:
+                draw.text((x + bsz + gap // 2 - int(6 * s), my - bsz // 2 - int(18 * s)),
+                          "+3", fill=(239, 108, 0), font=sf)
+
+    def _vi_fraction_visual(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Fraction visual — rectangle divided into parts, some shaded."""
+        total = 5
+        shaded = 3
+        bw = int(cw * 0.65)
+        bh = int(dh * 0.30)
+        x0 = mx - bw // 2
+        seg_w = bw // total
+        for i in range(total):
+            col = accent if i < shaded else (230, 230, 230)
+            draw.rectangle([x0 + i * seg_w, my - bh // 2,
+                            x0 + (i + 1) * seg_w, my + bh // 2],
+                           fill=col, outline=(255, 255, 255), width=int(2 * s))
+        f = _get_font(int(28 * s), bold=True)
+        txt = f"{shaded}/{total}"
+        tw = draw.textlength(txt, font=f)
+        draw.text((mx - tw // 2, my + bh // 2 + int(12 * s)),
+                  txt, fill=accent, font=f)
+
+    def _vi_normal_distribution(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Normal distribution — bell curve with mu and sigma labels."""
+        x0, x1 = cx + int(cw * 0.08), cx + int(cw * 0.92)
+        y_base = my + int(dh * 0.35)
+        draw.line([(x0, y_base), (x1, y_base)], fill=(150, 150, 150), width=int(1 * s))
+        peak_h = int(dh * 0.60)
+        pts = []
+        for i in range(50):
+            t = (i / 49 - 0.5) * 6
+            px = x0 + int(i * (x1 - x0) / 49)
+            py = y_base - int(peak_h * math.exp(-t * t / 2))
+            pts.append((px, py))
+        for i in range(len(pts) - 1):
+            draw.line([pts[i], pts[i + 1]], fill=accent, width=int(3 * s))
+        f = _get_font(int(18 * s))
+        draw.text((mx - int(5 * s), y_base + int(6 * s)),
+                  "mu", fill=accent, font=f)
+        sigma_x = mx + int((x1 - x0) / 6)
+        draw.line([(mx, y_base - int(4 * s)), (sigma_x, y_base - int(4 * s))],
+                  fill=(239, 108, 0), width=int(2 * s))
+        draw.text((sigma_x + int(4 * s), y_base - int(12 * s)),
+                  "sigma", fill=(239, 108, 0), font=f)
+
+    # ── GEOGRAPHY: New visuals ───────────────────────────────────────
+
+    def _vi_compass(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """8-point compass rose."""
+        r = int(min(cw, dh) * 0.30)
+        draw.ellipse([mx - r, my - r, mx + r, my + r],
+                     outline=accent, width=int(2 * s))
+        f = _get_font(int(20 * s), bold=True)
+        sf = _get_font(int(14 * s))
+        dirs_main = [("N", 0), ("E", 90), ("S", 180), ("W", 270)]
+        dirs_sub = [("NE", 45), ("SE", 135), ("SW", 225), ("NW", 315)]
+        for label, angle in dirs_main:
+            rad = math.radians(angle - 90)
+            tx = mx + int((r + int(16 * s)) * math.cos(rad))
+            ty = my + int((r + int(16 * s)) * math.sin(rad))
+            tw = draw.textlength(label, font=f)
+            col = (200, 60, 60) if label == "N" else accent
+            draw.text((tx - tw // 2, ty - f.size // 2), label, fill=col, font=f)
+            lx = mx + int(r * 0.85 * math.cos(rad))
+            ly = my + int(r * 0.85 * math.sin(rad))
+            draw.line([(mx, my), (lx, ly)], fill=accent, width=int(2 * s))
+        for label, angle in dirs_sub:
+            rad = math.radians(angle - 90)
+            lx = mx + int(r * 0.60 * math.cos(rad))
+            ly = my + int(r * 0.60 * math.sin(rad))
+            draw.line([(mx, my), (lx, ly)], fill=(180, 180, 180), width=int(1 * s))
+
+    def _vi_rock_cycle(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Rock cycle — triangle: Igneous, Sedimentary, Metamorphic."""
+        f = _get_font(int(16 * s), bold=True)
+        r = int(min(cw, dh) * 0.28)
+        nodes = [("Igneous", (200, 80, 80)), ("Sedimentary", (180, 160, 100)),
+                 ("Metamorphic", (120, 120, 180))]
+        positions = [(mx, my - int(r * 0.85)),
+                     (mx + int(r * 0.80), my + int(r * 0.55)),
+                     (mx - int(r * 0.80), my + int(r * 0.55))]
+        nr = int(dh * 0.10)
+        for (label, col), (px, py) in zip(nodes, positions):
+            draw.ellipse([px - nr, py - nr, px + nr, py + nr],
+                         fill=col, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(label, font=f)
+            draw.text((px - tw // 2, py + nr + int(4 * s)), label, fill=col, font=f)
+        for i in range(3):
+            p1 = positions[i]
+            p2 = positions[(i + 1) % 3]
+            amx = (p1[0] + p2[0]) // 2
+            amy = (p1[1] + p2[1]) // 2
+            draw.line([(p1[0], p1[1] + nr), (amx, amy)],
+                      fill=(150, 150, 150), width=int(2 * s))
+
+    def _vi_climate_zones(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Climate zones — horizontal bands."""
+        f = _get_font(int(16 * s), bold=True)
+        zones = [("Polar", (180, 200, 240)), ("Temperate", (140, 200, 140)),
+                 ("Tropical", (240, 200, 100)), ("Temperate", (140, 200, 140)),
+                 ("Polar", (180, 200, 240))]
+        n = len(zones)
+        zone_h = int(dh * 0.16)
+        y0 = my - int(n * zone_h / 2)
+        bw = int(cw * 0.70)
+        for i, (label, col) in enumerate(zones):
+            y = y0 + i * zone_h
+            draw.rectangle([mx - bw // 2, y, mx + bw // 2, y + zone_h], fill=col)
+            tw = draw.textlength(label, font=f)
+            draw.text((mx - tw // 2, y + (zone_h - f.size) // 2),
+                      label, fill=(60, 60, 60), font=f)
+
+    def _vi_river_landforms(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """River landforms — delta, meander, oxbow."""
+        f = _get_font(int(16 * s))
+        x0 = cx + int(cw * 0.05)
+        river_y = my
+        pts = [(x0, river_y)]
+        for i in range(20):
+            t = i / 19
+            x = x0 + int(t * cw * 0.90)
+            y = river_y + int(25 * s * math.sin(t * 6))
+            pts.append((x, y))
+        for i in range(len(pts) - 1):
+            draw.line([pts[i], pts[i + 1]], fill=(60, 120, 220), width=int(4 * s))
+        draw.text((x0, river_y + int(dh * 0.20)),
+                  "Meander", fill=(60, 120, 220), font=f)
+        dx = cx + int(cw * 0.80)
+        draw.polygon([(dx, river_y - int(dh * 0.10)),
+                      (dx + int(cw * 0.10), river_y + int(dh * 0.15)),
+                      (dx - int(cw * 0.10), river_y + int(dh * 0.15))],
+                     fill=(180, 160, 100), outline=(60, 120, 220), width=int(2 * s))
+        draw.text((dx - int(15 * s), river_y + int(dh * 0.20)),
+                  "Delta", fill=(139, 90, 43), font=f)
+        ox = mx - int(cw * 0.05)
+        oy = river_y - int(dh * 0.28)
+        draw.arc([ox - int(15 * s), oy - int(12 * s),
+                  ox + int(15 * s), oy + int(12 * s)],
+                 0, 300, fill=(60, 120, 220), width=int(3 * s))
+        draw.text((ox - int(20 * s), oy - int(22 * s)),
+                  "Oxbow", fill=(60, 120, 220), font=f)
+
+    # ── POLITY: New visuals ──────────────────────────────────────────
+
+    def _vi_government_structure(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """3 pillars — Legislature, Executive, Judiciary."""
+        f = _get_font(int(16 * s), bold=True)
+        pillars = [("Legislature", (200, 60, 60)),
+                   ("Executive", (239, 108, 0)),
+                   ("Judiciary", (80, 140, 200))]
+        pw = int(cw * 0.22)
+        ph = int(dh * 0.55)
+        gap = int(cw * 0.04)
+        x0 = mx - int((3 * pw + 2 * gap) / 2)
+        base_y = my + ph // 2
+        for i, (label, col) in enumerate(pillars):
+            x = x0 + i * (pw + gap)
+            draw.rectangle([x, my - ph // 2, x + pw, base_y], fill=col)
+            tw = draw.textlength(label, font=f)
+            draw.text((x + (pw - tw) // 2, my - int(8 * s)),
+                      label, fill=(255, 255, 255), font=f)
+        draw.rectangle([x0 - int(10 * s), base_y,
+                        x0 + 3 * pw + 2 * gap + int(10 * s),
+                        base_y + int(dh * 0.08)],
+                       fill=accent)
+        bf = _get_font(int(18 * s), bold=True)
+        tw2 = draw.textlength("Government", font=bf)
+        draw.text((mx - tw2 // 2, base_y + int(dh * 0.10)),
+                  "Government", fill=accent, font=bf)
+
+    def _vi_parliament(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Parliament — Lok Sabha + Rajya Sabha boxes."""
+        f = _get_font(int(18 * s), bold=True)
+        bw = int(cw * 0.50)
+        bh = int(dh * 0.25)
+        gap = int(dh * 0.08)
+        draw.rounded_rectangle([mx - bw // 2, my - gap // 2 - bh,
+                                mx + bw // 2, my - gap // 2],
+                               radius=int(8 * s), fill=(200, 60, 60))
+        tw = draw.textlength("Rajya Sabha (Upper)", font=f)
+        draw.text((mx - tw // 2, my - gap // 2 - bh // 2 - int(10 * s)),
+                  "Rajya Sabha (Upper)", fill=(255, 255, 255), font=f)
+        draw.rounded_rectangle([mx - bw // 2, my + gap // 2,
+                                mx + bw // 2, my + gap // 2 + bh],
+                               radius=int(8 * s), fill=(80, 140, 200))
+        tw2 = draw.textlength("Lok Sabha (Lower)", font=f)
+        draw.text((mx - tw2 // 2, my + gap // 2 + bh // 2 - int(10 * s)),
+                  "Lok Sabha (Lower)", fill=(255, 255, 255), font=f)
+        sf = _get_font(int(14 * s))
+        draw.text((mx - int(30 * s), my - int(5 * s)),
+                  "Parliament", fill=accent, font=sf)
+
+    # ── ECONOMICS: New visuals ───────────────────────────────────────
+
+    def _vi_supply_demand(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Supply and demand — intersecting curves with equilibrium."""
+        x0, x1 = cx + int(cw * 0.12), cx + int(cw * 0.88)
+        y0, y1 = dy + int(dh * 0.08), dy + int(dh * 0.88)
+        draw.line([(x0, y1), (x1, y1)], fill=accent, width=int(2 * s))
+        draw.line([(x0, y1), (x0, y0)], fill=accent, width=int(2 * s))
+        draw.line([(x0, y0 + int((y1 - y0) * 0.10)),
+                   (x1 - int(10 * s), y1 - int((y1 - y0) * 0.10))],
+                  fill=(200, 60, 60), width=int(3 * s))
+        draw.line([(x0, y1 - int((y1 - y0) * 0.10)),
+                   (x1 - int(10 * s), y0 + int((y1 - y0) * 0.10))],
+                  fill=(80, 140, 200), width=int(3 * s))
+        eq_x = (x0 + x1) // 2
+        eq_y = (y0 + y1) // 2
+        draw.ellipse([eq_x - int(5 * s), eq_y - int(5 * s),
+                      eq_x + int(5 * s), eq_y + int(5 * s)], fill=(239, 108, 0))
+        f = _get_font(int(16 * s))
+        draw.text((x1 - int(10 * s), y0 + int((y1 - y0) * 0.05)),
+                  "S", fill=(200, 60, 60), font=f)
+        draw.text((x1 - int(10 * s), y1 - int((y1 - y0) * 0.15)),
+                  "D", fill=(80, 140, 200), font=f)
+        draw.text((eq_x + int(8 * s), eq_y - int(18 * s)),
+                  "Equilibrium", fill=(239, 108, 0), font=f)
+        draw.text((x0 - int(5 * s), y0 - int(16 * s)), "P", fill=accent, font=f)
+        draw.text((x1 - int(8 * s), y1 + int(6 * s)), "Q", fill=accent, font=f)
+
+    def _vi_ppf(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Production Possibility Frontier — concave curve."""
+        x0, x1 = cx + int(cw * 0.12), cx + int(cw * 0.85)
+        y0, y1 = dy + int(dh * 0.08), dy + int(dh * 0.85)
+        draw.line([(x0, y1), (x1, y1)], fill=accent, width=int(2 * s))
+        draw.line([(x0, y1), (x0, y0)], fill=accent, width=int(2 * s))
+        pts = []
+        for i in range(30):
+            t = i / 29
+            px = x0 + int(t * (x1 - x0) * 0.90)
+            py = y0 + int((y1 - y0) * 0.10) + int((y1 - y0) * 0.80 * (1 - math.sqrt(1 - t * t)))
+            pts.append((px, py))
+        for i in range(len(pts) - 1):
+            draw.line([pts[i], pts[i + 1]], fill=accent, width=int(3 * s))
+        f = _get_font(int(16 * s))
+        draw.text((x0 - int(5 * s), y0 - int(18 * s)),
+                  "Good Y", fill=accent, font=f)
+        draw.text((x1 - int(30 * s), y1 + int(6 * s)),
+                  "Good X", fill=accent, font=f)
+        draw.text((mx - int(10 * s), my - int(dh * 0.15)),
+                  "PPF", fill=(239, 108, 0), font=f)
+
+    # ── COMPUTER SCIENCE: New visuals ────────────────────────────────
+
+    def _vi_flowchart(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Flowchart — Start → Process → Decision → End."""
+        f = _get_font(int(16 * s))
+        bw, bh = int(cw * 0.22), int(dh * 0.14)
+        y0 = dy + int(dh * 0.05)
+        shapes = [("Start", (46, 125, 50)), ("Process", (80, 140, 200)),
+                  ("Decision", (239, 108, 0)), ("End", (200, 60, 60))]
+        for i, (label, col) in enumerate(shapes):
+            y = y0 + i * int(dh * 0.22)
+            if label in ("Start", "End"):
+                draw.rounded_rectangle([mx - bw // 2, y, mx + bw // 2, y + bh],
+                                       radius=bh // 2, fill=col)
+            elif label == "Decision":
+                pts = [(mx, y), (mx + bw // 2, y + bh // 2),
+                       (mx, y + bh), (mx - bw // 2, y + bh // 2)]
+                draw.polygon(pts, fill=col)
+            else:
+                draw.rectangle([mx - bw // 2, y, mx + bw // 2, y + bh], fill=col)
+            tw = draw.textlength(label, font=f)
+            draw.text((mx - tw // 2, y + (bh - f.size) // 2),
+                      label, fill=(255, 255, 255), font=f)
+            if i < len(shapes) - 1:
+                draw.line([(mx, y + bh), (mx, y + int(dh * 0.22))],
+                          fill=(150, 150, 150), width=int(2 * s))
+
+    def _vi_binary_tree(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Binary tree — 3 levels."""
+        nr = int(dh * 0.08)
+        f = _get_font(int(16 * s), bold=True)
+        nodes = [(mx, dy + int(dh * 0.10), "1")]
+        level2 = [(mx - int(cw * 0.18), my - int(dh * 0.05), "2"),
+                  (mx + int(cw * 0.18), my - int(dh * 0.05), "3")]
+        level3 = [(mx - int(cw * 0.28), my + int(dh * 0.25), "4"),
+                  (mx - int(cw * 0.08), my + int(dh * 0.25), "5"),
+                  (mx + int(cw * 0.08), my + int(dh * 0.25), "6"),
+                  (mx + int(cw * 0.28), my + int(dh * 0.25), "7")]
+        draw.line([(nodes[0][0], nodes[0][1] + nr), (level2[0][0], level2[0][1] - nr)],
+                  fill=(150, 150, 150), width=int(2 * s))
+        draw.line([(nodes[0][0], nodes[0][1] + nr), (level2[1][0], level2[1][1] - nr)],
+                  fill=(150, 150, 150), width=int(2 * s))
+        for i in range(2):
+            draw.line([(level2[i][0], level2[i][1] + nr),
+                       (level3[i * 2][0], level3[i * 2][1] - nr)],
+                      fill=(150, 150, 150), width=int(2 * s))
+            draw.line([(level2[i][0], level2[i][1] + nr),
+                       (level3[i * 2 + 1][0], level3[i * 2 + 1][1] - nr)],
+                      fill=(150, 150, 150), width=int(2 * s))
+        for x, y, val in nodes + level2 + level3:
+            draw.ellipse([x - nr, y - nr, x + nr, y + nr],
+                         fill=accent, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(val, font=f)
+            draw.text((x - tw // 2, y - f.size // 2), val,
+                      fill=(255, 255, 255), font=f)
+
+    def _vi_stack_visual(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Stack — LIFO with push/pop arrows."""
+        f = _get_font(int(18 * s), bold=True)
+        sf = _get_font(int(14 * s))
+        bw = int(cw * 0.25)
+        bh = int(dh * 0.12)
+        items = ["10", "20", "30", "40"]
+        n = len(items)
+        y_base = my + int(n * bh / 2)
+        for i, val in enumerate(items):
+            y = y_base - (i + 1) * bh
+            col = accent if i == n - 1 else tuple(min(255, c + 80) for c in accent)
+            draw.rectangle([mx - bw // 2, y, mx + bw // 2, y + bh],
+                           fill=col, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(val, font=f)
+            draw.text((mx - tw // 2, y + (bh - f.size) // 2),
+                      val, fill=(255, 255, 255), font=f)
+        top_y = y_base - n * bh
+        draw.line([(mx + bw // 2 + int(15 * s), top_y + bh),
+                   (mx + bw // 2 + int(15 * s), top_y - int(10 * s))],
+                  fill=(200, 60, 60), width=int(2 * s))
+        draw.text((mx + bw // 2 + int(20 * s), top_y - int(5 * s)),
+                  "Push/Pop", fill=(200, 60, 60), font=sf)
+        draw.text((mx - int(16 * s), y_base + int(8 * s)),
+                  "LIFO", fill=accent, font=sf)
+
+    def _vi_queue_visual(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Queue — FIFO with enqueue/dequeue arrows."""
+        f = _get_font(int(18 * s), bold=True)
+        sf = _get_font(int(14 * s))
+        bw = int(cw * 0.12)
+        bh = int(dh * 0.35)
+        items = ["A", "B", "C", "D"]
+        n = len(items)
+        x0 = mx - int(n * bw / 2)
+        for i, val in enumerate(items):
+            x = x0 + i * bw
+            col = accent if i == 0 else tuple(min(255, c + 60) for c in accent)
+            draw.rectangle([x, my - bh // 2, x + bw, my + bh // 2],
+                           fill=col, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(val, font=f)
+            draw.text((x + (bw - tw) // 2, my - f.size // 2),
+                      val, fill=(255, 255, 255), font=f)
+        draw.text((x0 - int(cw * 0.10), my - int(8 * s)),
+                  "Out", fill=(200, 60, 60), font=sf)
+        draw.text((x0 + n * bw + int(8 * s), my - int(8 * s)),
+                  "In", fill=(46, 125, 50), font=sf)
+        draw.text((mx - int(12 * s), my + bh // 2 + int(10 * s)),
+                  "FIFO", fill=accent, font=sf)
+
+    def _vi_array_visual(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Array — boxes with index numbers."""
+        f = _get_font(int(20 * s), bold=True)
+        sf = _get_font(int(14 * s))
+        items = [42, 17, 56, 8, 31, 94]
+        n = len(items)
+        bw = int(cw * 0.10)
+        bh = int(dh * 0.35)
+        x0 = mx - int(n * bw / 2)
+        for i, val in enumerate(items):
+            x = x0 + i * bw
+            draw.rectangle([x, my - bh // 2, x + bw, my + bh // 2],
+                           fill=accent, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(str(val), font=f)
+            draw.text((x + (bw - tw) // 2, my - f.size // 2),
+                      str(val), fill=(255, 255, 255), font=f)
+            tw2 = draw.textlength(str(i), font=sf)
+            draw.text((x + (bw - tw2) // 2, my + bh // 2 + int(5 * s)),
+                      str(i), fill=(120, 120, 120), font=sf)
+
+    def _vi_osi_layers(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """OSI 7-layer model — stacked boxes."""
+        f = _get_font(int(14 * s))
+        layers = ["Application", "Presentation", "Session", "Transport",
+                  "Network", "Data Link", "Physical"]
+        n = len(layers)
+        bw = int(cw * 0.50)
+        bh = int(dh / n * 0.88)
+        y0 = my - int(n * bh / 2)
+        colors = [(200, 60, 60), (239, 140, 0), (239, 200, 0), (46, 125, 50),
+                  (0, 150, 200), (80, 80, 200), (140, 60, 200)]
+        for i, (layer, col) in enumerate(zip(layers, colors)):
+            y = y0 + i * bh
+            draw.rectangle([mx - bw // 2, y, mx + bw // 2, y + bh - int(2 * s)],
+                           fill=col)
+            tw = draw.textlength(f"{7 - i}. {layer}", font=f)
+            draw.text((mx - tw // 2, y + (bh - int(2 * s) - f.size) // 2),
+                      f"{7 - i}. {layer}", fill=(255, 255, 255), font=f)
+
+    # ── REASONING: New visuals ───────────────────────────────────────
+
+    def _vi_seating_circle(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Circular seating arrangement with person positions."""
+        r = int(min(cw, dh) * 0.28)
+        draw.ellipse([mx - r, my - r, mx + r, my + r],
+                     outline=(200, 200, 200), width=int(2 * s))
+        f = _get_font(int(16 * s), bold=True)
+        persons = ["P1", "P2", "P3", "P4", "P5", "P6"]
+        n = len(persons)
+        pr = int(dh * 0.06)
+        for i, p in enumerate(persons):
+            angle = -math.pi / 2 + 2 * math.pi * i / n
+            px = mx + int(r * math.cos(angle))
+            py = my + int(r * math.sin(angle))
+            draw.ellipse([px - pr, py - pr, px + pr, py + pr],
+                         fill=accent, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(p, font=f)
+            lx = mx + int((r + int(22 * s)) * math.cos(angle))
+            ly = my + int((r + int(22 * s)) * math.sin(angle))
+            draw.text((lx - tw // 2, ly - f.size // 2), p, fill=accent, font=f)
+
+    def _vi_direction_sense(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Direction sense — 8-direction compass for reasoning problems."""
+        r = int(min(cw, dh) * 0.32)
+        f = _get_font(int(18 * s), bold=True)
+        dirs = [("N", 0), ("NE", 45), ("E", 90), ("SE", 135),
+                ("S", 180), ("SW", 225), ("W", 270), ("NW", 315)]
+        for label, angle in dirs:
+            rad = math.radians(angle - 90)
+            lx = mx + int((r + int(18 * s)) * math.cos(rad))
+            ly = my + int((r + int(18 * s)) * math.sin(rad))
+            tw = draw.textlength(label, font=f)
+            col = (200, 60, 60) if label == "N" else accent
+            draw.text((lx - tw // 2, ly - f.size // 2), label, fill=col, font=f)
+            ex = mx + int(r * 0.75 * math.cos(rad))
+            ey = my + int(r * 0.75 * math.sin(rad))
+            draw.line([(mx, my), (ex, ey)], fill=accent, width=int(2 * s))
+        draw.ellipse([mx - int(4 * s), my - int(4 * s),
+                      mx + int(4 * s), my + int(4 * s)], fill=accent)
+
+    def _vi_blood_relation(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Family tree — grandparent → parent → child."""
+        f = _get_font(int(16 * s), bold=True)
+        nr = int(dh * 0.08)
+        levels = [("Grand Parent", my - int(dh * 0.32)),
+                  ("Father    Mother", my - int(dh * 0.05)),
+                  ("Child", my + int(dh * 0.22))]
+        for label, y in levels:
+            draw.ellipse([mx - nr * 2, y - nr, mx + nr * 2, y + nr],
+                         fill=accent, outline=(255, 255, 255), width=int(2 * s))
+            tw = draw.textlength(label, font=f)
+            draw.text((mx - tw // 2, y - f.size // 2),
+                      label, fill=(255, 255, 255), font=f)
+        for i in range(len(levels) - 1):
+            draw.line([(mx, levels[i][1] + nr), (mx, levels[i + 1][1] - nr)],
+                      fill=(150, 150, 150), width=int(2 * s))
+
+    # ── UNIVERSAL: New visuals ───────────────────────────────────────
+
+    def _vi_comparison_table(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """2-column comparison table."""
+        f = _get_font(int(16 * s), bold=True)
+        sf = _get_font(int(14 * s))
+        tw = int(cw * 0.40)
+        th = int(dh * 0.14)
+        x1 = mx - int(cw * 0.02) - tw
+        x2 = mx + int(cw * 0.02)
+        headers = [("Feature A", (200, 60, 60)), ("Feature B", (80, 140, 200))]
+        for i, (h, col) in enumerate(headers):
+            x = x1 if i == 0 else x2
+            draw.rectangle([x, my - int(dh * 0.35), x + tw, my - int(dh * 0.35) + th],
+                           fill=col)
+            htw = draw.textlength(h, font=f)
+            draw.text((x + (tw - htw) // 2, my - int(dh * 0.35) + (th - f.size) // 2),
+                      h, fill=(255, 255, 255), font=f)
+        for r in range(3):
+            y = my - int(dh * 0.35) + (r + 1) * th
+            for i in range(2):
+                x = x1 if i == 0 else x2
+                draw.rectangle([x, y, x + tw, y + th],
+                               outline=(200, 200, 200), width=int(1 * s))
+                draw.text((x + int(8 * s), y + (th - sf.size) // 2),
+                          f"Item {r + 1}", fill=(100, 100, 100), font=sf)
+
+    def _vi_steps_visual(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Numbered step boxes 1→2→3→4 with arrows."""
+        f = _get_font(int(22 * s), bold=True)
+        n = 4
+        bsz = int(min(cw * 0.14, dh * 0.35))
+        gap = int(cw * 0.06)
+        total = n * bsz + (n - 1) * gap
+        x0 = mx - total // 2
+        colors = [(200, 60, 60), (239, 108, 0), (80, 140, 200), (46, 125, 50)]
+        for i in range(n):
+            x = x0 + i * (bsz + gap)
+            draw.rounded_rectangle([x, my - bsz // 2, x + bsz, my + bsz // 2],
+                                   radius=int(8 * s), fill=colors[i])
+            tw = draw.textlength(str(i + 1), font=f)
+            draw.text((x + (bsz - tw) // 2, my - f.size // 2),
+                      str(i + 1), fill=(255, 255, 255), font=f)
+            if i < n - 1:
+                ax = x + bsz + int(gap * 0.15)
+                draw.line([(ax, my), (ax + int(gap * 0.60), my)],
+                          fill=(150, 150, 150), width=int(2 * s))
+
+    def _vi_lightbulb(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Lightbulb icon — idea/concept."""
+        r = int(dh * 0.22)
+        draw.ellipse([mx - r, my - r - int(dh * 0.05), mx + r, my + r - int(dh * 0.05)],
+                     fill=(255, 230, 100), outline=(239, 180, 0), width=int(3 * s))
+        for angle in range(0, 360, 45):
+            rad = math.radians(angle)
+            x1 = mx + int((r + int(5 * s)) * math.cos(rad))
+            y1 = my - int(dh * 0.05) + int((r + int(5 * s)) * math.sin(rad))
+            x2 = mx + int((r + int(15 * s)) * math.cos(rad))
+            y2 = my - int(dh * 0.05) + int((r + int(15 * s)) * math.sin(rad))
+            draw.line([(x1, y1), (x2, y2)], fill=(239, 180, 0), width=int(2 * s))
+        base_w = int(r * 0.50)
+        base_y = my + r - int(dh * 0.05)
+        draw.rectangle([mx - base_w, base_y, mx + base_w, base_y + int(dh * 0.10)],
+                       fill=(180, 180, 180))
+
+    def _vi_trophy(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Trophy cup — correct answer celebration."""
+        cup_w = int(cw * 0.12)
+        cup_h = int(dh * 0.30)
+        cup_y = my - int(dh * 0.15)
+        draw.rounded_rectangle([mx - cup_w, cup_y, mx + cup_w, cup_y + cup_h],
+                               radius=int(8 * s), fill=(255, 200, 0),
+                               outline=(200, 150, 0), width=int(3 * s))
+        draw.arc([mx - cup_w - int(cw * 0.06), cup_y + int(cup_h * 0.10),
+                  mx - cup_w + int(5 * s), cup_y + int(cup_h * 0.60)],
+                 90, 270, fill=(200, 150, 0), width=int(3 * s))
+        draw.arc([mx + cup_w - int(5 * s), cup_y + int(cup_h * 0.10),
+                  mx + cup_w + int(cw * 0.06), cup_y + int(cup_h * 0.60)],
+                 -90, 90, fill=(200, 150, 0), width=int(3 * s))
+        stem_w = int(cup_w * 0.25)
+        stem_y = cup_y + cup_h
+        draw.rectangle([mx - stem_w, stem_y, mx + stem_w, stem_y + int(dh * 0.10)],
+                       fill=(200, 150, 0))
+        base_w = int(cup_w * 0.70)
+        draw.rectangle([mx - base_w, stem_y + int(dh * 0.10),
+                        mx + base_w, stem_y + int(dh * 0.14)],
+                       fill=(200, 150, 0))
+        f = _get_font(int(22 * s), bold=True)
+        draw.text((mx - int(6 * s), cup_y + int(cup_h * 0.25)),
+                  "1", fill=(200, 150, 0), font=f)
+
+    def _vi_timeline_visual(self, draw, frame, cx, dy, cw, dh, mx, my, accent, s):
+        """Horizontal timeline with event markers."""
+        x0, x1 = cx + int(cw * 0.08), cx + int(cw * 0.92)
+        draw.line([(x0, my), (x1, my)], fill=accent, width=int(3 * s))
+        f = _get_font(int(14 * s))
+        events = ["Step 1", "Step 2", "Step 3", "Step 4", "Step 5"]
+        n = len(events)
+        for i, ev in enumerate(events):
+            x = x0 + int(i * (x1 - x0) / (n - 1))
+            draw.ellipse([x - int(6 * s), my - int(6 * s),
+                          x + int(6 * s), my + int(6 * s)], fill=accent)
+            tw = draw.textlength(ev, font=f)
+            ty = my + int(15 * s) if i % 2 == 0 else my - int(15 * s) - f.size
+            draw.text((x - tw // 2, ty), ev, fill=accent, font=f)
+
+    # ------------------------------------------------------------------
+    # matplotlib_plot — scientific graphs rendered via matplotlib
+    # ------------------------------------------------------------------
+
+    def _draw_matplotlib_plot(self, draw, frame, element, y):
+        """Render a matplotlib figure and embed as PIL Image.
+
+        JSON:
+          { "target": "matplotlib_plot",
+            "plot_type": "line|bar|scatter|pie|histogram",
+            "title": "Velocity vs Time",
+            "xlabel": "Time (s)", "ylabel": "Velocity (m/s)",
+            "data": {"x": [0,1,2,3,4], "y": [0,5,10,15,20]},
+            "color": "blue",
+            "caption": "optional caption"
+          }
+        Falls back to text placeholder if matplotlib is not installed.
+        """
+        s = self.scale
+        avail_h = int(self.height * 0.38)
+        avail_w = self.content_w
+        cx = self.content_x
+        caption = element.get("caption", "")
+        cap_h = int(48 * s) if caption else 0
+        plot_h = avail_h - cap_h
+
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            from io import BytesIO
+
+            plot_type = element.get("plot_type", "line")
+            data = element.get("data", {})
+            title = element.get("title", "")
+            xlabel = element.get("xlabel", "")
+            ylabel = element.get("ylabel", "")
+            color = element.get("color", "blue")
+
+            fig, ax = plt.subplots(figsize=(avail_w / 100, plot_h / 100), dpi=100)
+            x_data = data.get("x", [])
+            y_data = data.get("y", [])
+
+            if plot_type == "bar":
+                labels = data.get("labels", [str(i) for i in range(len(y_data))])
+                ax.bar(labels[:len(y_data)], y_data, color=color)
+            elif plot_type == "scatter":
+                ax.scatter(x_data, y_data, color=color, s=50)
+            elif plot_type == "pie":
+                labels = data.get("labels", [str(i) for i in range(len(y_data))])
+                ax.pie(y_data, labels=labels[:len(y_data)], autopct="%1.1f%%")
+            elif plot_type == "histogram":
+                ax.hist(y_data, bins=data.get("bins", 10), color=color, edgecolor="white")
+            else:
+                ax.plot(x_data, y_data, color=color, linewidth=2, marker="o", markersize=4)
+
+            if title:
+                ax.set_title(title, fontsize=14, fontweight="bold")
+            if xlabel:
+                ax.set_xlabel(xlabel, fontsize=11)
+            if ylabel:
+                ax.set_ylabel(ylabel, fontsize=11)
+            if plot_type != "pie":
+                ax.grid(True, alpha=0.3)
+            fig.tight_layout()
+
+            buf = BytesIO()
+            fig.savefig(buf, format="PNG", bbox_inches="tight")
+            plt.close(fig)
+            buf.seek(0)
+
+            plot_img = Image.open(buf).convert("RGB")
+            ratio = min(avail_w / plot_img.width, plot_h / plot_img.height)
+            new_w = int(plot_img.width * ratio)
+            new_h = int(plot_img.height * ratio)
+            plot_img = plot_img.resize((new_w, new_h), Image.LANCZOS)
+            paste_x = cx + (avail_w - new_w) // 2
+            paste_y = y + (plot_h - new_h) // 2
+            frame.paste(plot_img, (paste_x, paste_y))
+
+        except ImportError:
+            pf = _get_font(int(28 * s), bold=True)
+            title = element.get("title", "Plot")
+            tw = draw.textlength(title, font=pf)
+            draw.rounded_rectangle([cx, y, cx + avail_w, y + plot_h],
+                                   radius=int(10 * s), fill=(245, 245, 245))
+            draw.text((cx + (avail_w - tw) / 2, y + (plot_h - pf.size) / 2),
+                      title, fill=(120, 120, 120), font=pf)
+            sf = _get_font(int(18 * s))
+            draw.text((cx + int(20 * s), y + plot_h - int(30 * s)),
+                      "pip install matplotlib", fill=(180, 180, 180), font=sf)
+
+        if caption:
+            cap_y = y + plot_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h], fill=(40, 40, 60))
+            cf = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
+    # ------------------------------------------------------------------
+    # rdkit_mol — 2D molecular structure from SMILES
+    # ------------------------------------------------------------------
+
+    def _draw_rdkit_mol(self, draw, frame, element, y):
+        """Render a 2D molecular structure from SMILES string using RDKit.
+
+        JSON:
+          { "target": "rdkit_mol",
+            "smiles": "c1ccccc1",
+            "name": "Benzene",
+            "caption": "Aromatic hydrocarbon"
+          }
+        Falls back to builtin_visual "molecule" if RDKit is not installed.
+        """
+        s = self.scale
+        avail_h = int(self.height * 0.35)
+        avail_w = self.content_w
+        cx = self.content_x
+        name = element.get("name", "")
+        caption = element.get("caption", "")
+        smiles = element.get("smiles", "")
+        cap_h = int(48 * s) if caption else 0
+        img_h = avail_h - cap_h
+
+        draw.rounded_rectangle([cx, y, cx + avail_w, y + avail_h],
+                               radius=int(10 * s), fill=(245, 245, 245))
+
+        rendered = False
+        try:
+            from rdkit import Chem
+            from rdkit.Chem import Draw as ChemDraw
+            mol = Chem.MolFromSmiles(smiles)
+            if mol:
+                mol_img = ChemDraw.MolToImage(mol, size=(min(avail_w, img_h * 2), img_h))
+                mol_img = mol_img.convert("RGB")
+                ratio = min(avail_w / mol_img.width, img_h / mol_img.height) * 0.85
+                new_w = int(mol_img.width * ratio)
+                new_h = int(mol_img.height * ratio)
+                mol_img = mol_img.resize((new_w, new_h), Image.LANCZOS)
+                paste_x = cx + (avail_w - new_w) // 2
+                paste_y = y + (img_h - new_h) // 2
+                frame.paste(mol_img, (paste_x, paste_y))
+                rendered = True
+        except ImportError:
+            pass
+
+        if not rendered:
+            pf = _get_font(int(32 * s), bold=True)
+            display = name or smiles or "Molecule"
+            tw = draw.textlength(display, font=pf)
+            draw.text((cx + (avail_w - tw) / 2, y + (img_h - pf.size) / 2 - int(15 * s)),
+                      display, fill=(21, 101, 192), font=pf)
+            sf = _get_font(int(20 * s))
+            if smiles:
+                tw2 = draw.textlength(f"SMILES: {smiles}", font=sf)
+                draw.text((cx + (avail_w - tw2) / 2, y + (img_h + pf.size) / 2),
+                          f"SMILES: {smiles}", fill=(120, 120, 120), font=sf)
+
+        if name and rendered:
+            nf = _get_font(int(24 * s), bold=True)
+            tw3 = draw.textlength(name, font=nf)
+            draw.text((cx + (avail_w - tw3) / 2, y + int(8 * s)),
+                      name, fill=(21, 101, 192), font=nf)
+
+        if caption:
+            cap_y = y + img_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h], fill=(40, 40, 60))
+            cf = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
+    # ------------------------------------------------------------------
+    # manim_scene — animated Manim scene composited from pre-rendered frames
+    # ------------------------------------------------------------------
+
+    def _draw_manim_scene(self, draw, frame, element, y, current_time=0):
+        """Render a pre-rendered Manim animation frame.
+
+        JSON:
+          { "target": "manim_scene",
+            "scene_type": "function_plot",
+            "params": { "function": "np.sin(x)", "x_range": [-4,4], ... },
+            "caption": "y = sin(x)"
+          }
+
+        Pipeline pre-renders the scene and injects _manim_cache_dir,
+        _manim_total_frames, _step_start, _step_end into the element.
+        This method reads the correct frame based on animation progress.
+        Falls back to a styled placeholder if Manim is not installed.
+        """
+        s = self.scale
+        avail_h = int(self.height * 0.42)
+        avail_w = self.content_w
+        cx = self.content_x
+        caption = element.get("caption", "")
+        cap_h = int(48 * s) if caption else 0
+        img_h = avail_h - cap_h
+
+        cache_dir = element.get("_manim_cache_dir")
+        step_start = element.get("_step_start", 0)
+        step_end = element.get("_step_end", 1)
+        step_dur = max(step_end - step_start, 0.001)
+        progress = max(0.0, min((current_time - step_start) / step_dur, 1.0))
+
+        rendered = False
+        if cache_dir:
+            try:
+                from engine.manim_renderer import get_frame_path
+                fpath = get_frame_path(cache_dir, progress)
+                if fpath and os.path.exists(fpath):
+                    manim_img = Image.open(fpath).convert("RGB")
+                    ratio = min(avail_w / manim_img.width,
+                                img_h / manim_img.height) * 0.95
+                    new_w = int(manim_img.width * ratio)
+                    new_h = int(manim_img.height * ratio)
+                    manim_img = manim_img.resize((new_w, new_h), Image.LANCZOS)
+                    paste_x = cx + (avail_w - new_w) // 2
+                    paste_y = y + (img_h - new_h) // 2
+                    frame.paste(manim_img, (paste_x, paste_y))
+                    rendered = True
+            except Exception:
+                pass
+
+        if not rendered:
+            # Fallback placeholder
+            scene_type = element.get("scene_type", "animation")
+            draw.rounded_rectangle([cx, y, cx + avail_w, y + img_h],
+                                   radius=int(10 * s), fill=(30, 30, 50))
+            # Play-button triangle icon
+            icon_size = int(60 * s)
+            mx, my = cx + avail_w // 2, y + img_h // 2 - int(20 * s)
+            draw.polygon([(mx - icon_size // 2, my - icon_size // 2),
+                          (mx - icon_size // 2, my + icon_size // 2),
+                          (mx + icon_size // 2, my)],
+                         fill=(80, 140, 255))
+
+            tf = _get_font(int(30 * s), bold=True)
+            title = f"Manim: {scene_type}"
+            tw = draw.textlength(title, font=tf)
+            draw.text((cx + (avail_w - tw) / 2, my + icon_size // 2 + int(15 * s)),
+                      title, fill=(120, 180, 255), font=tf)
+
+            sf = _get_font(int(18 * s))
+            hint = "pip install manim"
+            hw = draw.textlength(hint, font=sf)
+            draw.text((cx + (avail_w - hw) / 2, y + img_h - int(30 * s)),
+                      hint, fill=(100, 100, 140), font=sf)
+
+        if caption:
+            cap_y = y + img_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h],
+                           fill=(40, 40, 60))
+            cf = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
+    # ------------------------------------------------------------------
+    # subject_image — fetch free image via Pixabay and embed it
+    # ------------------------------------------------------------------
+
+    def _draw_subject_image(self, draw, frame, element, y):
+        """Embed a Pixabay free image (fetched + cached on demand).
+
+        JSON:
+          { "target": "subject_image",
+            "query":   "animal cell biology microscope",
+            "subject": "biology",
+            "topic":   "cell",
+            "caption": "Animal Cell under microscope"
+          }
+        The pipeline pre-resolves src_path; renderer uses it if present,
+        otherwise attempts a live fetch.
+        """
+        src_path = element.get("src_path", "")
+        caption  = element.get("caption",  "")
+        query    = element.get("query",    "")
+        subject  = element.get("subject",  "")
+        topic    = element.get("topic",    "")
+        s        = self.scale
+
+        # Try live fetch if no pre-resolved path
+        if not src_path or not os.path.exists(src_path):
+            try:
+                from engine.free_media import resolve_media
+                src_path = resolve_media(query, "image", subject, topic)
+            except Exception:
+                src_path = ""
+
+        avail_h = int(self.height * 0.35)
+        avail_w = self.content_w
+        cx      = self.content_x
+        cap_h   = int(48 * s) if caption else 0
+        img_h   = avail_h - cap_h
+
+        # Background card
+        draw.rounded_rectangle(
+            [cx, y, cx + avail_w, y + avail_h],
+            radius=int(10 * s), fill=(245, 245, 245),
+        )
+
+        if src_path and os.path.exists(src_path):
+            try:
+                img      = Image.open(src_path).convert("RGB")
+                ratio    = min(avail_w / img.width, img_h / img.height)
+                new_w    = int(img.width  * ratio)
+                new_h    = int(img.height * ratio)
+                img      = img.resize((new_w, new_h), Image.LANCZOS)
+                paste_x  = cx + (avail_w - new_w) // 2
+                paste_y  = y  + (img_h   - new_h) // 2
+                frame.paste(img, (paste_x, paste_y))
+            except Exception:
+                pass
+        else:
+            pf = _get_font(int(36 * s), bold=True)
+            msg = query or "Image unavailable"
+            tw  = draw.textlength(msg, font=pf)
+            draw.text((cx + (avail_w - tw) / 2, y + (img_h - pf.size) / 2),
+                      msg, fill=(160, 160, 160), font=pf)
+
+        if caption:
+            cap_y = y + img_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h],
+                           fill=(40, 40, 60))
+            cf  = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
     def _is_renderable(self, el):
         etype = el.get("type")
         if etype in ("image", "svg"):
             return bool(el.get("src_path")) and os.path.exists(el["src_path"])
+        # subject_image and builtin_visual always attempt to render
         return True
 
 

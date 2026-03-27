@@ -25,7 +25,7 @@ class Video(db.Model):
 
     # Video settings
     resolution = db.Column(db.String(10), default="1080p")
-    quality_preset = db.Column(db.String(5), default="P5")
+    quality_preset = db.Column(db.String(5), default="P7")
     duration_seconds = db.Column(db.Float, default=0)
     fps = db.Column(db.Integer, default=30)
     theme = db.Column(db.String(10), default="dark")

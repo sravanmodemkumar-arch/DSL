@@ -26,9 +26,48 @@ RENDERING ENGINE FACTS
 - Highlighting an option turns it SAFFRON (orange) in the header options row.
 - final_answer turns the CORRECT option GREEN and removes any saffron highlight.
 
+VISUAL SYSTEM — 6 LAYERS:
+1. builtin_visual: 74 pure-Pillow illustrations (cell, atom, circuit, etc.) — works offline
+2. subject_image: Free photo from Pixabay/Wikimedia/Pexels/Unsplash — auto-fetched
+3. video_clip: Free video from Pixabay/Pexels — auto-fetched
+4. matplotlib_plot: Scientific graph (line/bar/scatter/pie/histogram) — requires matplotlib
+5. rdkit_mol: 2D molecular structure from SMILES string — requires RDKit
+6. manim_scene: ANIMATED scenes (function plots, wave propagation, projectile motion, etc.) — requires manim. 20 pre-built templates: function_plot | multi_function | derivative | integral | vector_addition | matrix_transform | pythagorean | circle_theorem | number_line_walk | trig_circle | equation_transform | wave | projectile | pendulum | electric_field | lens_ray | energy_diagram | text_reveal | bar_chart_anim | graph_network
+
+USE VISUALS GENEROUSLY. Every concept scene should have at least one visual element.
+Science subjects (biology, physics, chemistry) MUST use visuals — text-only is FORBIDDEN.
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MANDATORY SCENE SEQUENCE — NEVER DEVIATE
+VIDEO MODES — 8 FORMATS SUPPORTED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The `mode` field at the top level of the JSON controls the video layout and flow.
+
+| mode | Description | Header | Body | End step |
+|------|-------------|--------|------|----------|
+| `mcq` (default) | Multiple choice question | Question + 4 options | Concept → Working | `final_answer` |
+| `topic` | Topic explanation / lecture | Slim title bar | Free concept scenes | No answer needed |
+| `true_false` | True/False question | Question + T/F pills | Explanation | `final_answer` |
+| `fill_blank` | Fill in the blank | Question with `___` | Explanation → Reveal | `blank_reveal` |
+| `numerical` | Calculate the answer (no options) | Question only (no options) | Working → Answer | `numerical_answer` |
+| `match` | Match the following | Minimal bar | Match columns | `match_columns` (revealed) |
+| `assertion` | Assertion & Reason | Assertion + Reason header | Analysis | `final_answer` |
+| `sequence` | Arrange in order | Minimal bar | Sequence items | `sequence_list` (revealed) |
+
+**MODE RULES:**
+- If `mode` is omitted, defaults to `"mcq"`
+- `topic` mode: NO question/options needed. Use `topic_header` for title. Scenes are `intro` + `concept` + `concept`...
+- `numerical` mode: `question` has NO `options` array. Last step uses `numerical_answer` target.
+- `fill_blank` mode: `question.text` contains `___` for the blank. Use `blank_reveal` target to show answer.
+- `match` mode: Use `match_columns` target with left/right arrays + matches dict.
+- `assertion` mode: `question` has `assertion` and `reason` fields. Options are standard MCQ (a/b/c/d).
+- `sequence` mode: Use `sequence_list` target with items array.
+- `true_false` mode: `question.options` has only 2 entries: `[{key:"a", value:"True"}, {key:"b", value:"False"}]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY SCENE SEQUENCE — PER MODE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+### MCQ MODE (default) — NEVER DEVIATE
 You MUST produce scenes in this exact order. Skipping any scene is a hard error.
 
   Scene 1  — type: "question"
@@ -52,6 +91,52 @@ You MUST produce scenes in this exact order. Skipping any scene is a hard error.
 
   Last step of the LAST scene MUST be: { "action": "show", "target": "final_answer" }
   This turns the correct option GREEN. No exceptions.
+
+### TOPIC MODE — Free-form explanation
+  Scene 1  — type: "intro"    → title_card with title + subtitle + badge
+  Scene 2+ — type: "concept"  → Use section_header to introduce each section,
+             then concept_text, highlight_box, key_facts, process_steps,
+             builtin_visual, manim_scene, subject_image, etc.
+  No final_answer needed. No question or options.
+
+  Required top-level fields: `topic_header: { "title": "...", "subtitle": "..." }`
+  NO `question` field needed.
+
+### TRUE/FALSE MODE
+  Same as MCQ but `question.options` has ONLY 2 entries:
+  `[{"key": "a", "value": "True"}, {"key": "b", "value": "False"}]`
+  Scene sequence: question → options → concept (explanation) → final_answer
+
+### FILL_BLANK MODE
+  Scene 1  — type: "question"  → Question text contains `___` for the blank
+  Scene 2  — type: "concept"   → Explain the concept
+  Scene 3  — type: "concept"   → Steps with blank_reveal (revealed=false, then revealed=true)
+  Last step: `{ "target": "blank_reveal", "sentence": "The ___ is X", "answer": "X", "revealed": true }`
+
+### NUMERICAL MODE — No options, calculate answer
+  Scene 1  — type: "question"  → Read the question (no options scene!)
+  Scene 2  — type: "concept"   → Working steps (formula, equation, etc.)
+  Last step: `{ "target": "numerical_answer", "value": "42", "unit": "m/s", "label": "Answer" }`
+  NO options_grid, NO final_answer.
+
+### MATCH MODE — Match the following
+  Scene 1  — type: "concept"   → Show match_columns (revealed=false)
+  Scene 2+ — type: "concept"   → Explain each match
+  Last step: `{ "target": "match_columns", "left": [...], "right": [...], "matches": {"0":"1",...}, "revealed": true }`
+
+### ASSERTION MODE — Assertion & Reason
+  `question` must have: `assertion`, `reason`, `text`, `options`, `correct`
+  Options are standard MCQ:
+    a) Both A and R are true and R is the correct explanation of A
+    b) Both A and R are true but R is NOT the correct explanation of A
+    c) A is true but R is false
+    d) A is false but R is true
+  Scene sequence: question → options → concept (analysis) → final_answer
+
+### SEQUENCE MODE — Arrange in order
+  Scene 1  — type: "concept"   → Show sequence_list (revealed=false, items in shuffled order)
+  Scene 2+ — type: "concept"   → Explain the correct order
+  Last step: `{ "target": "sequence_list", "items": [...correct order...], "revealed": true }`
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 LINE-BY-LINE RENDERING RULE — CRITICAL
@@ -84,6 +169,141 @@ CONCEPT-BEFORE-WORKING RULE — MANDATORY
 - The rule / concept / formula scene (Scene 3) MUST appear before ANY option working.
 - highlight_box with the golden rule MUST appear before any digit_boxes or equations.
 - Pattern is always: RULE → APPLICATION. Never application → rule.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SUBJECT VISUAL RULES — USE IMAGES AND DIAGRAMS GENEROUSLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+For science subjects, the concept scene MUST include a visual element.
+Text-only concept scenes are FORBIDDEN for biology, physics, chemistry.
+For other subjects, include at least ONE visual per concept scene.
+
+BIOLOGY — always use visuals for:
+  Cell structure         → builtin_visual: "cell" or "plant_cell"  (green)
+  DNA / genetics         → builtin_visual: "dna"      (blue)
+  Photosynthesis / plant → builtin_visual: "leaf"     (green)
+  Food chains / ecology  → builtin_visual: "food_chain" or "ecosystem_pyramid" (orange)
+  Heart / circulation    → builtin_visual: "heart"    (red)
+  Nervous system         → builtin_visual: "neuron"   (blue)
+  Eye / vision           → builtin_visual: "eye"      (blue)
+  Blood / immunity       → builtin_visual: "blood_cells" (red)
+  Cell division          → builtin_visual: "mitosis"  (blue)
+  Diffusion / osmosis    → builtin_visual: "osmosis"  (blue)
+  Genetics / heredity    → builtin_visual: "punnett_square" (green)
+  Water / nitrogen cycle → builtin_visual: "water_cycle" or "nitrogen_cycle" (blue)
+  Microorganisms         → builtin_visual: "virus" or "bacteria" (red)
+  Digestion              → builtin_visual: "digestive_system" (orange)
+  Real organism photos   → subject_image: query="[organism name] biology"
+  Microscope slides      → subject_image: query="[topic] microscope slide biology"
+
+PHYSICS — always use visuals for:
+  Circuits               → builtin_visual: "circuit"  (blue)
+  Oscillation/pendulum   → builtin_visual: "pendulum" (blue)  OR  manim_scene: "pendulum" (ANIMATED)
+  Optics/lenses          → builtin_visual: "optics"   (purple) OR  manim_scene: "lens_ray" (ANIMATED ray diagram)
+  Mirror (concave)       → builtin_visual: "concave_mirror" (blue)
+  Mirror (convex)        → builtin_visual: "convex_mirror" (blue)
+  Forces/vectors         → builtin_visual: "force"    (orange) OR  manim_scene: "vector_addition" (ANIMATED)
+  Waves/sound            → builtin_visual: "wave"     (blue)   OR  manim_scene: "wave" (ANIMATED propagation)
+  Atoms/nuclear          → builtin_visual: "atom"     (red)
+  Magnetism              → builtin_visual: "bar_magnet" or "solenoid" (blue)
+  Projectile motion      → builtin_visual: "projectile" (blue) OR  manim_scene: "projectile" (ANIMATED trajectory)
+  Inclined plane / ramp  → builtin_visual: "inclined_plane" (orange)
+  Transformer / coils    → builtin_visual: "transformer" (blue)
+  Capacitor / E-field    → builtin_visual: "capacitor" (blue)  OR  manim_scene: "electric_field" (ANIMATED field lines)
+  Nuclear fission/fusion → builtin_visual: "nuclear_fission" (red)
+  Photoelectric effect   → builtin_visual: "photoelectric" (orange)
+  Circular motion        → builtin_visual: "circular_motion" (blue)
+  Pulley systems         → builtin_visual: "pulley"   (blue)
+  Fluid pressure         → builtin_visual: "pressure_column" (blue)
+  Thermodynamics         → builtin_visual: "carnot_engine" (orange)
+  Velocity/time graphs   → matplotlib_plot: plot_type="line" OR  manim_scene: "function_plot" (ANIMATED graphing)
+  Real experiment photo  → subject_image: query="[topic] physics experiment"
+
+CHEMISTRY — always use visuals for:
+  Molecules/bonding      → builtin_visual: "molecule" (red)
+  Lab equipment          → builtin_visual: "beaker" or "test_tube" (orange)
+  Periodic table         → builtin_visual: "periodic_element" (blue)
+  pH / acid-base         → builtin_visual: "ph_scale" (green)
+  Electrolysis           → builtin_visual: "electrolysis" (blue)
+  Electrochemistry       → builtin_visual: "galvanic_cell" (blue)
+  Ionic bonding          → builtin_visual: "bond_ionic" (red)
+  Covalent bonding       → builtin_visual: "bond_covalent" (blue)
+  Aromatic compounds     → builtin_visual: "benzene" (blue)
+  Reaction energy        → builtin_visual: "activation_energy" (orange) OR  manim_scene: "energy_diagram" (ANIMATED)
+  Distillation / lab     → builtin_visual: "distillation" (blue)
+  Molecular structure    → rdkit_mol: smiles="[SMILES string]" (if complex molecule)
+  Atoms                  → builtin_visual: "atom"     (blue)
+  Real lab photo         → subject_image: query="[topic] chemistry laboratory"
+
+MATH — always use visuals for:
+  Clock / time problems  → builtin_visual: "clock"    (blue)
+  Set theory / Venn      → builtin_visual: "venn_diagram" (blue)
+  Coordinate geometry    → builtin_visual: "coordinate_plane" (blue)
+  Statistics / pie       → builtin_visual: "pie_chart" or "bar_chart" (blue)
+  Triangle properties    → builtin_visual: "triangle_parts" (blue)
+  Circle properties      → builtin_visual: "circle_parts" (blue)
+  Number patterns        → builtin_visual: "number_pattern" (orange)
+  Fractions              → builtin_visual: "fraction_visual" (blue)
+  Normal distribution    → builtin_visual: "normal_distribution" (blue)
+  Function graphs        → matplotlib_plot: plot_type="line" OR  manim_scene: "function_plot" (ANIMATED)
+  Derivatives/calculus   → manim_scene: "derivative" (ANIMATED tangent line)
+  Integration/area       → manim_scene: "integral" (ANIMATED area under curve)
+  Trigonometry           → manim_scene: "trig_circle" (ANIMATED unit circle)
+  Pythagorean theorem    → manim_scene: "pythagorean" (ANIMATED visual proof)
+  Circle theorems        → manim_scene: "circle_theorem" (ANIMATED geometry)
+  Equation manipulation  → manim_scene: "equation_transform" (ANIMATED morphing)
+  Matrix operations      → manim_scene: "matrix_transform" (ANIMATED 2D space)
+
+GEOGRAPHY — always use visuals for:
+  Direction / compass    → builtin_visual: "compass"  (blue)
+  Rock types             → builtin_visual: "rock_cycle" (orange)
+  Climate / biomes       → builtin_visual: "climate_zones" (green)
+  Rivers / landforms     → builtin_visual: "river_landforms" (blue)
+  Maps / landscapes      → subject_image: query="[place] geography"
+
+HISTORY — always use visuals for:
+  Timelines              → timeline (render target) or builtin_visual: "timeline_visual"
+  Key facts / dates      → key_facts (render target)
+  Monuments / artifacts  → subject_image: query="[monument] history"
+
+POLITY / CIVICS — always use visuals for:
+  Government structure   → builtin_visual: "government_structure" (blue)
+  Parliament             → builtin_visual: "parliament" (blue)
+  Constitution / law     → subject_image: query="Indian constitution parliament"
+
+ECONOMICS — always use visuals for:
+  Supply & demand        → builtin_visual: "supply_demand" (blue)
+  PPF / production       → builtin_visual: "production_possibility" (blue)
+  GDP / data graphs      → matplotlib_plot: plot_type="bar"
+
+COMPUTER SCIENCE — always use visuals for:
+  Flowcharts / logic     → builtin_visual: "flowchart" (blue)
+  Trees / graphs         → builtin_visual: "binary_tree" (blue)
+  Stack (LIFO)           → builtin_visual: "stack_visual" (blue)
+  Queue (FIFO)           → builtin_visual: "queue_visual" (blue)
+  Arrays                 → builtin_visual: "array_visual" (blue)
+  OSI / networking       → builtin_visual: "osi_layers" (blue)
+
+REASONING — always use visuals for:
+  Seating arrangement    → builtin_visual: "seating_circle" (blue)
+  Direction sense        → builtin_visual: "direction_sense" (blue)
+  Blood relations        → builtin_visual: "blood_relation" (blue)
+  Analogy                → analogy (render target)
+
+ANY SUBJECT — for concept introduction:
+  Teacher explaining     → builtin_visual: "teacher"  (blue)
+  Step-by-step process   → builtin_visual: "steps_visual" (blue)
+  Comparison             → builtin_visual: "comparison_table" (blue)
+  Idea / concept         → builtin_visual: "lightbulb" (orange)
+  Correct answer         → builtin_visual: "trophy"   (orange)
+  Timeline of events     → builtin_visual: "timeline_visual" (blue)
+  Memory aid / mnemonic  → memory_trick (render target)
+
+WHEN TO USE EACH VISUAL TYPE:
+  builtin_visual  → Diagrams, schematics, labelled structures (ALWAYS works, offline)
+  subject_image   → Real photographs (organisms, landscapes, equipment, artifacts)
+  video_clip      → Real experiment videos (pendulum, titration, microscope)
+  matplotlib_plot → Scientific graphs: line, bar, scatter, pie, histogram
+  rdkit_mol       → 2D molecular structures from SMILES strings
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HARD DO-NOT RULES
@@ -133,15 +353,37 @@ Every question JSON MUST include a "youtube" block between "meta" and "question"
 [
   {
     "id": "q-subject-topic-keyword",
+    "mode": "mcq",
     "thumbnail_intro_seconds": 3,
     "thumbnail": { ... },
     "meta": { ... },
     "youtube": { ... },
     "question": { ... },
+    "topic_header": { ... },
     "scenes": [ ... ],
     "assets": { ... }
   }
 ]
+```
+
+**Mode field:**
+```
+"mode": "mcq"         — DEFAULT. Multiple choice question + answer
+"mode": "topic"       — Topic explanation / lecture (no question)
+"mode": "true_false"  — True/False question
+"mode": "fill_blank"  — Fill in the blank
+"mode": "numerical"   — Calculate answer (no options)
+"mode": "match"       — Match the following
+"mode": "assertion"   — Assertion & Reason
+"mode": "sequence"    — Arrange in correct order
+```
+
+**Topic header (for topic/match/sequence modes):**
+```json
+"topic_header": {
+  "title": "Newton's Laws of Motion",
+  "subtitle": "Understanding Force, Mass, and Acceleration"
+}
 ```
 
 ---
@@ -727,7 +969,7 @@ Display an uploaded SVG.
 ---
 
 ### 24. `video_clip`
-Display first frame of an uploaded video with caption.
+Display first frame of an uploaded video asset OR auto-fetch a free Pixabay video.
 ```json
 {
   "action": "show",
@@ -736,10 +978,412 @@ Display first frame of an uploaded video with caption.
   "caption": "Simple Pendulum — Oscillation Demo"
 }
 ```
+**Auto-fetch from Pixabay (no upload needed):**
+```json
+{
+  "action": "show",
+  "target": "video_clip",
+  "query": "pendulum physics experiment",
+  "subject": "physics",
+  "topic": "pendulum",
+  "caption": "Simple Pendulum — Oscillation Demo"
+}
+```
+- Use `query` instead of `src` to auto-download a royalty-free video from Pixabay
+- Video is cached in `storage/assets/videos/` — only fetches once
+- Requires `PIXABAY_API_KEY` env variable (free at pixabay.com/api) — works without it at reduced rate
 
 ---
 
-### 25. `table`
+### 24b. `subject_image`
+Auto-fetch a free Pixabay image relevant to the topic (no upload needed).
+```json
+{
+  "action": "show",
+  "target": "subject_image",
+  "query": "animal cell biology microscope",
+  "subject": "biology",
+  "topic": "cell",
+  "caption": "Animal Cell Structure"
+}
+```
+- Automatically downloads and caches a royalty-free image from Pixabay
+- Use for: biology diagrams, chemistry lab photos, physics experiment setups, geography maps
+- Image cached in `storage/assets/images/` — only fetches once per query
+- Falls back to a placeholder if offline
+
+**When to use `subject_image` vs `builtin_visual`:**
+| Use `subject_image` | Use `builtin_visual` |
+|---|---|
+| Real photograph of a cell, plant, experiment | Diagram/schematic (labelled parts) |
+| Biology: organism photos, ecosystem scenes | Biology: cell cross-section, DNA helix |
+| Physics: actual lab equipment photo | Physics: circuit diagram, force arrows |
+| Geography: real landscape photos | Math: clock, number line, analogy |
+
+---
+
+### 24c. `builtin_visual`
+**Copyright-free subject illustration drawn with pure geometry — no external files needed.**
+Works 100% offline. Perfect for diagrams, schematics, and labelled structures.
+
+```json
+{
+  "action": "show",
+  "target": "builtin_visual",
+  "visual": "cell",
+  "label": "Animal Cell Structure",
+  "color": "green"
+}
+```
+
+**Available visuals (74 total):**
+
+#### Biology (18)
+| `visual` | What it draws |
+|---|---|
+| `cell` | Animal cell: nucleus, mitochondria, vacuole |
+| `plant_cell` | Plant cell: cell wall, chloroplasts, central vacuole |
+| `dna` | DNA double helix with base pairs |
+| `leaf` | Leaf with veins + sun arrow (photosynthesis) |
+| `food_chain` | Sun→Grass→Rabbit→Fox ecosystem chain |
+| `heart` | 4-chamber heart: RA, RV, LA, LV with blood flow labels |
+| `neuron` | Dendrites → cell body → axon → terminal |
+| `eye` | Eye cross-section: cornea, lens, retina, optic nerve |
+| `blood_cells` | RBC, WBC, Platelet — three types side by side |
+| `mitosis` | 4 phase boxes: Prophase→Metaphase→Anaphase→Telophase |
+| `osmosis` | Membrane with water molecules flowing high→low |
+| `punnett_square` | 2×2 genetics grid: BB, Bb, bb alleles |
+| `ecosystem_pyramid` | Energy pyramid: Producers→Primary→Secondary→Tertiary |
+| `water_cycle` | Sun + cloud + rain + river + evaporation arrows |
+| `nitrogen_cycle` | Circular: N₂→Bacteria→Plants→Animals→Decomposers |
+| `virus` | Icosahedral shape with spikes + DNA core |
+| `bacteria` | Rod bacterium with flagella |
+| `digestive_system` | Vertical path: Mouth→Esophagus→Stomach→Intestines |
+
+#### Physics (20)
+| `visual` | What it draws |
+|---|---|
+| `atom` | Bohr model: nucleus + 3 electron orbits |
+| `circuit` | Series circuit: battery + resistor + bulb |
+| `pendulum` | Pendulum with arc path + velocity arrow |
+| `optics` | Convex lens + rays + focal point |
+| `force` | Force diagram: object with N, W, F, f arrows |
+| `wave` | Transverse wave with amplitude A, wavelength λ |
+| `concave_mirror` | Curved mirror + C, F points + converging rays |
+| `convex_mirror` | Diverging mirror + virtual F point |
+| `bar_magnet` | N/S bar magnet with field lines |
+| `solenoid` | Coil with magnetic field inside |
+| `projectile` | Parabolic path + Vx/Vy components |
+| `inclined_plane` | Ramp + block + force decomposition (mg, theta) |
+| `transformer` | Primary/secondary coils + iron core |
+| `capacitor` | Parallel plates + E-field lines |
+| `nuclear_fission` | U-235 splits → 2 fragments + neutrons |
+| `photoelectric` | Photon → metal → ejected electron |
+| `circular_motion` | Circle + object + centripetal Fc + velocity v |
+| `pulley` | Fixed pulley + rope + two hanging masses |
+| `pressure_column` | Fluid column with h + P=ρgh label |
+| `carnot_engine` | HOT reservoir → Engine → COLD reservoir + W output |
+
+#### Chemistry (12)
+| `visual` | What it draws |
+|---|---|
+| `molecule` | CO₂-style molecule (central + bonded atoms) |
+| `beaker` | Beaker with coloured liquid + bubbles |
+| `periodic_element` | Element card: atomic number 26, Fe, Iron, 55.845 |
+| `ph_scale` | pH 0-14 gradient bar: red (acid) → green → blue (base) |
+| `electrolysis` | Container + anode/cathode electrodes + bubbles |
+| `galvanic_cell` | Zn-Cu cells + salt bridge |
+| `bond_ionic` | Na⁺ and Cl⁻ with attraction arrows |
+| `bond_covalent` | Two overlapping atoms + shared electron cloud |
+| `benzene` | Hexagonal ring with circle inside (C₆H₆) |
+| `activation_energy` | Reaction progress hill: Reactants → Ea peak → Products |
+| `test_tube` | Test tube with coloured solution + bubbles |
+| `distillation` | Flask + condenser tube + collection flask |
+
+#### Math (10)
+| `visual` | What it draws |
+|---|---|
+| `clock` | Analog clock with hour/minute hands |
+| `venn_diagram` | Two overlapping circles A, B |
+| `coordinate_plane` | X-Y axes with quadrant labels I-IV |
+| `pie_chart` | 4-sector pie chart with percentage labels |
+| `bar_chart` | 4-bar chart with values on top |
+| `triangle_parts` | Triangle with angles A,B,C and sides a,b,c |
+| `circle_parts` | Circle with radius, diameter, chord labeled |
+| `number_pattern` | Sequence boxes: 2→5→8→11→14 with +3 arrows |
+| `fraction_visual` | Rectangle divided into parts, some shaded (3/5) |
+| `normal_distribution` | Bell curve with μ and σ labels |
+
+#### Geography (4)
+| `visual` | What it draws |
+|---|---|
+| `compass` | 8-point compass rose: N, NE, E, SE, S, SW, W, NW |
+| `rock_cycle` | Triangle: Igneous → Sedimentary → Metamorphic |
+| `climate_zones` | Horizontal bands: Polar / Temperate / Tropical |
+| `river_landforms` | Meander + delta + oxbow lake |
+
+#### Polity / Civics (2)
+| `visual` | What it draws |
+|---|---|
+| `government_structure` | 3 pillars: Legislature, Executive, Judiciary |
+| `parliament` | Rajya Sabha (upper) + Lok Sabha (lower) |
+
+#### Economics (2)
+| `visual` | What it draws |
+|---|---|
+| `supply_demand` | Intersecting S and D curves + equilibrium point |
+| `production_possibility` | PPF curve (concave) with Good X / Good Y axes |
+
+#### Computer Science (6)
+| `visual` | What it draws |
+|---|---|
+| `flowchart` | Start (oval) → Process (rect) → Decision (diamond) → End |
+| `binary_tree` | 3-level tree with numbered nodes |
+| `stack_visual` | LIFO stack with push/pop arrow |
+| `queue_visual` | FIFO queue: A, B, C, D with In/Out |
+| `array_visual` | Array boxes with index numbers 0-5 |
+| `osi_layers` | 7-layer OSI model stacked boxes |
+
+#### Reasoning (3)
+| `visual` | What it draws |
+|---|---|
+| `seating_circle` | Circular table with person positions P1-P6 |
+| `direction_sense` | 8-direction compass for direction problems |
+| `blood_relation` | Family tree: Grandparent → Parent → Child |
+
+#### Universal (6)
+| `visual` | What it draws |
+|---|---|
+| `teacher` | Stick-figure teacher with speech bubble |
+| `comparison_table` | 2-column feature comparison table |
+| `steps_visual` | Numbered step boxes 1→2→3→4 |
+| `lightbulb` | Lightbulb idea/concept icon with rays |
+| `trophy` | Trophy cup — correct answer celebration |
+| `timeline_visual` | Horizontal timeline with event markers |
+
+**Color options:** `blue` | `green` | `orange` | `red` | `purple`
+
+**Example — Biology cell scene:**
+```json
+{
+  "scene_type": "concept",
+  "steps": [
+    {
+      "narration": "Let's look at the structure of an animal cell.",
+      "render": {
+        "action": "show",
+        "target": "builtin_visual",
+        "visual": "cell",
+        "label": "Animal Cell",
+        "color": "green"
+      }
+    },
+    {
+      "narration": "The nucleus controls all cell activities and contains DNA.",
+      "render": {
+        "action": "show",
+        "target": "concept_text",
+        "value": "Nucleus → control center of the cell, contains DNA"
+      }
+    }
+  ]
+}
+```
+
+**Example — Physics oscillation scene:**
+```json
+{
+  "scene_type": "concept",
+  "steps": [
+    {
+      "narration": "A simple pendulum consists of a heavy bob suspended by a string.",
+      "render": {
+        "action": "show",
+        "target": "builtin_visual",
+        "visual": "pendulum",
+        "label": "Simple Pendulum",
+        "color": "blue"
+      }
+    }
+  ]
+}
+```
+
+**Example — Chemistry lab scene with real image:**
+```json
+{
+  "scene_type": "concept",
+  "steps": [
+    {
+      "narration": "In a titration experiment, we use a burette to add the titrant drop by drop.",
+      "render": {
+        "action": "show",
+        "target": "subject_image",
+        "query": "titration burette flask chemistry lab",
+        "subject": "chemistry",
+        "topic": "titration",
+        "caption": "Titration Setup"
+      }
+    },
+    {
+      "narration": "The indicator changes colour at the equivalence point.",
+      "render": {
+        "action": "show",
+        "target": "builtin_visual",
+        "visual": "beaker",
+        "label": "Indicator Colour Change",
+        "color": "orange"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 25. `matplotlib_plot`
+Scientific graph rendered via matplotlib. Supports line, bar, scatter, pie, histogram.
+```json
+{
+  "action": "show",
+  "target": "matplotlib_plot",
+  "plot_type": "line",
+  "title": "Velocity vs Time",
+  "xlabel": "Time (s)",
+  "ylabel": "Velocity (m/s)",
+  "data": { "x": [0, 1, 2, 3, 4], "y": [0, 5, 10, 15, 20] },
+  "color": "blue",
+  "caption": "Linear motion graph"
+}
+```
+- `plot_type`: `line` | `bar` | `scatter` | `pie` | `histogram`
+- `data.x` + `data.y` — arrays of numbers (for line/scatter)
+- `data.labels` — array of strings (for bar/pie, optional)
+- `data.bins` — integer (for histogram, default 10)
+- Falls back to text placeholder if matplotlib is not installed
+- Ideal for: Physics graphs, Economics charts, Math functions, Statistics distributions
+
+**Bar chart example:**
+```json
+{
+  "action": "show",
+  "target": "matplotlib_plot",
+  "plot_type": "bar",
+  "title": "GDP Growth Rate",
+  "xlabel": "Year",
+  "ylabel": "Growth %",
+  "data": { "labels": ["2020", "2021", "2022", "2023"], "y": [4.0, 8.7, 7.2, 6.3] },
+  "color": "green"
+}
+```
+
+---
+
+### 25b. `rdkit_mol`
+2D molecular structure rendered from SMILES string (requires RDKit).
+```json
+{
+  "action": "show",
+  "target": "rdkit_mol",
+  "smiles": "c1ccccc1",
+  "name": "Benzene",
+  "caption": "Aromatic hydrocarbon"
+}
+```
+- `smiles` — SMILES string (e.g., `"CCO"` = ethanol, `"c1ccccc1"` = benzene, `"O=C=O"` = CO₂)
+- `name` — display name above the structure
+- Falls back to text display if RDKit is not installed
+- Ideal for: Organic chemistry, molecular structures, pharmacology
+
+**Common SMILES strings:**
+| Molecule | SMILES |
+|---|---|
+| Water | `O` |
+| Methane | `C` |
+| Ethanol | `CCO` |
+| Benzene | `c1ccccc1` |
+| Acetic acid | `CC(=O)O` |
+| Glucose | `OC[C@@H](O1)[C@@H](O)[C@H](O)[C@@H](O)[C@@H]1O` |
+| Aspirin | `CC(=O)Oc1ccccc1C(=O)O` |
+
+---
+
+### 25c. `manim_scene`
+**ANIMATED** scene rendered by Manim (3Blue1Brown's animation engine). 20 pre-built templates for Math, Physics, Chemistry. Requires `pip install manim`. Falls back to styled placeholder if not installed.
+
+**IMPORTANT**: manim_scene produces REAL ANIMATION within the video frame — the visual changes frame-by-frame during the step's audio duration. This is the ONLY element that animates.
+
+```json
+{
+  "action": "show",
+  "target": "manim_scene",
+  "scene_type": "function_plot",
+  "params": {
+    "function": "np.sin(x)",
+    "x_range": [-4, 4],
+    "y_range": [-1.5, 1.5],
+    "color": "BLUE",
+    "title": "y = sin(x)"
+  },
+  "caption": "Sine wave function"
+}
+```
+
+**Available scene_type values and their params:**
+
+| scene_type | Subject | params |
+|---|---|---|
+| `function_plot` | Math | function (numpy expr), x_range, y_range, color, title, xlabel, ylabel |
+| `multi_function` | Math | functions [{expr, color, label}], x_range, y_range, title |
+| `derivative` | Math | function, x_range, color, tangent_color |
+| `integral` | Math | function, x_range, area_range [a,b], color, area_color |
+| `vector_addition` | Math/Physics | v1 [x,y,0], v2 [x,y,0], color_1, color_2, color_sum |
+| `matrix_transform` | Math | matrix [[a,b],[c,d]], title |
+| `pythagorean` | Math | a (side), b (side) |
+| `circle_theorem` | Math | theorem (inscribed_angle, tangent) |
+| `number_line_walk` | Math | start, end, operations [{op:"+"/"-", value:N}] |
+| `trig_circle` | Math | show_sin (bool), show_cos (bool) |
+| `equation_transform` | Math | equations [LaTeX str, LaTeX str, ...] |
+| `wave` | Physics | wave_type (transverse/longitudinal), amplitude, wavelength, title |
+| `projectile` | Physics | v0 (m/s), angle (deg), g (m/s²) |
+| `pendulum` | Physics | length, amplitude_deg |
+| `electric_field` | Physics | field_type (dipole/point) |
+| `lens_ray` | Physics | lens_type (convex/concave), focal_length, object_distance |
+| `energy_diagram` | Chemistry | reactant_energy, product_energy, activation_energy, title |
+| `text_reveal` | General | lines [str...], title, color |
+| `bar_chart_anim` | General | values, labels, colors [MANIM_COLOR], title |
+| `graph_network` | General | nodes [id...], edges [[from,to]...], directed, title |
+
+**Manim color constants:** BLUE, RED, GREEN, YELLOW, ORANGE, PURPLE, WHITE, TEAL, PINK, GOLD, MAROON
+
+**When to use manim_scene vs builtin_visual:**
+- Use `manim_scene` when ANIMATION adds educational value (function being traced, wave moving, pendulum swinging)
+- Use `builtin_visual` for STATIC diagrams (cell structure, circuit schematic, atom model)
+- `manim_scene` is heavier (requires Manim install + pre-rendering) — prefer `builtin_visual` when static is enough
+
+**Examples by subject:**
+```json
+// Physics: Projectile
+{ "target": "manim_scene", "scene_type": "projectile",
+  "params": {"v0": 20, "angle": 60, "g": 9.8}, "caption": "Projectile at 60°" }
+
+// Math: Derivative visualization
+{ "target": "manim_scene", "scene_type": "derivative",
+  "params": {"function": "x**3 - 3*x", "x_range": [-3, 3]}, "caption": "Tangent line" }
+
+// Chemistry: Reaction energy
+{ "target": "manim_scene", "scene_type": "energy_diagram",
+  "params": {"reactant_energy": 40, "product_energy": 60, "activation_energy": 90,
+             "title": "Endothermic Reaction"}, "caption": "ΔH = +20 kJ" }
+
+// Math: Unit circle trig
+{ "target": "manim_scene", "scene_type": "trig_circle",
+  "params": {"show_sin": true, "show_cos": true}, "caption": "Unit circle" }
+```
+
+---
+
+### 26. `table`
 Data table with headers and rows.
 ```json
 {
@@ -800,6 +1444,107 @@ Step: final_answer        → correct option turns GREEN, saffron removed
 - Automatically reads `question.correct` to determine which option turns green
 - Removes any saffron highlight — the green badge replaces it
 - Triggers `show_correct = True` — correct option stays green for rest of video
+
+---
+
+### 29. `title_card` (topic mode)
+Full-width intro card with large centered title. Use as the first element in topic mode.
+```json
+{
+  "action": "show",
+  "target": "title_card",
+  "title": "Newton's Laws of Motion",
+  "subtitle": "Understanding Force, Mass, and Acceleration",
+  "badge": "JEE | NEET | Class 11"
+}
+```
+
+---
+
+### 30. `section_header` (topic mode)
+Section divider bar — marks the start of a new section within a topic.
+```json
+{
+  "action": "show",
+  "target": "section_header",
+  "title": "First Law — Inertia",
+  "subtitle": "Objects resist changes in motion",
+  "color": "blue"
+}
+```
+- `color`: `blue | orange | green | red | purple`
+- Clears visual break between topic sections
+
+---
+
+### 31. `blank_reveal` (fill_blank mode)
+Fill-in-the-blank sentence with optional answer reveal.
+```json
+{ "action": "show", "target": "blank_reveal",
+  "sentence": "The capital of India is ___", "answer": "", "revealed": false }
+```
+Then to reveal:
+```json
+{ "action": "show", "target": "blank_reveal",
+  "sentence": "The capital of India is ___", "answer": "New Delhi", "revealed": true }
+```
+
+---
+
+### 32. `match_columns` (match mode)
+Two columns for Match-the-Following. Lines connect when revealed.
+```json
+{
+  "action": "show",
+  "target": "match_columns",
+  "left": ["Photosynthesis", "Respiration", "Transpiration"],
+  "right": ["Water loss from leaves", "CO₂ + H₂O → Glucose", "Glucose → Energy + CO₂"],
+  "matches": {"0": "1", "1": "2", "2": "0"},
+  "revealed": false
+}
+```
+- `matches` maps left index → right index (as strings)
+- `revealed: true` draws connection lines in green
+
+---
+
+### 33. `sequence_list` (sequence mode)
+Ordered list of items — shown shuffled first, then in correct order.
+```json
+{
+  "action": "show",
+  "target": "sequence_list",
+  "heading": "Arrange in correct order",
+  "items": ["Mix reagents", "Heat to 100°C", "Filter the solution", "Cool and observe"],
+  "revealed": false
+}
+```
+Then to reveal correct order:
+```json
+{
+  "action": "show",
+  "target": "sequence_list",
+  "items": ["Mix reagents", "Heat to 100°C", "Filter the solution", "Cool and observe"],
+  "revealed": true
+}
+```
+
+---
+
+### 34. `numerical_answer` (numerical mode)
+Answer box for numerical-type questions (no MCQ options).
+```json
+{
+  "action": "show",
+  "target": "numerical_answer",
+  "value": "3",
+  "unit": "A",
+  "label": "Current"
+}
+```
+- `value`: the numerical answer as string
+- `unit`: measurement unit (optional)
+- `label`: heading (default "Answer")
 
 ---
 
@@ -945,19 +1690,22 @@ Step 7: left: { full }, right: { + sum_text + verdict + pass }    ← complete
 ## SUBJECT → ELEMENTS GUIDE
 ## ═══════════════════════════════════════════
 
-| Subject | Must-use elements | Good to add |
-|---------|------------------|-------------|
-| **Mathematics** | `formula_block`, `equation` | `digit_boxes`, `shortcut_columns`, `fraction`, `running_sum`, `sum_box`, `number_line` |
-| **Biology** | `process_steps`, `flow_chart` | `chem_equation`, `key_facts`, `concept_text`, `image`, `memory_trick` |
-| **Chemistry** | `chem_equation`, `highlight_box` | `concept_text`, `key_facts`, `two_col_text`, `flow_chart` |
-| **Physics** | `formula_block`, `equation` | `highlight_box`, `two_col_text`, `key_facts`, `table` |
-| **History** | `timeline`, `key_facts` | `two_col_text`, `memory_trick`, `concept_text` |
-| **Geography / GK** | `key_facts`, `two_col_text` | `timeline`, `memory_trick`, `table`, `image` |
-| **Accounts** | `t_account`, `highlight_box` | `key_facts`, `concept_text`, `two_col_text` |
-| **Reasoning** | `analogy`, `concept_text` | `memory_trick`, `key_facts`, `process_steps` |
-| **Economics** | `key_facts`, `highlight_box` | `two_col_text`, `table`, `concept_text` |
-| **English Grammar** | `concept_text`, `two_col_text` | `highlight_box`, `key_facts`, `table` |
-| **Computer Science** | `process_steps`, `flow_chart` | `table`, `highlight_box`, `concept_text` |
+| Subject | Must-use elements | Recommended builtin_visuals | Good to add |
+|---------|------------------|---------------------------|-------------|
+| **Mathematics** | `formula_block`, `equation` | `clock`, `venn_diagram`, `coordinate_plane`, `pie_chart`, `bar_chart`, `triangle_parts`, `circle_parts`, `number_pattern`, `fraction_visual`, `normal_distribution` | `digit_boxes`, `shortcut_columns`, `fraction`, `running_sum`, `sum_box`, `number_line`, `matplotlib_plot` |
+| **Biology** | `process_steps`, `flow_chart` | `cell`, `plant_cell`, `dna`, `leaf`, `food_chain`, `heart`, `neuron`, `eye`, `blood_cells`, `mitosis`, `osmosis`, `punnett_square`, `ecosystem_pyramid`, `water_cycle`, `nitrogen_cycle`, `virus`, `bacteria`, `digestive_system` | `chem_equation`, `key_facts`, `concept_text`, `subject_image`, `memory_trick` |
+| **Chemistry** | `chem_equation`, `highlight_box` | `molecule`, `beaker`, `atom`, `periodic_element`, `ph_scale`, `electrolysis`, `galvanic_cell`, `bond_ionic`, `bond_covalent`, `benzene`, `activation_energy`, `test_tube`, `distillation` | `concept_text`, `key_facts`, `two_col_text`, `flow_chart`, `rdkit_mol` |
+| **Physics** | `formula_block`, `equation` | `atom`, `circuit`, `pendulum`, `optics`, `force`, `wave`, `concave_mirror`, `convex_mirror`, `bar_magnet`, `solenoid`, `projectile`, `inclined_plane`, `transformer`, `capacitor`, `nuclear_fission`, `photoelectric`, `circular_motion`, `pulley`, `pressure_column`, `carnot_engine` | `highlight_box`, `two_col_text`, `key_facts`, `table`, `matplotlib_plot`, `subject_image` |
+| **History** | `timeline`, `key_facts` | `timeline_visual`, `steps_visual` | `two_col_text`, `memory_trick`, `concept_text`, `subject_image` |
+| **Geography** | `key_facts`, `two_col_text` | `compass`, `rock_cycle`, `climate_zones`, `river_landforms` | `timeline`, `memory_trick`, `table`, `subject_image` |
+| **Polity / Civics** | `key_facts`, `concept_text` | `government_structure`, `parliament` | `timeline`, `two_col_text`, `subject_image` |
+| **Economics** | `key_facts`, `highlight_box` | `supply_demand`, `production_possibility` | `two_col_text`, `table`, `concept_text`, `matplotlib_plot` |
+| **Accounts** | `t_account`, `highlight_box` | `steps_visual`, `comparison_table` | `key_facts`, `concept_text`, `two_col_text` |
+| **Reasoning** | `analogy`, `concept_text` | `seating_circle`, `direction_sense`, `blood_relation` | `memory_trick`, `key_facts`, `process_steps` |
+| **English Grammar** | `concept_text`, `two_col_text` | `comparison_table`, `steps_visual` | `highlight_box`, `key_facts`, `table` |
+| **Computer Science** | `process_steps`, `flow_chart` | `flowchart`, `binary_tree`, `stack_visual`, `queue_visual`, `array_visual`, `osi_layers` | `table`, `highlight_box`, `concept_text` |
+| **Medical** | `process_steps`, `key_facts` | `heart`, `neuron`, `eye`, `blood_cells`, `digestive_system` | `subject_image`, `flow_chart`, `rdkit_mol` |
+| **Engineering** | `formula_block`, `equation` | `circuit`, `transformer`, `capacitor`, `carnot_engine` | `matplotlib_plot`, `table`, `two_col_text` |
 
 ---
 
@@ -1271,12 +2019,21 @@ For reference, see the file: `sample_all_elements.json`
 It contains complete working examples for all subjects:
 - **Math**: Percentage (formula_block, equation, fraction, sum_box, number_line)
 - **Math**: Divisibility rules (shortcut_columns full build-up)
-- **Biology**: Photosynthesis (process_steps, flow_chart, chem_equation, key_facts, memory_trick)
-- **Chemistry**: Acid-base (highlight_box, chem_equation, key_facts)
-- **Physics**: Ohm's Law (formula_block, two_col_text, equation)
+- **Math**: Statistics (builtin_visual: pie_chart, bar_chart, normal_distribution, matplotlib_plot)
+- **Biology**: Photosynthesis (builtin_visual: leaf, cell, process_steps, flow_chart, chem_equation, key_facts)
+- **Biology**: Human body (builtin_visual: heart, neuron, eye, blood_cells, digestive_system)
+- **Chemistry**: Acid-base (highlight_box, chem_equation, builtin_visual: ph_scale, beaker)
+- **Chemistry**: Molecular (builtin_visual: benzene, bond_ionic, bond_covalent, rdkit_mol)
+- **Physics**: Ohm's Law (formula_block, builtin_visual: circuit, equation, matplotlib_plot)
+- **Physics**: Mechanics (builtin_visual: force, projectile, inclined_plane, circular_motion)
+- **Physics**: Optics (builtin_visual: optics, concave_mirror, convex_mirror)
 - **History**: Independence 1947 (timeline, two_col_text, key_facts, memory_trick)
+- **Geography**: Earth (builtin_visual: compass, rock_cycle, climate_zones, river_landforms)
+- **Polity**: Government (builtin_visual: government_structure, parliament)
+- **Economics**: Markets (builtin_visual: supply_demand, production_possibility, matplotlib_plot)
 - **Accounts**: Cash ledger (highlight_box, key_facts, t_account)
-- **Reasoning**: Analogy (concept_text, analogy reveal pattern)
+- **Reasoning**: Analogy + direction + seating (analogy, builtin_visual: direction_sense, seating_circle)
+- **Computer Science**: DSA (builtin_visual: flowchart, binary_tree, stack_visual, queue_visual, array_visual)
 
 ---
 
@@ -1295,4 +2052,4 @@ The `_comment` fields are **ignored by the renderer** — they exist only for do
 
 ---
 
-*Engine: Python + Pillow + FFmpeg + gTTS | DSL version: 2.0 | Supports all subjects, all exams*
+*Engine: Python + Pillow + FFmpeg + matplotlib + RDKit + Manim + edge-tts | DSL version: 5.0 | 8 video modes | 74 builtin visuals | 20 Manim animated scenes | 4-provider free media | All subjects, all exams*

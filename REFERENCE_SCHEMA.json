@@ -5,6 +5,18 @@
     "id": "REQUIRED-unique-kebab-case-id",
     "_id_comment": "RULES: lowercase letters, numbers, hyphens only. Must be unique across ALL questions in your library. Suggested format: q-[subject]-[topic]-[keyword]. Examples: q-math-lcm-hcf, q-bio-cell-division, q-hist-1857-revolt",
 
+    "mode": "mcq",
+    "_mode_comment": "VIDEO FORMAT — determines header layout and scene flow. VALUES: mcq (default — question + 4 options + concept + answer) | topic (title bar + concept sections — no question/options) | true_false (question + True/False options) | fill_blank (sentence with ___ blank + reveal) | numerical (question + typed numerical answer, no options) | match (match-the-following two columns) | assertion (Assertion A + Reason R format) | sequence (arrange items in correct order). If omitted, defaults to 'mcq'.",
+
+    "topic_header": {
+      "_comment": "REQUIRED for mode=topic/match/sequence. Shown as slim title bar at top of every frame.",
+      "title": "Photosynthesis",
+      "_title_comment": "Main topic title. Keep to 3–5 words. Shown large in the title bar.",
+      "subtitle": "How plants make food from sunlight",
+      "_subtitle_comment": "OPTIONAL. Descriptive subtitle shown smaller below the title."
+    },
+    "_topic_header_comment": "Only used when mode is topic, match, or sequence. For mcq/true_false/fill_blank/numerical/assertion, the question block serves as the header instead.",
+
     "thumbnail_intro_seconds": 4,
     "_thumbnail_intro_seconds_comment": "Integer 0–5. Still image of the thumbnail shown BEFORE the video starts. 0 = no intro. 3–4 = recommended for YouTube shorts/reels.",
 
@@ -69,7 +81,7 @@
     },
 
     "question": {
-      "_comment": "The main MCQ question. Shown permanently in the header once revealed.",
+      "_comment": "The main question. Shown in header once revealed. REQUIRED for modes: mcq, true_false, fill_blank, numerical, assertion. NOT used in: topic, match, sequence.",
       "text": "Which number is divisible by both 9 and 11?",
       "_text_comment": "Display text. Can include Unicode math: ÷ × ≤ ≥ ² ³ √ → ≠ ± α β γ π Σ ∞ ° ₁ ₂ H₂O CO₂",
       "audio": "Which number is divisible by both nine and eleven?",
@@ -80,9 +92,13 @@
         { "key": "c", "value": "12345" },
         { "key": "d", "value": "181998" }
       ],
-      "_options_comment": "Always 4 options. Keys MUST be a/b/c/d (lowercase). Values are display strings — can include units, symbols.",
+      "_options_comment": "4 options for mcq/assertion mode. 2 options (True/False) for true_false mode. NOT used in topic/fill_blank/numerical/match/sequence. Keys MUST be lowercase letters.",
       "correct": "b",
-      "_correct_comment": "The correct answer's key. MUST match one of the option keys exactly."
+      "_correct_comment": "The correct answer's key. MUST match one of the option keys exactly.",
+      "assertion": "",
+      "_assertion_comment": "ASSERTION MODE ONLY. The assertion statement (A). E.g.: 'Photosynthesis occurs in chloroplasts.'",
+      "reason": "",
+      "_reason_comment": "ASSERTION MODE ONLY. The reason statement (R). E.g.: 'Chloroplasts contain chlorophyll which absorbs sunlight.'"
     },
 
     "assets": {
@@ -493,6 +509,254 @@
               "_marks_comment": "Array of numbers to mark with dots on the line.",
               "highlight": [7],
               "_highlight_comment": "Array of numbers to highlight in orange (larger dot). Others are blue (small dot)."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: title_card --- Full-width dark intro card. Used in TOPIC mode as the opening scene. Centered large title + subtitle + optional badge.",
+            "text": "Introduction",
+            "audio": "Welcome to this topic. Today we will learn about Photosynthesis, how plants make food from sunlight.",
+            "render": {
+              "action": "show",
+              "target": "title_card",
+              "title": "Photosynthesis",
+              "_title_comment": "Large white text centered on dark card. 3–5 words max.",
+              "subtitle": "How plants make food from sunlight",
+              "_subtitle_comment": "Smaller light-blue text below title. OPTIONAL.",
+              "badge": "Biology — Class 10",
+              "_badge_comment": "OPTIONAL. Orange pill badge shown below subtitle. E.g.: 'NEET | Class 11', 'SSC CGL'."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: section_header --- Colored section divider bar. Used in TOPIC mode between major sections.",
+            "text": "Section: Light Reaction",
+            "audio": "Let us now look at the light reaction phase of photosynthesis.",
+            "render": {
+              "action": "show",
+              "target": "section_header",
+              "title": "Light Reaction",
+              "_title_comment": "Bold white text on colored bar. Keep to 2–4 words.",
+              "subtitle": "What happens in the thylakoid membrane",
+              "_subtitle_comment": "OPTIONAL. Smaller text below the title.",
+              "color": "blue",
+              "_color_comment": "Bar background color. Values: blue | orange | green | red. Default: blue."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: blank_reveal --- Fill-in-the-blank display. Used in FILL_BLANK mode. Shows sentence with ___ and optionally reveals the answer.",
+            "text": "Fill in the blank",
+            "audio": "The green pigment in leaves is called blank. Think about what gives leaves their color.",
+            "render": {
+              "action": "show",
+              "target": "blank_reveal",
+              "sentence": "The green pigment in leaves is called ___.",
+              "_sentence_comment": "The sentence with ___ (three underscores) marking the blank. REQUIRED.",
+              "answer": "",
+              "_answer_comment": "Empty string '' when showing the question. Set to the answer string in the reveal step.",
+              "revealed": false,
+              "_revealed_comment": "false = blank shown as underline. true = answer shown in green replacing the blank."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: blank_reveal (revealed) --- Same blank with answer filled in.",
+            "text": "Answer revealed",
+            "audio": "The answer is Chlorophyll. Chlorophyll is the green pigment that absorbs sunlight for photosynthesis.",
+            "render": {
+              "action": "show",
+              "target": "blank_reveal",
+              "sentence": "The green pigment in leaves is called ___.",
+              "answer": "Chlorophyll",
+              "revealed": true
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: match_columns --- Two-column Match-the-Following display. Used in MATCH mode. Shows Column A and Column B with optional connection lines.",
+            "text": "Match the following",
+            "audio": "Match the organelles in Column A with their functions in Column B.",
+            "render": {
+              "action": "show",
+              "target": "match_columns",
+              "left": ["Mitochondria", "Ribosome", "Nucleus", "Chloroplast"],
+              "_left_comment": "Array of strings for Column A (left side). 3–6 items recommended.",
+              "right": ["Protein synthesis", "Photosynthesis", "Cell control center", "Energy production"],
+              "_right_comment": "Array of strings for Column B (right side). Same count as left.",
+              "matches": {},
+              "_matches_comment": "Object mapping left index → right index. Empty {} when showing question. Fill for reveal: {'0':'3', '1':'0', '2':'2', '3':'1'} means left[0]→right[3], etc.",
+              "revealed": false,
+              "_revealed_comment": "false = no connection lines. true = lines drawn connecting matched pairs."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: match_columns (revealed) --- Same match with connections shown.",
+            "text": "Match — Answer",
+            "audio": "Mitochondria produces energy. Ribosome synthesizes proteins. Nucleus is the control center. Chloroplast performs photosynthesis.",
+            "render": {
+              "action": "show",
+              "target": "match_columns",
+              "left": ["Mitochondria", "Ribosome", "Nucleus", "Chloroplast"],
+              "right": ["Protein synthesis", "Photosynthesis", "Cell control center", "Energy production"],
+              "matches": {"0": "3", "1": "0", "2": "2", "3": "1"},
+              "revealed": true
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: sequence_list --- Ordered item list for SEQUENCE mode. Shows items shuffled or in correct order.",
+            "text": "Arrange in order",
+            "audio": "Arrange these events of photosynthesis in the correct order.",
+            "render": {
+              "action": "show",
+              "target": "sequence_list",
+              "heading": "Arrange in correct order",
+              "_heading_comment": "Blue heading above the list. OPTIONAL. Default: 'Arrange in correct order'.",
+              "items": ["CO₂ enters through stomata", "Light absorbed by chlorophyll", "Water molecules split", "Glucose produced"],
+              "_items_comment": "Array of strings in the CORRECT order. Renderer numbers them 1, 2, 3, 4...",
+              "revealed": false,
+              "_revealed_comment": "false = gray boxes (question state). true = green boxes with checkmarks (answer state)."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: sequence_list (revealed) --- Same sequence with correct order confirmed.",
+            "text": "Correct Order",
+            "audio": "The correct order is: first, light is absorbed by chlorophyll. Second, water molecules split. Third, carbon dioxide enters through stomata. Fourth, glucose is produced.",
+            "render": {
+              "action": "show",
+              "target": "sequence_list",
+              "heading": "Correct Order ✓",
+              "items": ["Light absorbed by chlorophyll", "Water molecules split", "CO₂ enters through stomata", "Glucose produced"],
+              "revealed": true
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: numerical_answer --- Green answer box for NUMERICAL mode. No options — just the computed value with unit.",
+            "text": "Final Answer",
+            "audio": "Therefore, the current is three amperes. That is the final answer.",
+            "render": {
+              "action": "show",
+              "target": "numerical_answer",
+              "value": "3",
+              "_value_comment": "The numerical answer. String.",
+              "unit": "A",
+              "_unit_comment": "Unit label shown after value. OPTIONAL. E.g.: 'kg', 'm/s²', '°C', 'mol', '%'.",
+              "label": "Answer",
+              "_label_comment": "Small heading above the value. OPTIONAL. Default: 'Answer'. E.g.: 'Final Answer', 'Result'."
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: manim_scene --- Animated Manim scene. REQUIRES `pip install manim`. Falls back to styled placeholder if not installed. 20 pre-built scene types covering Math, Physics, Chemistry. The animation is PRE-RENDERED during pipeline processing and composited frame-by-frame.",
+            "text": "Sine Wave Animation",
+            "audio": "Watch as the sine function is plotted on the coordinate plane. The blue curve traces the shape of y equals sine x, oscillating between negative one and positive one.",
+            "render": {
+              "action": "show",
+              "target": "manim_scene",
+              "scene_type": "function_plot",
+              "_scene_type_comment": "SCENE TYPES — Math: function_plot | multi_function | derivative | integral | vector_addition | matrix_transform | pythagorean | circle_theorem | number_line_walk | trig_circle | equation_transform — Physics: wave | projectile | pendulum | electric_field | lens_ray — Chemistry: energy_diagram — General: text_reveal | bar_chart_anim | graph_network",
+              "params": {
+                "function": "np.sin(x)",
+                "_function_comment": "Python/numpy expression using x. Examples: np.sin(x), x**2, np.exp(-x**2), np.log(x+1)",
+                "x_range": [-4, 4],
+                "_x_range_comment": "[min, max] for the x-axis.",
+                "y_range": [-1.5, 1.5],
+                "_y_range_comment": "[min, max] for the y-axis.",
+                "color": "BLUE",
+                "_color_comment": "Manim color constant: BLUE | RED | GREEN | YELLOW | ORANGE | PURPLE | WHITE | TEAL | PINK",
+                "title": "y = sin(x)",
+                "xlabel": "x",
+                "ylabel": "y"
+              },
+              "_params_comment": "Parameters vary by scene_type. See SCENE PARAMETER REFERENCE below.",
+              "caption": "Sine wave function"
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: manim_scene (wave) --- Animated wave propagation for Physics.",
+            "text": "Transverse Wave",
+            "audio": "Watch the transverse wave propagate. The amplitude is one point five units and the wavelength is two units. Notice how the wave moves horizontally while the medium oscillates vertically.",
+            "render": {
+              "action": "show",
+              "target": "manim_scene",
+              "scene_type": "wave",
+              "params": {
+                "wave_type": "transverse",
+                "_wave_type_comment": "transverse | longitudinal",
+                "amplitude": 1.5,
+                "wavelength": 2,
+                "title": "Transverse Wave Propagation"
+              },
+              "caption": "Wave with A=1.5, \u03bb=2"
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: manim_scene (projectile) --- Animated projectile motion for Physics.",
+            "text": "Projectile Motion",
+            "audio": "A ball is launched at ten meters per second at an angle of forty five degrees. Watch the parabolic trajectory. The ball reaches a maximum height and then falls back to the ground.",
+            "render": {
+              "action": "show",
+              "target": "manim_scene",
+              "scene_type": "projectile",
+              "params": {
+                "v0": 10,
+                "_v0_comment": "Initial velocity in m/s",
+                "angle": 45,
+                "_angle_comment": "Launch angle in degrees",
+                "g": 9.8,
+                "_g_comment": "Acceleration due to gravity in m/s²"
+              },
+              "caption": "v\u2080 = 10 m/s, \u03b8 = 45\u00b0"
+            }
+          },
+
+          {
+            "_comment": "--- ELEMENT: manim_scene (energy_diagram) --- Reaction energy profile for Chemistry.",
+            "text": "Energy Profile",
+            "audio": "This energy diagram shows the reaction progress. The reactants start at fifty kilojoules. The activation energy peak is at eighty kilojoules. The products settle at thirty kilojoules, making this an exothermic reaction.",
+            "render": {
+              "action": "show",
+              "target": "manim_scene",
+              "scene_type": "energy_diagram",
+              "params": {
+                "reactant_energy": 50,
+                "product_energy": 30,
+                "activation_energy": 80,
+                "title": "Exothermic Reaction"
+              },
+              "caption": "\u0394H = -20 kJ (exothermic)"
+            }
+          },
+
+          {
+            "_comment": "=== MANIM SCENE PARAMETER REFERENCE (not a render element — documentation only) ===",
+            "_scene_params_reference": {
+              "function_plot": "function (str: numpy expr), x_range [min,max], y_range [min,max], color (str), title, xlabel, ylabel",
+              "multi_function": "functions [{expr, color, label}...], x_range, y_range, title",
+              "derivative": "function (str), x_range, color, tangent_color",
+              "integral": "function (str), x_range, area_range [a,b], color, area_color",
+              "vector_addition": "v1 [x,y,0], v2 [x,y,0], color_1, color_2, color_sum",
+              "matrix_transform": "matrix [[a,b],[c,d]], title",
+              "pythagorean": "a (int), b (int) — sides of right triangle",
+              "circle_theorem": "theorem (inscribed_angle | tangent)",
+              "number_line_walk": "start (int), end (int), operations [{op: '+'/'-', value: int}...]",
+              "trig_circle": "show_sin (bool), show_cos (bool)",
+              "equation_transform": "equations [LaTeX string, LaTeX string, ...]",
+              "wave": "wave_type (transverse|longitudinal), amplitude, wavelength, title",
+              "projectile": "v0 (m/s), angle (degrees), g (m/s²)",
+              "pendulum": "length (float), amplitude_deg (int)",
+              "electric_field": "field_type (dipole | point)",
+              "lens_ray": "lens_type (convex|concave), focal_length, object_distance",
+              "energy_diagram": "reactant_energy, product_energy, activation_energy, title",
+              "text_reveal": "lines [str...], title, color",
+              "bar_chart_anim": "values [num...], labels [str...], colors [MANIM_COLOR...], title",
+              "graph_network": "nodes [id...], edges [[from,to]...], directed (bool), title"
             }
           },
 

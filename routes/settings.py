@@ -9,7 +9,7 @@ settings_bp = Blueprint("settings", __name__)
 # Default settings
 DEFAULTS = {
     "default_resolution": "1080p",
-    "default_quality_preset": "P5",
+    "default_quality_preset": "P7",
     "default_duration_minutes": "8",
     "default_theme": "dark",
     "default_fps": "30",

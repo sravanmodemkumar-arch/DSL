@@ -51,7 +51,7 @@ class VideoPipeline:
     # ── Public ───────────────────────────────────────────────────────────────
 
     def process_question(self, question_data, output_dir, resolution="1080p",
-                         quality_preset="P5", theme="dark", progress_callback=None,
+                         quality_preset="P7", theme="dark", progress_callback=None,
                          frame_workers=None):
         """Process one question JSON → MP4. Auto-cleans temp files on success."""
         qid = question_data.get("id", "unknown")
@@ -113,6 +113,9 @@ class VideoPipeline:
 
             # ── Stage 3: Asset resolution ────────────────────────────────────
             self._resolve_assets(question_data, timeline)
+
+            # ── Stage 3b: Pre-render Manim animations ─────────────────────────
+            self._prerender_manim_scenes(timeline, fps, height)
 
             # ── Stage 4: Parallel frame rendering ───────────────────────────
             _cb(progress_callback, "rendering", 45)
@@ -361,10 +364,107 @@ class VideoPipeline:
         for category in ("images", "svgs", "videos", "audio_clips"):
             for key, path in assets.get(category, {}).items():
                 asset_map[key] = os.path.join(assets_dir, path.lstrip("/"))
+
+        subject = question_data.get("subject", "")
+
         for entry in timeline:
-            src = entry.get("render", {}).get("src")
+            render = entry.get("render", {})
+            target = render.get("target", "")
+
+            # Standard asset reference resolution
+            src = render.get("src")
             if src and src in asset_map:
-                entry["render"]["_resolved_path"] = asset_map[src]
+                render["src_path"] = asset_map[src]
+
+            # subject_image — fetch from Pixabay if not already cached
+            if target == "subject_image" and not render.get("src_path"):
+                try:
+                    from engine.free_media import resolve_media
+                    img_cache = os.path.join(assets_dir, "images")
+                    path = resolve_media(
+                        query=render.get("query", ""),
+                        media_type="image",
+                        subject=render.get("subject", subject),
+                        topic_hint=render.get("topic", ""),
+                        cache_dir=img_cache,
+                    )
+                    if path:
+                        render["src_path"] = path
+                except Exception:
+                    pass
+
+            # video_clip — fetch from Pixabay if src_path missing
+            if target == "video_clip" and not render.get("src_path"):
+                try:
+                    from engine.free_media import resolve_media
+                    vid_cache = os.path.join(assets_dir, "videos")
+                    path = resolve_media(
+                        query=render.get("query", render.get("caption", "")),
+                        media_type="video",
+                        subject=render.get("subject", subject),
+                        topic_hint=render.get("topic", ""),
+                        cache_dir=vid_cache,
+                    )
+                    if path:
+                        render["src_path"] = path
+                except Exception:
+                    pass
+
+    # ── Manim pre-rendering ──────────────────────────────────────────────────
+
+    def _prerender_manim_scenes(self, timeline, fps, height):
+        """Pre-render any manim_scene steps to cached PNG frame sequences.
+
+        Injects _manim_cache_dir, _manim_total_frames, _step_start, _step_end
+        into each timeline entry's render dict so the FrameRenderer can read
+        the correct animation frame at any given time.
+        """
+        has_manim = False
+        for entry in timeline:
+            if entry.get("render", {}).get("target") == "manim_scene":
+                has_manim = True
+                break
+        if not has_manim:
+            return
+
+        try:
+            from engine.manim_renderer import prerender_scene, MANIM_AVAILABLE
+            if not MANIM_AVAILABLE:
+                return
+        except ImportError:
+            return
+
+        ffmpeg_path = self._get_ffmpeg_path()
+        # Scale render size proportionally to video height
+        render_w = int(height * 1.5)
+        render_h = height
+
+        for entry in timeline:
+            render = entry.get("render", {})
+            if render.get("target") != "manim_scene":
+                continue
+
+            scene_type = render.get("scene_type", "")
+            params = render.get("params", {})
+            step_start = entry.get("start", 0)
+            step_end = entry.get("end", step_start + 3)
+            duration_s = max(step_end - step_start, 1.0)
+
+            cache_dir, total_frames = prerender_scene(
+                scene_type=scene_type,
+                params=params,
+                duration_s=duration_s,
+                fps=fps,
+                width=render_w,
+                height=render_h,
+                ffmpeg_path=ffmpeg_path,
+            )
+
+            # Inject cache info into render dict — passes through to FrameRenderer
+            render["_manim_cache_dir"] = cache_dir
+            render["_manim_total_frames"] = total_frames
+            render["_step_start"] = step_start
+            render["_step_end"] = step_end
 
     # ── FFmpeg path ───────────────────────────────────────────────────────────
 
