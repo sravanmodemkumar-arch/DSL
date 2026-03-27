@@ -93,6 +93,7 @@ def auth():
             access_type="offline",
             include_granted_scopes="true",
             prompt="consent",
+            code_challenge_method=None,
         )
         session["oauth_state"] = state
         session["oauth_redirect_uri"] = redirect_uri
@@ -121,7 +122,9 @@ def oauth_callback():
             state=session.get("oauth_state"),
             redirect_uri=redirect_uri,
         )
-        flow.fetch_token(authorization_response=request.url)
+        # Use authorization_code directly to avoid PKCE code_verifier requirement
+        code = request.args.get("code")
+        flow.fetch_token(code=code)
         creds = flow.credentials
         with open(_token_path(), "w") as f:
             f.write(creds.to_json())
