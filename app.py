@@ -1,4 +1,6 @@
 import os
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"  # Allow HTTP for local OAuth (dev only)
+
 from flask import Flask
 from config import Config, BASE_DIR
 from models import db
