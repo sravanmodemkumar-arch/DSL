@@ -359,8 +359,9 @@ def get_active_state(timeline, current_time, question_data):
             elif action == "clear":
                 work_elements.pop(target, None)
 
-        # Reveal correct option in header for concept / answer scenes
-        if entry.get("scene_type") in ("concept", "answer"):
+        # Reveal correct option in header ONLY for answer scenes
+        # (concept scenes should NOT reveal — final_answer target handles it)
+        if entry.get("scene_type") == "answer":
             show_correct = True
 
     # --- Find active narration (word-by-word sync) ---
@@ -430,7 +431,11 @@ def get_active_state(timeline, current_time, question_data):
         "memory_trick",      # mnemonic/acronym display
         "analogy",           # A:B::C:? (Reasoning)
         "number_line",       # number line (Math)
+        "builtin_visual",    # pure-Pillow subject illustrations
+        "subject_image",     # auto-fetched free photo
         "video_clip",        # embedded video asset
+        "matplotlib_plot",   # scientific graph (line/bar/scatter/pie/histogram)
+        "rdkit_mol",         # 2D molecular structure from SMILES
         "manim_scene",       # pre-rendered Manim animation
         # Multi-mode elements
         "title_card",        # topic mode intro card

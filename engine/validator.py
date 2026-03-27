@@ -3,7 +3,8 @@
 import json
 import os
 
-VALID_SCENE_TYPES = {"question", "options", "visual_intro", "concept", "solution", "answer"}
+VALID_SCENE_TYPES = {"question", "options", "visual_intro", "concept", "solution", "answer", "intro"}
+VALID_MODES = {"mcq", "topic", "true_false", "fill_blank", "numerical", "match", "assertion", "sequence"}
 VALID_ACTIONS = {
     "show", "hide", "highlight", "update", "animate", "show_result",
     "draw_arrow", "zoom", "replace", "sequence",
@@ -53,6 +54,12 @@ def _validate_question(q, prefix, errors, seen_ids, assets_dir):
         errors.append(ValidationError(prefix, "Question must be an object"))
         return
 
+    # mode
+    mode = q.get("mode", "mcq")
+    if mode not in VALID_MODES:
+        errors.append(ValidationError(f"{prefix}.mode", f"Invalid mode: {mode}. Must be: {VALID_MODES}"))
+        mode = "mcq"  # fallback for remaining checks
+
     # id
     qid = q.get("id")
     if not qid or not isinstance(qid, str):
@@ -74,6 +81,39 @@ def _validate_question(q, prefix, errors, seen_ids, assets_dir):
         diff = meta.get("difficulty", "")
         if diff and diff not in VALID_DIFFICULTIES:
             errors.append(ValidationError(f"{prefix}.meta.difficulty", f"Invalid difficulty: {diff}. Must be: {VALID_DIFFICULTIES}", "warning"))
+
+    # mode-specific field checks
+    question = q.get("question", {})
+    has_question = bool(question.get("text"))
+    has_options = bool(question.get("options"))
+    has_correct = bool(question.get("correct"))
+    has_topic_header = bool(q.get("topic_header"))
+
+    # Modes that need a question block
+    if mode in ("mcq", "true_false", "fill_blank", "numerical", "assertion"):
+        if not has_question:
+            errors.append(ValidationError(f"{prefix}.question.text", f"Mode '{mode}' requires 'question.text'"))
+    # Modes that need options
+    if mode in ("mcq", "true_false", "assertion"):
+        if not has_options:
+            errors.append(ValidationError(f"{prefix}.question.options", f"Mode '{mode}' requires 'question.options'"))
+        if not has_correct:
+            errors.append(ValidationError(f"{prefix}.question.correct", f"Mode '{mode}' requires 'question.correct'"))
+    # true_false: exactly 2 options
+    if mode == "true_false" and has_options:
+        opts = question.get("options", [])
+        if len(opts) != 2:
+            errors.append(ValidationError(f"{prefix}.question.options", f"Mode 'true_false' requires exactly 2 options, got {len(opts)}", "warning"))
+    # Modes that need topic_header
+    if mode in ("topic", "match", "sequence"):
+        if not has_topic_header:
+            errors.append(ValidationError(f"{prefix}.topic_header", f"Mode '{mode}' requires 'topic_header'", "warning"))
+    # assertion: needs assertion + reason fields
+    if mode == "assertion":
+        if not question.get("assertion"):
+            errors.append(ValidationError(f"{prefix}.question.assertion", "Mode 'assertion' requires 'question.assertion'"))
+        if not question.get("reason"):
+            errors.append(ValidationError(f"{prefix}.question.reason", "Mode 'assertion' requires 'question.reason'"))
 
     # assets
     assets = q.get("assets", {})
@@ -109,7 +149,7 @@ def _validate_scene(scene, prefix, errors, asset_keys):
         errors.append(ValidationError(f"{prefix}.type", f"Invalid scene type: {scene_type}. Must be: {VALID_SCENE_TYPES}"))
 
     # Scenes with steps
-    if scene_type in ("concept", "solution"):
+    if scene_type in ("concept", "solution", "intro"):
         steps = scene.get("steps")
         if not steps or not isinstance(steps, list):
             errors.append(ValidationError(f"{prefix}.steps", f"Scene type '{scene_type}' requires 'steps' array"))

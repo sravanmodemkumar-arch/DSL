@@ -84,5 +84,26 @@ def create_app():
 
 app = create_app()
 
+# Auto-resume queued jobs on startup (only in actual server process, not reloader)
+if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+    with app.app_context():
+        from models import JobQueue, Video
+        # Reset stuck "processing" jobs back to "queued"
+        stuck = JobQueue.query.filter_by(status="processing").all()
+        for j in stuck:
+            j.status = "queued"
+            v = Video.query.filter_by(video_id=j.video_id).first()
+            if v:
+                v.status = "pending"
+        if stuck:
+            db.session.commit()
+            print(f"[Startup] Reset {len(stuck)} stuck job(s) back to queued")
+        # Resume processing if any queued jobs exist
+        pending = JobQueue.query.filter_by(status="queued").count()
+        if pending > 0:
+            from routes.upload import _start_processing
+            _start_processing(app)
+            print(f"[Startup] Resuming {pending} queued job(s)")
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

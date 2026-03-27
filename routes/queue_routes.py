@@ -61,15 +61,17 @@ def list_partial():
 def cancel(job_id):
     job = JobQueue.query.get_or_404(job_id)
     if job.status in ("queued", "processing"):
-        job.status = "cancelled"
         video = Video.query.filter_by(video_id=job.video_id).first()
+        json_path = ""
         if video:
-            video.status = "failed"
-            video.progress = 0
-            video.error_message = "Cancelled by user"
-            # Clean up any partially generated files
+            json_path = video.json_path or ""
             _cleanup_video_files(video)
+            db.session.delete(video)
+        db.session.delete(job)
         db.session.commit()
+        if json_path:
+            _cleanup_orphaned_json(json_path)
+        return ""  # HTMX removes the card
     return render_template("components/queue_item.html", job=job)
 
 

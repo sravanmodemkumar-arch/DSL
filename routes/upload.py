@@ -267,29 +267,12 @@ def _process_queue(app):
 
 
 def _run_queue(app):
-    """Process all queued jobs with dynamic CPU/GPU concurrency.
-
-    Hardware auto-detection:
-      total_cores < 4  → 1 video  using all cores
-      4–7 cores        → 2 videos × (cores//2) each
-      8–15 cores       → cores//4 videos × 4 cores each
-      16–31 cores      → cores//4 videos × 4 cores each
-      32+ cores        → cores//8 videos × 8 cores each (capped at 16/video)
-
-    GPU encoding is serialised via a module-level lock in pipeline.py so
-    concurrent videos don't fight over the GPU.
-    """
+    """Process queued jobs one at a time, using 95% of all CPU cores per video."""
     total_cores = os.cpu_count() or 1
+    concurrent_videos = 1
+    cores_per_video = max(1, int(total_cores * 0.95))
 
-    if total_cores < 4:
-        concurrent_videos = 1
-        cores_per_video   = total_cores
-    elif total_cores < 8:
-        cores_per_video   = max(2, total_cores // 2)
-        concurrent_videos = max(1, total_cores // cores_per_video)
-    else:
-        cores_per_video   = max(4, min(16, total_cores // 8))
-        concurrent_videos = max(1, total_cores // cores_per_video)
+    print(f"[Queue] {total_cores} CPU cores -> 1 video x {cores_per_video} cores (95%)")
 
     # Build config dict once (read from app config in main thread)
     with app.app_context():
@@ -362,6 +345,7 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
 
         video.status = "processing"
         db.session.commit()
+        print(f"[Video] START {video.video_id} ({frame_workers} cores)")
 
         try:
             with open(video.json_path, "r", encoding="utf-8") as f:
@@ -398,6 +382,7 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
                 frame_workers=frame_workers,
             )
 
+            print(f"[Video] DONE  {video.video_id} ({result.get('duration', 0):.1f}s)")
             video.video_path       = result.get("video_path", "")
             video.audio_path       = result.get("audio_path", "")
             video.thumbnail_path   = result.get("thumbnail_path", "")
@@ -414,6 +399,7 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             _cleanup_after_success()
 
         except Exception as e:
+            print(f"[Video] FAIL  {video.video_id}: {e}")
             video.status      = "failed"
             video.error_message = str(e)
             job.status        = "failed"

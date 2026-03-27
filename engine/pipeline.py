@@ -139,7 +139,7 @@ class VideoPipeline:
             # ── Stage 5: Encode (GPU → CPU fallback) ────────────────────────
             _cb(progress_callback, "encoding", 88)
             video_path = os.path.join(output_dir, f"{qid}.mp4")
-            self._encode_video(frames_dir, final_audio, video_path, fps, bitrate, width, height)
+            self._encode_video(frames_dir, final_audio, video_path, fps, bitrate, width, height, frame_workers)
             result["video_path"] = video_path
             _cb(progress_callback, "encoding", 95)
 
@@ -193,8 +193,9 @@ class VideoPipeline:
     def _render_parallel(self, timeline, total_frames, fps, question_data,
                          width, height, theme_colors, watermark_cfg, frames_dir,
                          progress_callback, frame_workers=None):
-        """Split frame rendering across CPU cores. Uses frame_workers if given,
-        otherwise auto-uses 90% of all available cores (single-video mode)."""
+        """Split frame rendering across CPU cores using separate processes.
+        Uses frame_workers if given, otherwise auto-uses 90% of all cores.
+        ProcessPoolExecutor bypasses the GIL for true multi-core parallelism."""
         if frame_workers is not None:
             workers = max(1, frame_workers)
         else:
@@ -243,25 +244,37 @@ class VideoPipeline:
                 capture_output=True, text=True, timeout=10,
             ).stdout
             if "h264_nvenc" in out:   # NVIDIA GPU
+                print("[Encoder] NVIDIA GPU (h264_nvenc)")
                 return "h264_nvenc", ["-preset", "p4", "-rc", "vbr", "-cq", "22", "-b_ref_mode", "disabled"]
             if "h264_amf" in out:     # AMD GPU
+                print("[Encoder] AMD GPU (h264_amf)")
                 return "h264_amf",   ["-quality", "balanced", "-rc", "vbr_latency"]
             if "h264_qsv" in out:     # Intel GPU
+                print("[Encoder] Intel GPU (h264_qsv)")
                 return "h264_qsv",   ["-preset", "medium", "-look_ahead", "1"]
         except Exception:
             pass
-        # CPU fallback
-        threads = str(max(1, int((os.cpu_count() or 1) * 0.9)))
-        return "libx264", ["-preset", "fast", "-threads", threads]
+        # CPU fallback — thread count set per-video in _encode_video()
+        print("[Encoder] CPU (libx264)")
+        return "libx264", ["-preset", "fast"]
 
-    def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height):
+    def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height, frame_workers=None):
         """Encode frames + audio → MP4 using best available encoder.
-        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel."""
+        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel.
+        frame_workers controls CPU thread allocation for concurrent video support."""
         ffmpeg = self._get_ffmpeg_path()
         encoder, enc_flags = self._detect_encoder(ffmpeg)
         is_gpu = encoder != "libx264"
 
-        def _run(enc, flags, use_lock):
+        # Thread allocation: GPU=auto, CPU=proportional to allocated cores
+        if is_gpu:
+            enc_threads = "0"
+        elif frame_workers:
+            enc_threads = str(max(1, frame_workers))
+        else:
+            enc_threads = str(max(1, os.cpu_count() or 1))
+
+        def _run(enc, flags, use_lock, threads):
             cmd = [
                 ffmpeg, "-y",
                 "-framerate", str(fps),
@@ -272,7 +285,7 @@ class VideoPipeline:
                 "-b:v", bitrate,
                 "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "192k",
-                "-threads", "0",
+                "-threads", threads,
                 "-shortest", "-movflags", "+faststart",
                 "-s", f"{width}x{height}",
                 output_path,
@@ -284,12 +297,12 @@ class VideoPipeline:
                 subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
 
         try:
-            _run(encoder, enc_flags, use_lock=is_gpu)
+            _run(encoder, enc_flags, use_lock=is_gpu, threads=enc_threads)
         except subprocess.CalledProcessError:
             # GPU failed — fall back to CPU (no lock needed)
             if is_gpu:
-                threads = str(max(1, int((os.cpu_count() or 1) * 0.9)))
-                _run("libx264", ["-preset", "fast", "-threads", threads], use_lock=False)
+                cpu_threads = str(frame_workers or max(1, os.cpu_count() or 1))
+                _run("libx264", ["-preset", "fast"], use_lock=False, threads=cpu_threads)
             else:
                 raise RuntimeError("FFmpeg libx264 encoding failed.")
         except FileNotFoundError:
