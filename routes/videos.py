@@ -252,6 +252,51 @@ def delete(video_id):
     return '<div hx-trigger="load" hx-get="/videos/list" hx-target="#video-grid" hx-swap="innerHTML"></div>'
 
 
+@videos_bp.route("/<video_id>/clean-temp", methods=["POST"])
+def clean_temp(video_id):
+    """Delete intermediate files (audio segments, raw audio, BGM) — keep video + thumbnail."""
+    video = Video.query.filter_by(video_id=video_id).first_or_404()
+    if video.status != "completed" or not video.video_path:
+        return '<div class="text-yellow-400 p-2 text-sm">Video not completed — nothing cleaned</div>'
+
+    output_dir = os.path.dirname(video.video_path)
+    freed = _clean_temp_files(video_id, output_dir)
+    return f'<div class="text-green-400 p-2 text-sm">Cleaned — {freed} temp files removed</div>'
+
+
+@videos_bp.route("/clean-all-temp", methods=["POST"])
+def clean_all_temp():
+    """Delete intermediate files for ALL completed videos."""
+    completed = Video.query.filter_by(status="completed").all()
+    total_freed = 0
+    for video in completed:
+        if video.video_path and os.path.exists(video.video_path):
+            output_dir = os.path.dirname(video.video_path)
+            total_freed += _clean_temp_files(video.video_id, output_dir)
+    return f'<div class="text-green-400 p-3 text-sm">Done — {total_freed} temp files removed across {len(completed)} videos</div>'
+
+
+def _clean_temp_files(qid, output_dir):
+    """Remove audio segments, raw audio, BGM wav, mixed audio from output_dir. Returns count removed."""
+    import shutil
+    removed = 0
+
+    # Audio segments directory
+    audio_dir = os.path.join(output_dir, "audio")
+    if os.path.isdir(audio_dir):
+        shutil.rmtree(audio_dir, ignore_errors=True)
+        removed += 1
+
+    # Intermediate audio files
+    for suffix in (f"{qid}_audio.mp3", f"{qid}_bgm.wav", f"{qid}_mixed.mp3"):
+        path = os.path.join(output_dir, suffix)
+        if os.path.exists(path):
+            os.remove(path)
+            removed += 1
+
+    return removed
+
+
 @videos_bp.route("/<video_id>/retry", methods=["POST"])
 def retry(video_id):
     video = Video.query.filter_by(video_id=video_id).first_or_404()

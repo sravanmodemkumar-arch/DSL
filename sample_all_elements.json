@@ -849,8 +849,17 @@
             }
           },
           {
+            "text": "Testing Option B",
+            "audio": "Now let us test Option B, ten thousand and ninety eight. Watch the header above — Option B is now highlighted in saffron. We will apply both rules to this number.",
+            "render": {
+              "action": "show",
+              "target": "option_b"
+            }
+          },
+
+          {
             "text": "Rule of 9",
-            "audio": "Now let us apply both rules to Option B. Rule of Nine. Add all digits of ten thousand ninety eight.",
+            "audio": "Rule of Nine. Add all digits of ten thousand ninety eight.",
             "render": {
               "action": "show",
               "target": "shortcut_columns",

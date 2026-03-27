@@ -113,7 +113,7 @@
                     Validate JSON
                 </button>
 
-                <button onclick="processJSON()"
+                <button onclick="processJSON(this)"
                     class="w-full bg-accent/20 hover:bg-accent/30 text-accent border border-accent/30 py-2.5 rounded-lg text-sm font-medium transition">
                     Process & Generate Videos
                 </button>
@@ -187,26 +187,57 @@
 
     function clearEditor() { editor.value = ''; }
 
+    // Auto-validate after typing stops (500ms debounce)
+    let validateTimer;
+    editor.addEventListener('input', () => {
+        clearTimeout(validateTimer);
+        if (!editor.value.trim()) {
+            document.getElementById('validation-result').innerHTML = '';
+            return;
+        }
+        validateTimer = setTimeout(validateJSON, 500);
+    });
+
     function validateJSON() {
+        const content = editor.value.trim();
+        if (!content) {
+            document.getElementById('validation-result').innerHTML = '<div class="text-yellow-400 p-3 text-sm">Paste your JSON above to validate.</div>';
+            return;
+        }
+        // Quick client-side JSON parse check first
+        try { JSON.parse(content); } catch(e) {
+            document.getElementById('validation-result').innerHTML = `<div class="text-red-400 p-3 text-sm">❌ Invalid JSON syntax: ${e.message}</div>`;
+            return;
+        }
         const formData = new FormData();
-        formData.append('json_content', editor.value);
+        formData.append('json_content', content);
         fetch('/upload/validate', { method: 'POST', body: formData })
             .then(r => r.text())
             .then(html => { document.getElementById('validation-result').innerHTML = html; });
     }
 
-    function processJSON() {
-        const btn = event.target;
+    function processJSON(btn) {
+        if (!btn) btn = document.querySelector('button[onclick*="processJSON"]');
+        const content = editor.value.trim();
+        if (!content && !uploadedFile) {
+            document.getElementById('process-result').innerHTML = '<div class="text-red-400 p-3 text-sm">❌ Paste JSON content or upload a file first.</div>';
+            return;
+        }
         btn.disabled = true;
-        btn.textContent = 'Processing...';
+        btn.textContent = 'Queuing...';
 
         const formData = new FormData();
-        formData.append('json_content', editor.value);
+        // Pasted content always takes priority; file used only for ZIP
+        formData.append('json_content', content);
         formData.append('resolution', document.getElementById('resolution').value);
         formData.append('quality_preset', document.getElementById('quality_preset').value);
         formData.append('theme', document.getElementById('theme').value);
         formData.append('max_duration', document.getElementById('max_duration').value);
-        if (uploadedFile) formData.append('json_file', uploadedFile);
+        formData.append('bgm_style', document.getElementById('bgm_style').value);
+        // Only attach file if it's a ZIP (JSON files are already loaded into editor)
+        if (uploadedFile && uploadedFile.name.endsWith('.zip')) {
+            formData.append('json_file', uploadedFile);
+        }
 
         fetch('/upload/process', { method: 'POST', body: formData })
             .then(r => r.text())
@@ -215,8 +246,8 @@
                 btn.disabled = false;
                 btn.textContent = 'Process & Generate Videos';
             })
-            .catch(() => {
-                document.getElementById('process-result').innerHTML = '<div class="text-red-400 p-3">Request failed</div>';
+            .catch(err => {
+                document.getElementById('process-result').innerHTML = `<div class="text-red-400 p-3 text-sm">❌ Request failed: ${err.message}</div>`;
                 btn.disabled = false;
                 btn.textContent = 'Process & Generate Videos';
             });

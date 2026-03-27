@@ -21,13 +21,19 @@ RENDERING ENGINE FACTS:
 - Each "step" in a scene = one visual change + one narration segment
 - Elements accumulate — once shown, they stay visible until replaced or cleared
 - The question and options are ALWAYS visible in the header once shown
+- Highlighting an option turns it SAFFRON (orange) in the header options row
+- final_answer turns the CORRECT option GREEN in the header options row
 
 QUALITY CONTRACT:
 - Every audio field must be natural spoken English with NO math symbols
 - Every step must explain WHY, not just show WHAT
 - Concepts must appear BEFORE working (rule → application, not application → rule)
+- MULTIPLE CONCEPT SCENES: one scene per section (rule, option A, option B, option C, option D)
+- Do NOT put everything in one concept scene — split by logical sections
+- Start each new concept scene with instruction_text to clear previous elements
+- When explaining a specific option, highlight it in saffron using target "option_a/b/c/d"
 - Progressive reveal: add one element at a time, not everything at once
-- Final step must always be { "action": "show", "target": "final_answer" }
+- Final step must always be { "action": "show", "target": "final_answer" } — shows correct option in GREEN
 ```
 
 ---
@@ -643,12 +649,37 @@ Use when moving to a completely new section/focus.
 
 ---
 
-### 27. `final_answer`
-**Always the very last step.** Reveals correct option with green badge in header.
+### 27. `option_a` / `option_b` / `option_c` / `option_d`
+**Highlight a specific option in SAFFRON** in the header options row while explaining it.
+```json
+{ "action": "show", "target": "option_b" }
+```
+- Use during explanation steps when you are discussing that specific option
+- The highlighted option turns **saffron (orange)** background in the header
+- Only one option is saffron at a time — highlighting a new one clears the previous
+- Alternative syntax (same effect):
+  ```json
+  { "action": "highlight_option", "target": "options_grid", "key": "b" }
+  ```
+
+**Typical workflow:**
+```
+Step: highlight option_a → explain why Option A is wrong → saffron on A
+Step: highlight option_b → explain why Option B is correct → saffron on B
+Step: final_answer        → correct option turns GREEN, saffron removed
+```
+
+---
+
+### 28. `final_answer`
+**Always the very last step.** Reveals the correct option with a **GREEN badge** in the header.
 ```json
 { "action": "show", "target": "final_answer" }
 ```
-No other fields needed.
+- No other fields needed
+- Automatically reads `question.correct` to determine which option turns green
+- Removes any saffron highlight — the green badge replaces it
+- Triggers `show_correct = True` — correct option stays green for rest of video
 
 ---
 
@@ -720,31 +751,72 @@ No other fields needed.
 ## ═══════════════════════════════════════════
 
 ```
-Scene order (ALWAYS):
-  1. question scene → read question + context
-  2. options scene  → read all 4 options
-  3. concept scenes → rule/concept → working → answer
+Scene order — USE MULTIPLE CONCEPT SCENES (one per section):
 
-Within concept scene (step order):
-  Step 1:  Show KEY RULE using highlight_box or concept_text
-  Step 2:  Explain/expand the rule (more concept_text steps if needed)
-  Step 3:  Show STRATEGY (how to approach this question)
-  Step 4:  Start working — show setup (formula, first element)
-  Step 5:  Add next piece of working
-  Step 6:  Add next piece...
-  Step N-1: Show final calculation result
-  Step N:  final_answer
+  Scene 1 — type: "question"   → read the question
+  Scene 2 — type: "options"    → read all 4 options
+  Scene 3 — type: "concept"    → KEY RULE (highlight_box or concept_text)
+  Scene 4 — type: "concept"    → Test OPTION A  (instruction_text → option_a → working)
+  Scene 5 — type: "concept"    → Test OPTION B  (instruction_text → option_b → working)
+  Scene 6 — type: "concept"    → Test OPTION C  (instruction_text → option_c → working)
+  Scene 7 — type: "concept"    → Test OPTION D + final_answer
 ```
 
-**Progressive shortcut_columns example:**
+**CRITICAL: Do NOT put everything in one concept scene. Each option/section = its own concept scene.**
+
+**Use `instruction_text` as the FIRST step in each new concept scene to clear the previous elements:**
+```json
+{
+  "text": "Testing Option A",
+  "audio": "Let us now check Option A.",
+  "render": { "action": "show", "target": "instruction_text", "value": "Testing Option A: 49104" }
+}
 ```
-Step 1: left: { "title": "Rule of 9" }          ← just the heading
-Step 2: left: { title + digit_data + operator }  ← add digits
-Step 3: left: { ... + numerator + denominator }  ← add fraction
-Step 4: left: { ... + result + verdict + pass }  ← add result
-Step 5: left: { full }, right: { "title": ... }  ← start right column
-Step 6: left: { full }, right: { + digit_data }  ← add right digits
-Step 7: left: { full }, right: { + sum_text + verdict + pass } ← complete
+`instruction_text` CLEARS all body elements from the previous scene so each section starts clean.
+
+**Full multi-scene template:**
+```
+Scene 3 — Rule:
+  step: highlight_box   "Digit sum divisible by 9 → number divisible by 9"
+
+Scene 4 — Option A:
+  step: instruction_text  "Testing Option A: 49104"
+  step: option_a          (saffron highlight in header)
+  step: digit_boxes       [4,9,1,0,4]
+  step: running_sum       "18"
+  step: concept_text      heading="Result", items=["18 ÷ 9 = 2 ✓", "Divisible by 9"]
+
+Scene 5 — Option B:
+  step: instruction_text  "Testing Option B: 77832"
+  step: option_b          (saffron highlight in header)
+  step: digit_boxes       [7,7,8,3,2]
+  step: running_sum       "27"
+  step: concept_text      heading="Result", items=["27 ÷ 9 = 3 ✓", "Divisible by 9"]
+
+Scene 6 — Option C:
+  step: instruction_text  "Testing Option C: 35253"
+  step: option_c
+  step: digit_boxes       [3,5,2,5,3]
+  step: running_sum       "18"
+
+Scene 7 — Option D (the answer):
+  step: instruction_text  "Testing Option D: 45390"
+  step: option_d
+  step: digit_boxes       [4,5,3,9,0]
+  step: running_sum       "21"
+  step: highlight_box     "21 is NOT divisible by 9!" color=red
+  step: final_answer      ← correct option turns GREEN
+```
+
+**Progressive shortcut_columns build-up (within one scene):**
+```
+Step 1: left: { "title": "Rule of 9" }                            ← heading only
+Step 2: left: { title + digit_data + operator }                   ← add digits
+Step 3: left: { ... + numerator + denominator + result }          ← add fraction
+Step 4: left: { ... + verdict + pass }                            ← add result
+Step 5: left: { full }, right: { "title": "Rule of 11" }          ← start right column
+Step 6: left: { full }, right: { + digit_data }                   ← add right digits
+Step 7: left: { full }, right: { + sum_text + verdict + pass }    ← complete
 ```
 
 ---
@@ -772,6 +844,18 @@ Step 7: left: { full }, right: { + sum_text + verdict + pass } ← complete
 ## ═══════════════════════════════════════════
 ## COMMON MISTAKES TO AVOID
 ## ═══════════════════════════════════════════
+
+❌ **DON'T: Everything in one concept scene**
+```
+Wrong:  "scenes": [ question, options, ONE big concept scene with 15+ steps ]
+Correct: "scenes": [ question, options, concept(rule), concept(optionA), concept(optionB), concept(optionC), concept(optionD+answer) ]
+```
+
+❌ **DON'T: Missing instruction_text at the start of each new section**
+```
+Wrong:  New concept scene starts directly with digit_boxes — old elements still visible
+Correct: First step of each new concept scene: { "target": "instruction_text", "value": "Testing Option A: 49104" }
+```
 
 ❌ **DON'T: Math symbols in audio**
 ```
@@ -813,6 +897,18 @@ Correct: [{"key":"a"}, {"key":"b"}]
 ```
 Wrong: Last step shows sum_box or equation
 Correct: Always add one final step with { "action":"show", "target":"final_answer" }
+```
+
+❌ **DON'T: Never highlight the option being explained**
+```
+Wrong: Explain working for Option B with no option highlight → student doesn't know which option you're testing
+Correct: Add { "action":"show", "target":"option_b" } at the start of that option's working steps
+```
+
+❌ **DON'T: Use option highlight and final_answer together**
+```
+Wrong: Last step is { "target": "option_b" }  ← stays saffron, never turns green
+Correct: Last step is ALWAYS { "target": "final_answer" } ← turns correct option GREEN
 ```
 
 ---

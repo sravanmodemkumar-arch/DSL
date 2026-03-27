@@ -567,6 +567,19 @@
           },
 
           {
+            "_comment": "--- ELEMENT: option_a / option_b / option_c / option_d --- Highlights that option in SAFFRON in the header. Use when explaining/testing a specific option.",
+            "text": "Testing Option B",
+            "audio": "Let us now test Option B, ten thousand and ninety eight. Watch the option highlight in the header above.",
+            "render": {
+              "action": "show",
+              "target": "option_b",
+              "_target_comment": "Targets: option_a | option_b | option_c | option_d. Turns that option SAFFRON (orange) in the header row. Only one is saffron at a time. Cleared when final_answer is shown.",
+              "_workflow": "Use at the START of working steps for that option. Shows students exactly which option is being tested.",
+              "_alternative": "Also works: { 'action': 'highlight_option', 'target': 'options_grid', 'key': 'b' }"
+            }
+          },
+
+          {
             "_comment": "--- FINAL STEP: final_answer --- Always the LAST step. Reveals correct option with green badge.",
             "text": "Answer",
             "audio": "The answer is Option B, ten thousand and ninety eight. It passes both the rule of nine and the rule of eleven.",

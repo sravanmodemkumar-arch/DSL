@@ -84,8 +84,17 @@
           },
 
           {
+            "text": "Testing Option B",
+            "audio": "Now let us test Option B, ten thousand and ninety eight. We will apply both rules to this option.",
+            "render": {
+              "action": "show",
+              "target": "option_b"
+            }
+          },
+
+          {
             "text": "Rule of 9",
-            "audio": "Now let us apply both rules to Option B. Rule of Nine. To check if a number is divisible by nine, add all its digits.",
+            "audio": "Rule of Nine. To check if a number is divisible by nine, add all its digits.",
             "render": {
               "action": "show",
               "target": "shortcut_columns",

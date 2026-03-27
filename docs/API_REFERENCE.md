@@ -223,3 +223,60 @@ Falls back to manual URL entry if no credentials configured.
 | 500 | 500.html | Internal server error |
 
 HTMX partials return HTML fragments (not full pages) with error styling.
+
+---
+
+## DSL — Option Highlighting in the Header
+
+The header options row (always visible once options are shown) supports two highlight states:
+
+| State | Color | How to trigger |
+|-------|-------|----------------|
+| **Being explained** | 🟠 Saffron (orange) | `{ "action": "show", "target": "option_b" }` |
+| **Correct answer** | 🟢 Green | `{ "action": "show", "target": "final_answer" }` |
+
+### Highlight an option in saffron (while explaining it)
+```json
+{ "action": "show", "target": "option_b" }
+```
+- Valid targets: `option_a`, `option_b`, `option_c`, `option_d`
+- Use at the **start** of working steps for that option
+- Only one option is saffron at a time — new highlight replaces previous
+- Alternative: `{ "action": "highlight_option", "target": "options_grid", "key": "b" }`
+
+### Reveal the correct answer in green (final step)
+```json
+{ "action": "show", "target": "final_answer" }
+```
+- Always the **last step** in every video
+- Automatically highlights `question.correct` option in green
+- Removes saffron — green replaces it
+- Correct option stays green for the rest of the video
+
+### Complete pattern example
+```json
+{ "steps": [
+  {
+    "text": "Rule of 9 — Key Rule",
+    "audio": "The rule of nine says: add all digits...",
+    "render": { "action": "show", "target": "concept_text", "heading": "Rule of 9", "items": ["..."] }
+  },
+  {
+    "text": "Testing Option B",
+    "audio": "Now testing Option B — watch the header, Option B is highlighted.",
+    "render": { "action": "show", "target": "option_b" }
+  },
+  {
+    "text": "Digit sum of 10098",
+    "audio": "Add the digits: 1+0+0+9+8 = 18. Eighteen divided by nine equals two.",
+    "render": { "action": "show", "target": "shortcut_columns", "left": { "title": "Rule of 9", "digit_data": [1,0,0,9,8], "operator": "+", "numerator": "18", "denominator": "9", "result": "2", "verdict": "Divisible by 9!", "pass": true } }
+  },
+  {
+    "text": "Answer",
+    "audio": "Option B passes both tests. It is the correct answer.",
+    "render": { "action": "show", "target": "final_answer" }
+  }
+]}
+```
+
+> **Visual flow:** No highlight → `option_b` saffron → working steps (still saffron) → `final_answer` turns green

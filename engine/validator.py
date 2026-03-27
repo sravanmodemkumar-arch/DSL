@@ -4,7 +4,12 @@ import json
 import os
 
 VALID_SCENE_TYPES = {"question", "options", "visual_intro", "concept", "solution", "answer"}
-VALID_ACTIONS = {"show", "hide", "highlight", "update", "animate", "show_result", "draw_arrow", "zoom", "replace", "sequence"}
+VALID_ACTIONS = {
+    "show", "hide", "highlight", "update", "animate", "show_result",
+    "draw_arrow", "zoom", "replace", "sequence",
+    "clear",              # remove element from screen
+    "highlight_option",   # highlight specific option in header
+}
 VALID_POSITIONS = {"center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"}
 VALID_SIZES = {"small", "medium", "large", "full"}
 VALID_DIFFICULTIES = {"easy", "medium", "hard"}
