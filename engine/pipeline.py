@@ -62,8 +62,9 @@ class VideoPipeline:
         question_data["_height"] = height
 
         os.makedirs(output_dir, exist_ok=True)
-        audio_dir  = os.path.join(output_dir, "audio")
-        frames_dir = os.path.join(output_dir, "frames")
+        # Per-video temp dirs — avoids collisions when multiple videos share same output_dir
+        audio_dir  = os.path.join(output_dir, f"audio_{qid}")
+        frames_dir = os.path.join(output_dir, f"frames_{qid}")
         os.makedirs(audio_dir,  exist_ok=True)
         os.makedirs(frames_dir, exist_ok=True)
 
@@ -165,12 +166,20 @@ class VideoPipeline:
             return result
 
         except Exception as e:
-            # Best-effort cleanup of partial files on failure
+            # Best-effort cleanup of all partial files on failure
+            shutil.rmtree(frames_dir, ignore_errors=True)
+            self._cleanup_temp_audio(qid, output_dir)
+            for fname in (f"{qid}.mp4", f"{qid}_thumb.png", f"{qid}_final.mp4"):
+                p = os.path.join(output_dir, fname)
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+            # Remove output_dir only if now completely empty
             try:
-                shutil.rmtree(frames_dir, ignore_errors=True)
-                self._cleanup_temp_audio(qid, output_dir)
-                os.rmdir(output_dir)   # removes output_dir only if now empty
-            except Exception:
+                if not os.listdir(output_dir):
+                    os.rmdir(output_dir)
+            except OSError:
                 pass
             result["error"] = str(e)
             _cb(progress_callback, "failed", 0)
@@ -311,7 +320,7 @@ class VideoPipeline:
 
     def _cleanup_temp_audio(self, qid, output_dir):
         """Delete audio segments + intermediate audio files after successful render."""
-        audio_dir = os.path.join(output_dir, "audio")
+        audio_dir = os.path.join(output_dir, f"audio_{qid}")
         if os.path.isdir(audio_dir):
             shutil.rmtree(audio_dir, ignore_errors=True)
         for suffix in (f"{qid}_audio.mp3", f"{qid}_bgm.wav", f"{qid}_mixed.mp3"):

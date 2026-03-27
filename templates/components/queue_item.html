@@ -1,5 +1,13 @@
 <div class="bg-dark-card border border-dark-border rounded-xl p-4 fade-in" id="job-{{ job.id }}">
 
+    <!-- Completed: thumbnail strip -->
+    {% if job.status == 'completed' and job.video and job.video.thumbnail_path %}
+    <div class="mb-3 -mx-4 -mt-4 rounded-t-xl overflow-hidden">
+        <img src="/videos/{{ job.video_id }}/thumbnail" alt="thumbnail"
+             class="w-full h-28 object-cover object-top">
+    </div>
+    {% endif %}
+
     <!-- Row 1: Title + Status badge -->
     <div class="flex items-start justify-between gap-3">
         <div class="flex items-start gap-3 min-w-0">

@@ -40,6 +40,12 @@ DEFAULTS = {
     "watermark_enabled": "false",
     "watermark_text": "",
     "watermark_opacity": "0.35",
+    # Copyright / Licensing
+    "copyright_owner": "",
+    "copyright_year": "",
+    "content_license": "all-rights-reserved",
+    "no_reuse_notice": "true",
+    "copyright_footer_text": "",
 }
 
 
@@ -72,6 +78,16 @@ def save():
         Settings saved successfully!
     </div>
     '''
+
+
+@settings_bp.route("/save-field", methods=["POST"])
+def save_field():
+    """Auto-save a single setting field."""
+    key = request.form.get("key", "")
+    value = request.form.get("value", "")
+    if key in DEFAULTS:
+        Setting.set(key, value)
+    return ""
 
 
 @settings_bp.route("/tts-preview")

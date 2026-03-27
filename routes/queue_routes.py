@@ -138,14 +138,11 @@ def _cleanup_video_files(video):
                     os.remove(p)
                 except Exception:
                     pass
-        # Audio segments dir
-        audio_dir = os.path.join(output_dir, "audio")
-        if os.path.isdir(audio_dir):
-            shutil.rmtree(audio_dir, ignore_errors=True)
-        # Frames dir
-        frames_dir = os.path.join(output_dir, "frames")
-        if os.path.isdir(frames_dir):
-            shutil.rmtree(frames_dir, ignore_errors=True)
+        # Per-video audio/frames dirs (named with qid to avoid collisions)
+        for d in (f"audio_{qid}", f"frames_{qid}", "audio", "frames"):
+            p = os.path.join(output_dir, d)
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
         # Remove MP4 / thumbnail directly in output_dir matching this video_id
         for fname in os.listdir(output_dir):
             if fname.startswith(qid):

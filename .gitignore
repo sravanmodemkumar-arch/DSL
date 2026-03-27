@@ -19,12 +19,17 @@ instance/
 *.db
 *.sqlite3
 
-# Generated output (videos, frames, audio)
+# Generated output (videos, frames, audio, batch JSON)
 output/
 storage/output/
 storage/audio/
 storage/frames/
 storage/temp/
+storage/videos/
+storage/json/
+
+# Pre-generated TTS voice samples (large binary files)
+static/voice_samples/
 
 # Uploaded assets (user files — not tracked in git)
 storage/assets/images/
