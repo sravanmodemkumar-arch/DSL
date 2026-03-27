@@ -78,8 +78,8 @@ def auth():
     try:
         from google_auth_oauthlib.flow import Flow
         from models import Setting
-        redirect_uri = Setting.get("youtube_redirect_uri", "") or \
-                       url_for("youtube.oauth_callback", _external=True)
+        saved_uri = Setting.get("youtube_redirect_uri", "").strip()
+        redirect_uri = saved_uri if saved_uri else "http://127.0.0.1:5000/youtube/oauth-callback"
         flow = Flow.from_client_secrets_file(
             _secrets_path(),
             scopes=SCOPES,
@@ -91,6 +91,7 @@ def auth():
             prompt="consent",
         )
         session["oauth_state"] = state
+        session["oauth_redirect_uri"] = redirect_uri
         return redirect(auth_url)
     except Exception as e:
         return redirect(url_for("youtube.index") + f"?error={e}")
@@ -105,9 +106,8 @@ def oauth_callback():
 
     try:
         from google_auth_oauthlib.flow import Flow
-        from models import Setting
-        redirect_uri = Setting.get("youtube_redirect_uri", "") or \
-                       url_for("youtube.oauth_callback", _external=True)
+        # Use same redirect_uri that was used to start the flow
+        redirect_uri = session.get("oauth_redirect_uri", "http://127.0.0.1:5000/youtube/oauth-callback")
         flow = Flow.from_client_secrets_file(
             _secrets_path(),
             scopes=SCOPES,

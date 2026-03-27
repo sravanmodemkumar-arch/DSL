@@ -25,7 +25,7 @@ DEFAULTS = {
     "youtube_default_privacy": "public",
     "youtube_default_category": "27",
     "youtube_api_key": "",
-    "youtube_redirect_uri": "http://localhost:5000/youtube/oauth-callback",
+    "youtube_redirect_uri": "http://127.0.0.1:5000/youtube/oauth-callback",
     "storage_path": "",
     "ffmpeg_path": "ffmpeg",
     "watermark_enabled": "false",
@@ -142,6 +142,12 @@ def youtube_save_oauth_keys():
         return '<div class="text-red-400 p-2 text-sm">Both Client ID and Client Secret are required.</div>'
 
     redirect_uri = Setting.get("youtube_redirect_uri", "http://localhost:5000/youtube/oauth-callback")
+    # Include both localhost variants — Google treats them differently
+    all_uris = list(dict.fromkeys([
+        redirect_uri,
+        "http://localhost:5000/youtube/oauth-callback",
+        "http://127.0.0.1:5000/youtube/oauth-callback",
+    ]))
     secrets = {
         "web": {
             "client_id": client_id,
@@ -149,7 +155,7 @@ def youtube_save_oauth_keys():
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [redirect_uri],
+            "redirect_uris": all_uris,
         }
     }
     dest = os.path.join(current_app.root_path, "client_secrets.json")
