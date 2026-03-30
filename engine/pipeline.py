@@ -1,11 +1,58 @@
 """Full video generation pipeline — parallel CPU/GPU rendering + auto-cleanup."""
 
 import os
+import sys
 import shutil
 import subprocess
 import threading
 import concurrent.futures
 from datetime import datetime, timezone
+
+# ── CPU throttling — keep total usage ≤ 70% ─────────────────────────────────
+# 1. Worker processes run at BELOW_NORMAL priority (Windows) / nice +10 (Unix)
+# 2. CPU affinity restricted to 70% of logical cores
+# 3. FFmpeg also launched at reduced priority
+try:
+    import psutil
+    _HAS_PSUTIL = True
+except ImportError:
+    _HAS_PSUTIL = False
+
+_TARGET_UTIL = 0.70  # match hardware.py allocation
+
+def _throttle_current_process():
+    """Lower priority + restrict CPU affinity for current process."""
+    if not _HAS_PSUTIL:
+        return
+    try:
+        p = psutil.Process()
+        # Set below-normal priority
+        if sys.platform == "win32":
+            p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+        else:
+            p.nice(10)
+        # Restrict affinity to 70% of cores
+        all_cpus = list(range(os.cpu_count() or 1))
+        limit = max(1, int(len(all_cpus) * _TARGET_UTIL))
+        p.cpu_affinity(all_cpus[:limit])
+    except Exception:
+        pass  # non-critical — best effort
+
+def _throttle_subprocess(proc):
+    """Lower priority + restrict CPU affinity for a subprocess (e.g. FFmpeg)."""
+    if not _HAS_PSUTIL:
+        return
+    try:
+        p = psutil.Process(proc.pid)
+        if sys.platform == "win32":
+            p.nice(psutil.BELOW_NORMAL_PRIORITY_CLASS)
+        else:
+            p.nice(10)
+        all_cpus = list(range(os.cpu_count() or 1))
+        limit = max(1, int(len(all_cpus) * _TARGET_UTIL))
+        p.cpu_affinity(all_cpus[:limit])
+    except Exception:
+        pass
 
 # ── Module-level GPU encoding lock ────────────────────────────────────────────
 # Serialises FFmpeg GPU encodes across concurrently running videos.
@@ -23,6 +70,7 @@ from .hardware import detect_hardware, compute_allocation
 
 def _render_chunk(args):
     """Render a contiguous range of frames in a worker process."""
+    _throttle_current_process()  # limit CPU priority + affinity in worker
     (frame_start, frame_end, fps, timeline, question_data,
      width, height, theme_colors, watermark_cfg, frames_dir) = args
 
@@ -256,11 +304,21 @@ class VideoPipeline:
                 "-s", f"{width}x{height}",
                 output_path,
             ]
+
+            def _exec(cmd):
+                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE, text=True)
+                _throttle_subprocess(proc)  # limit FFmpeg CPU priority + affinity
+                stdout, stderr = proc.communicate(timeout=600)
+                if proc.returncode != 0:
+                    raise subprocess.CalledProcessError(proc.returncode, cmd,
+                                                        stdout, stderr)
+
             if use_lock:
                 with _GPU_ENCODE_LOCK:   # one GPU encode at a time
-                    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+                    _exec(cmd)
             else:
-                subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+                _exec(cmd)
 
         try:
             _run(encoder, enc_flags, use_lock=is_gpu, threads=enc_threads)
@@ -280,7 +338,7 @@ class VideoPipeline:
                                  duration, fps, bitrate, width, height):
         ffmpeg = self._get_ffmpeg_path()
         try:
-            subprocess.run([
+            proc = subprocess.Popen([
                 ffmpeg, "-y",
                 "-loop", "1", "-t", str(duration), "-i", thumb_path,
                 "-i", video_path,
@@ -294,7 +352,11 @@ class VideoPipeline:
                 "-c:v", "libx264", "-preset", "fast",
                 "-b:v", bitrate, "-c:a", "aac", "-b:a", "192k",
                 output_path,
-            ], capture_output=True, text=True, timeout=300, check=True)
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            _throttle_subprocess(proc)
+            stdout, stderr = proc.communicate(timeout=300)
+            if proc.returncode != 0:
+                raise subprocess.CalledProcessError(proc.returncode, "ffmpeg", stdout, stderr)
         except Exception:
             shutil.copy2(video_path, output_path)
 
