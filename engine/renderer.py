@@ -254,6 +254,11 @@ class FrameRenderer:
             # mcq, true_false — standard header
             body_top = self._draw_header(draw, frame, question_el, options_el)
 
+        # Draw step label (heading) above body content — before work_elems layout
+        step_label_el = next((el for el in elements if el.get("type") == "step_label"), None)
+        if step_label_el and step_label_el.get("text", "").strip():
+            body_top = self._draw_step_label(draw, frame, step_label_el, body_top)
+
         # Karaoke strip: reserve bottom strip when narration word timestamps exist
         narration    = state.get("narration")
         current_time = state.get("current_time", 0)
@@ -485,6 +490,10 @@ class FrameRenderer:
             return self._draw_subject_image(draw, frame, el, y)
         elif etype == "matplotlib_plot":
             return self._draw_matplotlib_plot(draw, frame, el, y)
+        elif etype == "map_plot":
+            return self._draw_map_plot(draw, frame, el, y)
+        elif etype == "geometry_3d":
+            return self._draw_geometry_3d(draw, frame, el, y)
         elif etype == "rdkit_mol":
             return self._draw_rdkit_mol(draw, frame, el, y)
         elif etype == "manim_scene":
@@ -557,9 +566,9 @@ class FrameRenderer:
         facts   = element.get("facts", [])
         s       = self.scale
 
-        head_font = _get_font(int(40 * s), bold=True)
-        key_font  = _get_font(int(38 * s), bold=True)
-        val_font  = _get_font(int(38 * s), bold=False)
+        head_font = _get_font(int(46 * s), bold=True)
+        key_font  = _get_font(int(44 * s), bold=True)
+        val_font  = _get_font(int(44 * s), bold=False)
         pad_x     = int(36 * s)
         pad_y     = int(20 * s)
         row_h     = int(key_font.size * 1.8)
@@ -606,9 +615,9 @@ class FrameRenderer:
         steps   = element.get("steps",   [])
         s       = self.scale
 
-        head_font = _get_font(int(40 * s), bold=True)
-        step_font = _get_font(int(38 * s), bold=False)
-        num_font  = _get_font(int(36 * s), bold=True)
+        head_font = _get_font(int(46 * s), bold=True)
+        step_font = _get_font(int(44 * s), bold=False)
+        num_font  = _get_font(int(42 * s), bold=True)
         pad_x     = int(36 * s)
         pad_y     = int(20 * s)
         num_r     = int(26 * s)          # circle radius
@@ -661,8 +670,8 @@ class FrameRenderer:
 
         col_gap  = int(24 * s)
         col_w    = (self.content_w - col_gap) // 2
-        head_f   = _get_font(int(40 * s), bold=True)
-        body_f   = _get_font(int(36 * s), bold=False)
+        head_f   = _get_font(int(46 * s), bold=True)
+        body_f   = _get_font(int(44 * s), bold=False)
         pad_x    = int(28 * s)
         pad_y    = int(20 * s)
         line_h   = int(body_f.size * 1.5)
@@ -1019,14 +1028,14 @@ class FrameRenderer:
         gap = cw - 2 * col_w
 
         # Column headers
-        hf = _get_font(int(28 * s), bold=True)
+        hf = _get_font(int(36 * s), bold=True)
         draw.text((cx + col_w // 2 - int(50 * s), y), "Column A",
                   fill=(21, 101, 192), font=hf)
         draw.text((cx + col_w + gap + col_w // 2 - int(50 * s), y), "Column B",
                   fill=(255, 103, 0), font=hf)
-        y += int(40 * s)
+        y += int(50 * s)
 
-        rf = _get_font(int(28 * s))
+        rf = _get_font(int(36 * s))
         for i in range(n):
             iy = y + i * row_h
             # Left item
@@ -1063,12 +1072,12 @@ class FrameRenderer:
         revealed = element.get("revealed", False)
         heading = element.get("heading", "Arrange in correct order")
 
-        hf = _get_font(int(30 * s), bold=True)
+        hf = _get_font(int(38 * s), bold=True)
         draw.text((cx, y), heading, fill=(21, 101, 192), font=hf)
-        y += int(45 * s)
+        y += int(54 * s)
 
-        rf = _get_font(int(30 * s))
-        row_h = int(55 * s)
+        rf = _get_font(int(38 * s))
+        row_h = int(64 * s)
         for i, item in enumerate(items):
             iy = y + i * row_h
             color = (220, 255, 220) if revealed else (240, 240, 250)
@@ -1077,9 +1086,9 @@ class FrameRenderer:
                                    radius=int(8 * s), fill=color, outline=border,
                                    width=int(2 * s))
             num_color = (0, 160, 60) if revealed else (100, 100, 140)
-            draw.text((cx + int(20 * s), iy + int(12 * s)),
-                      f"{i+1}.", fill=num_color, font=_get_font(int(30 * s), bold=True))
-            draw.text((cx + int(55 * s), iy + int(12 * s)),
+            draw.text((cx + int(20 * s), iy + int(14 * s)),
+                      f"{i+1}.", fill=num_color, font=_get_font(int(38 * s), bold=True))
+            draw.text((cx + int(60 * s), iy + int(14 * s)),
                       item, fill=(30, 30, 60), font=rf)
 
         return y + len(items) * row_h
@@ -1132,10 +1141,25 @@ class FrameRenderer:
         elif etype == "final_answer":
             return int(160 * s)
         elif etype == "concept_text":
-            font = _get_font(int(44 * s))
-            lines = self._wrap_text(element.get("text", ""), font,
-                                    self.content_w - int(80 * s))
-            return int(len(lines) * font.size * 1.4 + 56 * s)
+            head_font = _get_font(int(52 * s), bold=True)
+            body_font = _get_font(int(48 * s))
+            pad_y     = int(22 * s)
+            line_gap  = int(14 * s)
+            h = 2 * pad_y
+            if element.get("heading", ""):
+                h += int(head_font.size * 1.3) + line_gap
+            items = element.get("items", [])
+            if items:
+                max_w = self.content_w - int(116 * s)
+                for item in items:
+                    wrapped = self._wrap_text(item, body_font, max_w)
+                    h += len(wrapped) * int(body_font.size * 1.45) + line_gap
+            else:
+                text = element.get("text", "")
+                if text:
+                    for line in self._wrap_text(text, body_font, self.content_w - int(80 * s)):
+                        h += int(body_font.size * 1.45)
+            return max(h, int(100 * s))
         elif etype == "instruction_text":
             return int(110 * s)
         elif etype == "image":
@@ -1159,6 +1183,10 @@ class FrameRenderer:
             return int(45 * s + len(element.get("items", [])) * 55 * s)
         elif etype == "numerical_answer":
             return int(110 * s)
+        elif etype == "map_plot":
+            return int(self.height * 0.44)
+        elif etype == "geometry_3d":
+            return int(self.height * 0.42)
         return int(80 * s)
 
     # ------------------------------------------------------------------
@@ -1233,7 +1261,7 @@ class FrameRenderer:
         )
 
         # "Formula" label
-        label_font = _get_font(int(20 * s), bold=True)
+        label_font = _get_font(int(28 * s), bold=True)
         draw.text(
             (card_x + pad_x, y + int(6 * s)),
             "Formula", fill=self._rgb("body_secondary"), font=label_font,
@@ -1695,8 +1723,8 @@ class FrameRenderer:
         max_w    = self.content_w - 2 * pad_x
         line_gap = int(14 * s)
 
-        head_font  = _get_font(int(44 * s), bold=True)
-        body_font  = _get_font(int(40 * s), bold=False)
+        head_font  = _get_font(int(52 * s), bold=True)
+        body_font  = _get_font(int(48 * s), bold=False)
         line_h_b   = int(body_font.size * 1.45)
         line_h_h   = int(head_font.size * 1.3)
 
@@ -1775,18 +1803,19 @@ class FrameRenderer:
         return y + banner_h
 
     def _draw_step_label(self, draw, frame, element, y):
-        """Step label — subtle gray text."""
+        """Step heading — bold blue label shown above body content for each step."""
         text = element.get("text", "")
+        if not text.strip():
+            return y
         s = self.scale
-        font = _get_font(int(22 * s))
-        color = self._rgb("body_secondary")
-
         if len(text) > 80:
             text = text[:77] + "..."
-
+        font = _get_font(int(42 * s), bold=True)
+        pad_y = int(12 * s)
         tw = draw.textlength(text, font=font)
         x = (self.width - tw) / 2
-        draw.text((x, y), text, fill=color, font=font)
+        draw.text((x, y + pad_y), text, fill=self._rgb("blue"), font=font)
+        return y + int(font.size * 1.5) + pad_y
 
     def _draw_image(self, frame, element, y, max_y):
         src = element.get("src_path", "")
@@ -4932,6 +4961,8 @@ class FrameRenderer:
             from io import BytesIO
 
             plot_type = element.get("plot_type", "line")
+            if plot_type.endswith("3d"):
+                return self._draw_plot_3d(draw, frame, element, y)
             data = element.get("data", {})
             title = element.get("title", "")
             xlabel = element.get("xlabel", "")
@@ -4995,6 +5026,525 @@ class FrameRenderer:
             cap_y = y + plot_h
             draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h], fill=(40, 40, 60))
             cf = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
+    # ------------------------------------------------------------------
+    # plot_3d — 3D mathematical plots via matplotlib mpl_toolkits.mplot3d
+    # ------------------------------------------------------------------
+
+    def _draw_plot_3d(self, draw, frame, element, y):
+        """3D plot: surface3d, wireframe3d, scatter3d, line3d, bar3d.
+
+        JSON:
+          { "target": "matplotlib_plot", "plot_type": "surface3d",
+            "expression": "sin(x)*cos(y)",
+            "x_range": [-3.14, 3.14], "y_range": [-3.14, 3.14],
+            "xlabel": "x", "ylabel": "y", "zlabel": "z",
+            "colormap": "viridis", "elev": 25, "azim": 45,
+            "title": "z = sin(x)·cos(y)", "caption": "optional" }
+
+          { "plot_type": "scatter3d",
+            "data": {"x":[1,2,3],"y":[2,4,1],"z":[3,1,4]}, "color":"#00d4ff" }
+
+          { "plot_type": "bar3d",
+            "data": {"x":[0,1,2],"y":[0,0,0],"z":[3,5,2],
+                     "dx":[0.6,0.6,0.6],"dy":[0.6,0.6,0.6]} }
+        """
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from io import BytesIO
+
+        s       = self.scale
+        avail_h = int(self.height * 0.42)
+        avail_w = self.content_w
+        cx      = self.content_x
+        caption = element.get("caption", "")
+        cap_h   = int(48 * s) if caption else 0
+        plot_h  = avail_h - cap_h
+
+        try:
+            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+            plot_type = element.get("plot_type", "surface3d")
+            data      = element.get("data", {})
+            title     = element.get("title", "")
+            xlabel    = element.get("xlabel", "x")
+            ylabel    = element.get("ylabel", "y")
+            zlabel    = element.get("zlabel", "z")
+            color     = element.get("color", "#00d4ff")
+
+            fig = plt.figure(figsize=(avail_w / 100, plot_h / 100), dpi=100)
+            fig.patch.set_facecolor("#1a1a2e")
+            ax = fig.add_subplot(111, projection="3d")
+            ax.set_facecolor("#1a1a2e")
+            for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+                pane.fill = False
+                pane.set_edgecolor("#2a2a4a")
+            for ln in (ax.xaxis.line, ax.yaxis.line, ax.zaxis.line):
+                ln.set_color("#444466")
+            ax.tick_params(colors="#888888", labelsize=7)
+            for lbl in (ax.xaxis.label, ax.yaxis.label, ax.zaxis.label):
+                lbl.set_color("#aaaacc")
+
+            if plot_type in ("surface3d", "wireframe3d"):
+                expr    = element.get("expression", "sin(x)*cos(y)")
+                x_range = element.get("x_range", [-3.14, 3.14])
+                y_range = element.get("y_range", [-3.14, 3.14])
+                xv      = np.linspace(x_range[0], x_range[1], 50)
+                yv      = np.linspace(y_range[0], y_range[1], 50)
+                X, Y    = np.meshgrid(xv, yv)
+                ns = {k: getattr(np, k) for k in
+                      ("sin","cos","tan","exp","sqrt","log","abs","pi","e")}
+                ns.update({"x": X, "y": Y})
+                try:
+                    Z = eval(expr, {"__builtins__": {}}, ns)  # pylint: disable=eval-used
+                except Exception:
+                    Z = np.sin(X) * np.cos(Y)
+                if plot_type == "wireframe3d":
+                    ax.plot_wireframe(X, Y, Z, color=color, linewidth=0.5, alpha=0.85)
+                else:
+                    ax.plot_surface(X, Y, Z,
+                                    cmap=element.get("colormap", "viridis"),
+                                    alpha=0.85, linewidth=0)
+
+            elif plot_type == "scatter3d":
+                ax.scatter(data.get("x", []), data.get("y", []), data.get("z", []),
+                           c=color, s=50, depthshade=True)
+
+            elif plot_type == "line3d":
+                ax.plot(data.get("x", []), data.get("y", []), data.get("z", []),
+                        color=color, linewidth=2)
+
+            elif plot_type == "bar3d":
+                xd = data.get("x", [0]); yd = data.get("y", [0]); zd = data.get("z", [1])
+                dx = data.get("dx", [0.6] * len(xd))
+                dy = data.get("dy", [0.6] * len(yd))
+                ax.bar3d(xd, yd, [0] * len(zd), dx, dy, zd,
+                         color=color, alpha=0.8, shade=True)
+
+            ax.set_xlabel(xlabel, labelpad=6)
+            ax.set_ylabel(ylabel, labelpad=6)
+            ax.set_zlabel(zlabel, labelpad=6)
+            if title:
+                ax.set_title(title, color="white", fontsize=int(13 * s),
+                             fontweight="bold", pad=8)
+            ax.view_init(elev=element.get("elev", 25), azim=element.get("azim", 45))
+            plt.tight_layout(pad=0.3)
+
+            buf = BytesIO()
+            fig.savefig(buf, format="PNG", bbox_inches="tight",
+                        facecolor="#1a1a2e", dpi=100)
+            plt.close(fig)
+            buf.seek(0)
+            plot_img = Image.open(buf).convert("RGB")
+            ratio    = min(avail_w / plot_img.width, plot_h / plot_img.height)
+            new_w    = int(plot_img.width  * ratio)
+            new_h    = int(plot_img.height * ratio)
+            plot_img = plot_img.resize((new_w, new_h), Image.LANCZOS)
+            frame.paste(plot_img, (cx + (avail_w - new_w) // 2,
+                                   y  + (plot_h  - new_h) // 2))
+
+        except Exception as err:
+            pf = _get_font(int(26 * s))
+            draw.rounded_rectangle([cx, y, cx + avail_w, y + plot_h],
+                                   radius=int(10 * s), fill=(30, 30, 50))
+            draw.text((cx + int(20 * s), y + int(20 * s)),
+                      f"3D plot error: {err}", fill=(200, 100, 100), font=pf)
+
+        if caption:
+            cap_y = y + plot_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h], fill=(40, 40, 60))
+            cf  = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
+    # ------------------------------------------------------------------
+    # map_plot — geographic maps via geopandas + matplotlib
+    # ------------------------------------------------------------------
+
+    def _draw_map_plot(self, draw, frame, element, y):
+        """Geographic map: world highlight, choropleth, India states.
+
+        JSON:
+          { "target": "map_plot",
+            "map_type": "world_highlight | world_choropleth | india_states | india_choropleth",
+            "highlight": ["India", "China"],
+            "data": {"India": 85, "China": 92},
+            "title": "Title", "caption": "Caption",
+            "color_scheme": "YlOrRd",
+            "label_highlighted": true }
+        """
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from io import BytesIO
+
+        s       = self.scale
+        avail_h = int(self.height * 0.44)
+        avail_w = self.content_w
+        cx      = self.content_x
+        caption = element.get("caption", "")
+        cap_h   = int(48 * s) if caption else 0
+        plot_h  = avail_h - cap_h
+
+        try:
+            import geopandas as gpd
+
+            map_type    = element.get("map_type", "world_highlight")
+            highlight   = element.get("highlight", [])
+            data_vals   = element.get("data", {})
+            title       = element.get("title", "")
+            cmap        = element.get("color_scheme", "YlOrRd")
+            show_labels = element.get("label_highlighted", True)
+
+            def _load_world():
+                try:
+                    return gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
+                except Exception:
+                    pass
+                try:
+                    from geodatasets import get_path as _gp
+                    return gpd.read_file(_gp("naturalearth.land"))
+                except Exception:
+                    pass
+                return None
+
+            def _load_india_states():
+                import os, urllib.request
+                cache_dir  = os.path.join(os.path.dirname(__file__),
+                                          "..", "storage", "assets", "map_data")
+                os.makedirs(cache_dir, exist_ok=True)
+                cache_file = os.path.join(cache_dir, "india_states.geojson")
+                if not os.path.exists(cache_file):
+                    url = ("https://raw.githubusercontent.com/geohacker/india"
+                           "/master/state/india_state.geojson")
+                    try:
+                        urllib.request.urlretrieve(url, cache_file)
+                    except Exception:
+                        return None
+                try:
+                    return gpd.read_file(cache_file)
+                except Exception:
+                    return None
+
+            fig, ax = plt.subplots(figsize=(avail_w / 100, plot_h / 100), dpi=100)
+            fig.patch.set_facecolor("#0d1117")
+            ax.set_facecolor("#0d1117")
+
+            if map_type in ("world_highlight", "world_choropleth"):
+                world = _load_world()
+                if world is None:
+                    raise ImportError("geopandas world data unavailable — pip install geopandas geodatasets")
+                if map_type == "world_choropleth" and data_vals:
+                    world["_val"] = world["name"].map(data_vals)
+                    world.plot(column="_val", ax=ax, legend=True,
+                               missing_kwds={"color": "#1e2a3a", "edgecolor": "#2a3a4a"},
+                               cmap=cmap, edgecolor="#2a3a4a", linewidth=0.4)
+                else:
+                    colors = ["#00d4ff" if n in highlight else "#1e2a3a"
+                              for n in world["name"]]
+                    world.plot(ax=ax, color=colors, edgecolor="#2a3a4a", linewidth=0.4)
+                    if show_labels:
+                        for _, row in world.iterrows():
+                            if row["name"] in highlight:
+                                c = row.geometry.centroid
+                                ax.annotate(row["name"], (c.x, c.y),
+                                            ha="center", fontsize=7,
+                                            color="white", fontweight="bold",
+                                            bbox=dict(boxstyle="round,pad=0.15",
+                                                      facecolor="#00d4ff",
+                                                      alpha=0.75, edgecolor="none"))
+
+            elif map_type in ("india_states", "india_choropleth"):
+                india = _load_india_states()
+                if india is None:
+                    world = _load_world()
+                    if world is None:
+                        raise ImportError("Map data unavailable")
+                    colors = ["#00d4ff" if n == "India" else "#1e2a3a"
+                              for n in world["name"]]
+                    world.plot(ax=ax, color=colors, edgecolor="#2a3a4a", linewidth=0.4)
+                    row_in = world[world["name"] == "India"]
+                    if not row_in.empty:
+                        mnx, mny, mxx, mxy = row_in.total_bounds
+                        ax.set_xlim(mnx - 2, mxx + 2); ax.set_ylim(mny - 2, mxy + 2)
+                else:
+                    name_col = next((c for c in ("NAME_1", "ST_NM", "name", "state", "NAME")
+                                     if c in india.columns), india.columns[0])
+                    if map_type == "india_choropleth" and data_vals:
+                        india["_val"] = india[name_col].map(data_vals)
+                        india.plot(column="_val", ax=ax, legend=True,
+                                   missing_kwds={"color": "#1e2a3a"},
+                                   cmap=cmap, edgecolor="#4a5a6a", linewidth=0.6)
+                    else:
+                        colors = ["#00d4ff" if n in highlight else "#1e2a3a"
+                                  for n in india[name_col]]
+                        india.plot(ax=ax, color=colors, edgecolor="#4a5a6a", linewidth=0.6)
+                        if show_labels:
+                            for _, row in india.iterrows():
+                                if row[name_col] in highlight:
+                                    c = row.geometry.centroid
+                                    ax.annotate(row[name_col], (c.x, c.y),
+                                                ha="center", fontsize=7,
+                                                color="white", fontweight="bold",
+                                                bbox=dict(boxstyle="round,pad=0.15",
+                                                          facecolor="#00d4ff",
+                                                          alpha=0.75, edgecolor="none"))
+
+            ax.axis("off")
+            if title:
+                ax.set_title(title, color="white", fontsize=int(13 * s),
+                             fontweight="bold", pad=6)
+            plt.tight_layout(pad=0.2)
+
+            buf = BytesIO()
+            fig.savefig(buf, format="PNG", bbox_inches="tight",
+                        facecolor="#0d1117", dpi=100)
+            plt.close(fig)
+            buf.seek(0)
+            plot_img = Image.open(buf).convert("RGB")
+            ratio    = min(avail_w / plot_img.width, plot_h / plot_img.height)
+            new_w    = int(plot_img.width  * ratio)
+            new_h    = int(plot_img.height * ratio)
+            plot_img = plot_img.resize((new_w, new_h), Image.LANCZOS)
+            frame.paste(plot_img, (cx + (avail_w - new_w) // 2,
+                                   y  + (plot_h  - new_h) // 2))
+
+        except ImportError as err:
+            pf = _get_font(int(30 * s))
+            draw.rounded_rectangle([cx, y, cx + avail_w, y + plot_h],
+                                   radius=int(10 * s), fill=(20, 30, 50))
+            msg = str(err) or "pip install geopandas geodatasets"
+            mw  = draw.textlength(msg, font=pf)
+            draw.text((cx + (avail_w - mw) / 2, y + (plot_h - pf.size) / 2),
+                      msg, fill=(100, 180, 255), font=pf)
+        except Exception as err:
+            pf = _get_font(int(26 * s))
+            draw.rounded_rectangle([cx, y, cx + avail_w, y + plot_h],
+                                   radius=int(10 * s), fill=(30, 20, 40))
+            draw.text((cx + int(20 * s), y + int(20 * s)),
+                      f"Map error: {err}", fill=(220, 100, 100), font=pf)
+
+        if caption:
+            cap_y = y + plot_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h], fill=(40, 40, 60))
+            cf  = _get_font(int(30 * s))
+            cw2 = draw.textlength(caption, font=cf)
+            draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
+                      caption, fill=(200, 200, 255), font=cf)
+
+        return y + avail_h
+
+    # ------------------------------------------------------------------
+    # geometry_3d — 3D solids: cube, cylinder, cone, sphere, pyramid, prism
+    # ------------------------------------------------------------------
+
+    def _draw_geometry_3d(self, draw, frame, element, y):
+        """3D geometric solid rendered with matplotlib mpl_toolkits.mplot3d.
+
+        JSON:
+          { "target": "geometry_3d",
+            "shape": "cube|cuboid|cylinder|cone|sphere|pyramid|prism",
+            "dimensions": {"side": 4} | {"length":6,"width":3,"height":4} |
+                          {"radius":3,"height":8} | {"base":4,"height":5},
+            "color": "#00d4ff",
+            "show_dimensions": true,
+            "label": "Cube (a = 4 cm)",
+            "caption": "Volume = a³ = 64 cm³",
+            "elev": 20, "azim": 45 }
+        """
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from io import BytesIO
+
+        s       = self.scale
+        avail_h = int(self.height * 0.42)
+        avail_w = self.content_w
+        cx      = self.content_x
+        caption = element.get("caption", "")
+        cap_h   = int(48 * s) if caption else 0
+        plot_h  = avail_h - cap_h
+
+        try:
+            from mpl_toolkits.mplot3d import Axes3D            # noqa: F401
+            from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+            shape     = element.get("shape", "cube")
+            dims      = element.get("dimensions", {})
+            label     = element.get("label", shape.replace("_", " ").title())
+            color_hex = element.get("color", "#00d4ff")
+            show_dims = element.get("show_dimensions", True)
+            elev      = element.get("elev", 20)
+            azim      = element.get("azim", 45)
+
+            h_str = color_hex.lstrip("#")
+            fc    = tuple(int(h_str[i:i+2], 16) / 255 for i in (0, 2, 4))
+
+            fig = plt.figure(figsize=(avail_w / 100, plot_h / 100), dpi=100)
+            fig.patch.set_facecolor("#1a1a2e")
+            ax  = fig.add_subplot(111, projection="3d")
+            ax.set_facecolor("#1a1a2e")
+            for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+                pane.fill = False
+                pane.set_edgecolor("#2a2a4a")
+            for ln in (ax.xaxis.line, ax.yaxis.line, ax.zaxis.line):
+                ln.set_color("#333355")
+            ax.tick_params(colors="#666688", labelsize=6)
+            ax.grid(True, alpha=0.12, color="#2a2a5a")
+
+            af = 0.55   # face alpha
+            ec = "#ffffff"
+            lw = 0.7
+
+            def _add_box(lx, ly, lz):
+                v = np.array([[0,0,0],[lx,0,0],[lx,ly,0],[0,ly,0],
+                               [0,0,lz],[lx,0,lz],[lx,ly,lz],[0,ly,lz]], float)
+                faces = [v[[0,1,2,3]], v[[4,5,6,7]],
+                         v[[0,1,5,4]], v[[2,3,7,6]],
+                         v[[0,3,7,4]], v[[1,2,6,5]]]
+                ax.add_collection3d(Poly3DCollection(faces, alpha=af,
+                                    facecolor=fc, edgecolor=ec, linewidth=lw))
+                ax.set_xlim(-0.3, lx+0.3)
+                ax.set_ylim(-0.3, ly+0.3)
+                ax.set_zlim(0, lz+0.3)
+                if show_dims:
+                    kw = {"color": "white", "fontsize": 9, "ha": "center"}
+                    ax.text(lx/2,  -0.5,  -0.4, f"{lx}", **kw)
+                    ax.text(lx+0.4, ly/2, -0.4, f"{ly}", **kw)
+                    ax.text(-0.5,  -0.5,   lz/2, f"{lz}", **kw)
+
+            if shape in ("cube", "cuboid"):
+                lx = dims.get("length", dims.get("side", 4))
+                ly = dims.get("width",  dims.get("side", lx))
+                lz = dims.get("height", dims.get("side", lx))
+                _add_box(float(lx), float(ly), float(lz))
+
+            elif shape == "cylinder":
+                r   = float(dims.get("radius", 3))
+                h_c = float(dims.get("height", 6))
+                th  = np.linspace(0, 2 * np.pi, 60)
+                ax.plot_surface(np.array([r*np.cos(th), r*np.cos(th)]),
+                                np.array([r*np.sin(th), r*np.sin(th)]),
+                                np.array([np.zeros_like(th), np.full_like(th, h_c)]),
+                                color=fc, alpha=af, linewidth=0)
+                th2, rr = np.meshgrid(th, [0, r])
+                for z_cap in (0, h_c):
+                    ax.plot_surface(rr*np.cos(th2), rr*np.sin(th2),
+                                    np.full_like(th2, z_cap), color=fc, alpha=af, linewidth=0)
+                ax.set_xlim(-r-.3, r+.3); ax.set_ylim(-r-.3, r+.3); ax.set_zlim(0, h_c+.3)
+                if show_dims:
+                    ax.text(r+.3, 0, h_c/2, f"h={h_c}", color="white", fontsize=9)
+                    ax.text(0, r+.3, -.5, f"r={r}", color="white", fontsize=9)
+
+            elif shape == "cone":
+                r   = float(dims.get("radius", 3))
+                h_c = float(dims.get("height", 6))
+                th  = np.linspace(0, 2 * np.pi, 60)
+                zv  = np.linspace(0, h_c, 40)
+                T, Z = np.meshgrid(th, zv)
+                Rv   = r * (1 - Z / h_c)
+                ax.plot_surface(Rv*np.cos(T), Rv*np.sin(T), Z,
+                                color=fc, alpha=af, linewidth=0)
+                th2, rr = np.meshgrid(th, [0, r])
+                ax.plot_surface(rr*np.cos(th2), rr*np.sin(th2),
+                                np.zeros_like(th2), color=fc, alpha=af, linewidth=0)
+                ax.set_xlim(-r-.3, r+.3); ax.set_ylim(-r-.3, r+.3); ax.set_zlim(0, h_c+.3)
+                if show_dims:
+                    ax.text(r+.3, 0, h_c/2, f"h={h_c}", color="white", fontsize=9)
+                    ax.text(0, r+.3, -.5, f"r={r}", color="white", fontsize=9)
+
+            elif shape == "sphere":
+                r  = float(dims.get("radius", 3))
+                u  = np.linspace(0, 2*np.pi, 60)
+                va = np.linspace(0, np.pi, 40)
+                U, V = np.meshgrid(u, va)
+                ax.plot_surface(r*np.cos(U)*np.sin(V),
+                                r*np.sin(U)*np.sin(V),
+                                r*np.cos(V), color=fc, alpha=af, linewidth=0)
+                d = r + .3
+                ax.set_xlim(-d, d); ax.set_ylim(-d, d); ax.set_zlim(-d, d)
+                if show_dims:
+                    ax.text(r+.3, 0, 0, f"r={r}", color="white", fontsize=9)
+
+            elif shape == "pyramid":
+                bl = float(dims.get("base", dims.get("length", 4)))
+                bw = float(dims.get("width", bl))
+                hp = float(dims.get("height", 5))
+                apex = np.array([bl/2, bw/2, hp])
+                b    = np.array([[0,0,0],[bl,0,0],[bl,bw,0],[0,bw,0]], float)
+                faces = [b.tolist(),
+                         [b[0].tolist(), b[1].tolist(), apex.tolist()],
+                         [b[1].tolist(), b[2].tolist(), apex.tolist()],
+                         [b[2].tolist(), b[3].tolist(), apex.tolist()],
+                         [b[3].tolist(), b[0].tolist(), apex.tolist()]]
+                ax.add_collection3d(Poly3DCollection(faces, alpha=af,
+                                    facecolor=fc, edgecolor=ec, linewidth=lw))
+                ax.set_xlim(-.3, bl+.3); ax.set_ylim(-.3, bw+.3); ax.set_zlim(0, hp+.3)
+                if show_dims:
+                    ax.text(bl/2, -.5, -.4, f"l={bl}", color="white", fontsize=9, ha="center")
+                    ax.text(bl+.3, bw/2, -.4, f"w={bw}", color="white", fontsize=9)
+                    ax.text(-.5, -.5, hp/2, f"h={hp}", color="white", fontsize=9)
+
+            elif shape in ("prism", "triangular_prism"):
+                base = float(dims.get("base", 4))
+                lng  = float(dims.get("length", 6))
+                ht   = float(dims.get("height", 3))
+                v    = np.array([[0,0,0],[base,0,0],[base/2,0,ht],
+                                  [0,lng,0],[base,lng,0],[base/2,lng,ht]], float)
+                faces = [v[[0,1,2]].tolist(), v[[3,4,5]].tolist(),
+                         v[[0,1,4,3]].tolist(), v[[1,2,5,4]].tolist(),
+                         v[[0,2,5,3]].tolist()]
+                ax.add_collection3d(Poly3DCollection(faces, alpha=af,
+                                    facecolor=fc, edgecolor=ec, linewidth=lw))
+                ax.set_xlim(-.3, base+.3); ax.set_ylim(-.3, lng+.3); ax.set_zlim(0, ht+.3)
+                if show_dims:
+                    ax.text(base/2, -.5, -.3, f"b={base}", color="white", fontsize=9, ha="center")
+                    ax.text(base+.3, lng/2, -.3, f"l={lng}", color="white", fontsize=9)
+                    ax.text(-.5, -.5, ht/2, f"h={ht}", color="white", fontsize=9)
+
+            ax.view_init(elev=elev, azim=azim)
+            if label:
+                ax.set_title(label, color="white", fontsize=int(12 * s),
+                             fontweight="bold", pad=6)
+            if not show_dims:
+                ax.set_xticklabels([]); ax.set_yticklabels([]); ax.set_zticklabels([])
+            plt.tight_layout(pad=0.3)
+
+            buf = BytesIO()
+            fig.savefig(buf, format="PNG", bbox_inches="tight",
+                        facecolor="#1a1a2e", dpi=100)
+            plt.close(fig)
+            buf.seek(0)
+            plot_img = Image.open(buf).convert("RGB")
+            ratio    = min(avail_w / plot_img.width, plot_h / plot_img.height)
+            new_w    = int(plot_img.width  * ratio)
+            new_h    = int(plot_img.height * ratio)
+            plot_img = plot_img.resize((new_w, new_h), Image.LANCZOS)
+            frame.paste(plot_img, (cx + (avail_w - new_w) // 2,
+                                   y  + (plot_h  - new_h) // 2))
+
+        except Exception as err:
+            pf = _get_font(int(26 * s))
+            draw.rounded_rectangle([cx, y, cx + avail_w, y + plot_h],
+                                   radius=int(10 * s), fill=(25, 25, 45))
+            draw.text((cx + int(20 * s), y + int(20 * s)),
+                      f"Geometry 3D error: {err}", fill=(200, 100, 100), font=pf)
+
+        if caption:
+            cap_y = y + plot_h
+            draw.rectangle([cx, cap_y, cx + avail_w, cap_y + cap_h], fill=(40, 40, 60))
+            cf  = _get_font(int(30 * s))
             cw2 = draw.textlength(caption, font=cf)
             draw.text((cx + (avail_w - cw2) / 2, cap_y + (cap_h - cf.size) / 2),
                       caption, fill=(200, 200, 255), font=cf)

@@ -32,6 +32,7 @@ class Video(db.Model):
 
     # File paths
     json_path = db.Column(db.String(500), default="")
+    output_dir = db.Column(db.String(500), default="")   # unique UUID-named dir for all render outputs
     video_path = db.Column(db.String(500), default="")
     audio_path = db.Column(db.String(500), default="")
     thumbnail_path = db.Column(db.String(500), default="")

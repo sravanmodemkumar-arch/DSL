@@ -114,7 +114,22 @@ def _remove_empty_dirs(path, stop_at):
 
 def _cleanup_video_files(video):
     """Delete all files generated for a video (used on cancel or delete)."""
-    # Delete individual known file paths
+    videos_root = current_app.config.get("VIDEOS_DIR", "")
+
+    # ── New path: UUID-named output_dir — wipe the whole directory at once ──
+    if getattr(video, "output_dir", None) and video.output_dir:
+        out = video.output_dir
+        if os.path.isdir(out):
+            shutil.rmtree(out, ignore_errors=True)
+        # Walk up and remove now-empty parent dirs (subtopic → topic → subject)
+        _remove_empty_dirs(os.path.dirname(out), stop_at=videos_root)
+        video.video_path = ""
+        video.audio_path = ""
+        video.thumbnail_path = ""
+        video.output_dir = ""
+        return
+
+    # ── Legacy fallback: old records without output_dir ──
     for path in [video.video_path, video.audio_path, video.thumbnail_path]:
         if path and os.path.exists(path):
             try:
@@ -122,28 +137,18 @@ def _cleanup_video_files(video):
             except Exception:
                 pass
 
-    # Collect candidate output dirs:
-    # 1. From stored video_path (if set)
-    # 2. From constructed path (subject/topic/subtopic) — covers pending/cancelled with no video_path
     candidate_dirs = set()
     if video.video_path:
         candidate_dirs.add(os.path.dirname(video.video_path))
-
-    videos_root = current_app.config.get("VIDEOS_DIR", "")
     if videos_root and video.subject:
-        constructed = os.path.join(
-            videos_root,
-            video.subject,
-            video.topic or "",
-            video.subtopic or "general",
-        )
-        candidate_dirs.add(constructed)
+        candidate_dirs.add(os.path.join(
+            videos_root, video.subject, video.topic or "", video.subtopic or "general",
+        ))
 
     qid = video.video_id
     for output_dir in candidate_dirs:
         if not output_dir or not os.path.isdir(output_dir):
             continue
-        # Temp audio files
         for suffix in (f"{qid}_audio.mp3", f"{qid}_bgm.wav", f"{qid}_mixed.mp3"):
             p = os.path.join(output_dir, suffix)
             if os.path.exists(p):
@@ -151,22 +156,18 @@ def _cleanup_video_files(video):
                     os.remove(p)
                 except Exception:
                     pass
-        # Per-video audio/frames dirs (named with qid to avoid collisions)
         for d in (f"audio_{qid}", f"frames_{qid}", "audio", "frames"):
             p = os.path.join(output_dir, d)
             if os.path.isdir(p):
                 shutil.rmtree(p, ignore_errors=True)
-        # Remove MP4 / thumbnail directly in output_dir matching this video_id
-        for fname in os.listdir(output_dir):
+        for fname in list(os.listdir(output_dir)):
             if fname.startswith(qid):
                 try:
                     os.remove(os.path.join(output_dir, fname))
                 except Exception:
                     pass
-        # Remove the output_dir and its empty parents (subtopic → topic → subject)
         _remove_empty_dirs(output_dir, stop_at=videos_root)
 
-    # Clear paths in DB
     video.video_path = ""
     video.audio_path = ""
     video.thumbnail_path = ""
@@ -186,6 +187,12 @@ def retry(job_id):
         video.status = "pending"
         video.progress = 0
         video.error_message = ""
+        # Restore the question-ID-based output directory
+        from flask import current_app as _app
+        video.output_dir = os.path.join(
+            _app.config["VIDEOS_DIR"],
+            video.video_id,
+        )
 
     db.session.commit()
 

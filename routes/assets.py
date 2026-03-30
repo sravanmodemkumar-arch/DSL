@@ -91,11 +91,29 @@ def delete():
     rel  = request.form.get("rel", "")
     if not rel or ".." in rel:
         return '<div class="text-red-400 p-2 text-sm">Invalid path.</div>'
-    full = os.path.join(current_app.config["ASSETS_DIR"], rel)
+    assets_dir = current_app.config["ASSETS_DIR"]
+    full = os.path.join(assets_dir, rel)
     if os.path.isfile(full):
+        parent = os.path.dirname(full)
         os.remove(full)
+        # Remove parent directory (and its parents) if now empty, up to ASSETS_DIR
+        _remove_empty_asset_dirs(parent, stop_at=assets_dir)
         return f'<div class="text-yellow-400 p-2 text-sm">Deleted: {rel}</div>'
     return '<div class="text-red-400 p-2 text-sm">File not found.</div>'
+
+
+def _remove_empty_asset_dirs(path, stop_at):
+    path = os.path.abspath(path)
+    stop_at = os.path.abspath(stop_at)
+    while path and path != stop_at and path.startswith(stop_at):
+        try:
+            if os.path.isdir(path) and not os.listdir(path):
+                os.rmdir(path)
+            else:
+                break
+        except OSError:
+            break
+        path = os.path.dirname(path)
 
 
 @assets_bp.route("/list")

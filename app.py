@@ -44,6 +44,13 @@ def create_app():
             _conn.execute(text("PRAGMA busy_timeout=30000"))
             _conn.commit()
         db.create_all()
+        # Add output_dir column to existing databases that predate it
+        with db.engine.connect() as _conn:
+            try:
+                _conn.execute(text("ALTER TABLE videos ADD COLUMN output_dir VARCHAR(500) DEFAULT ''"))
+                _conn.commit()
+            except Exception:
+                pass  # column already exists
 
     # ── Logging — rotate at 2 MB, keep 0 backups (auto-cleanup) ─────────
     log_handler = RotatingFileHandler(

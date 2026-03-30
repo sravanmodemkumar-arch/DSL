@@ -103,12 +103,13 @@ class VideoPipeline:
         preset = self.quality_presets.get(quality_preset, {"bitrate": "10M", "fps": 30})
         fps = preset.get("fps", 30)
         bitrate = preset.get("bitrate", "10M")
+        crf = preset.get("crf", None)   # CRF value for quality-based encoding (P5-P7)
         question_data["_height"] = height
 
         os.makedirs(output_dir, exist_ok=True)
-        # Per-video temp dirs — avoids collisions when multiple videos share same output_dir
-        audio_dir  = os.path.join(output_dir, f"audio_{qid}")
-        frames_dir = os.path.join(output_dir, f"frames_{qid}")
+        # All temp files go inside the per-question output_dir (videos/{qid}/)
+        audio_dir  = os.path.join(output_dir, "audio")
+        frames_dir = os.path.join(output_dir, "frames")
         os.makedirs(audio_dir,  exist_ok=True)
         os.makedirs(frames_dir, exist_ok=True)
 
@@ -131,7 +132,7 @@ class VideoPipeline:
 
             # ── Stage 2: Concatenate + timeline ─────────────────────────────
             _cb(progress_callback, "timestamp_map", 35)
-            raw_audio = os.path.join(output_dir, f"{qid}_audio.mp3")
+            raw_audio = os.path.join(output_dir, "audio.mp3")
             audio_timeline, total_duration = concatenate_audio(segments, raw_audio)
             timeline = build_timeline(question_data, audio_timeline)
             result["duration"] = total_duration
@@ -145,10 +146,10 @@ class VideoPipeline:
                 if bgm_files:
                     bgm_src = _rnd.choice(bgm_files)
                 else:
-                    bgm_src = os.path.join(output_dir, f"{qid}_bgm.wav")
+                    bgm_src = os.path.join(output_dir, "bgm.wav")
                     generate_bg_music(total_duration, bgm_src, volume=1.0,
                                       style=self.config.get("BGM_STYLE", "ambient"))
-                mixed = os.path.join(output_dir, f"{qid}_mixed.mp3")
+                mixed = os.path.join(output_dir, "mixed.mp3")
                 mix_audio_with_bgm(raw_audio, bgm_src, mixed,
                                    bgm_volume=self.config.get("BGM_VOLUME", 0.30))
                 final_audio = mixed
@@ -182,13 +183,13 @@ class VideoPipeline:
 
             # ── Stage 5: Encode (GPU → CPU fallback) ────────────────────────
             _cb(progress_callback, "encoding", 88)
-            video_path = os.path.join(output_dir, f"{qid}.mp4")
-            self._encode_video(frames_dir, final_audio, video_path, fps, bitrate, width, height, frame_workers)
+            video_path = os.path.join(output_dir, "video.mp4")
+            self._encode_video(frames_dir, final_audio, video_path, fps, bitrate, width, height, frame_workers, crf=crf)
             result["video_path"] = video_path
             _cb(progress_callback, "encoding", 95)
 
             # ── Stage 6: Thumbnail ───────────────────────────────────────────
-            thumb_path = os.path.join(output_dir, f"{qid}_thumb.png")
+            thumb_path = os.path.join(output_dir, "thumb.png")
             renderer = FrameRenderer(width=width, height=height,
                                      theme=theme_colors, watermark=watermark_cfg)
             self._generate_thumbnail(timeline, question_data, renderer, thumb_path)
@@ -197,7 +198,7 @@ class VideoPipeline:
             # ── Stage 7: Thumbnail intro prepend ────────────────────────────
             intro_secs = question_data.get("thumbnail_intro_seconds", 0)
             if intro_secs > 0 and os.path.exists(thumb_path):
-                final_path = os.path.join(output_dir, f"{qid}_final.mp4")
+                final_path = os.path.join(output_dir, "video_final.mp4")
                 self._prepend_thumbnail_intro(
                     thumb_path, video_path, final_path,
                     intro_secs, fps, bitrate, width, height)
@@ -206,28 +207,15 @@ class VideoPipeline:
 
             # ── Cleanup: frames + all temp audio (auto after each question) ──
             shutil.rmtree(frames_dir, ignore_errors=True)
-            self._cleanup_temp_audio(qid, output_dir)
+            self._cleanup_temp_audio(output_dir)
             result["audio_path"] = ""   # audio deleted; only .mp4 + thumb remain
 
             _cb(progress_callback, "completed", 100)
             return result
 
         except Exception as e:
-            # Best-effort cleanup of all partial files on failure
-            shutil.rmtree(frames_dir, ignore_errors=True)
-            self._cleanup_temp_audio(qid, output_dir)
-            for fname in (f"{qid}.mp4", f"{qid}_thumb.png", f"{qid}_final.mp4"):
-                p = os.path.join(output_dir, fname)
-                try:
-                    os.remove(p)
-                except OSError:
-                    pass
-            # Remove output_dir only if now completely empty
-            try:
-                if not os.listdir(output_dir):
-                    os.rmdir(output_dir)
-            except OSError:
-                pass
+            # Best-effort cleanup of partial files on failure — wipe the whole dir
+            shutil.rmtree(output_dir, ignore_errors=True)
             result["error"] = str(e)
             _cb(progress_callback, "failed", 0)
             raise
@@ -278,9 +266,11 @@ class VideoPipeline:
 
     # ── Encoding ──────────────────────────────────────────────────────────────
 
-    def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height, frame_workers=None):
+    def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height, frame_workers=None, crf=None):
         """Encode frames + audio → MP4 using hardware-detected encoder.
-        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel."""
+        GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel.
+        crf: if set, uses CRF quality-based encoding (P5-P7) — guarantees quality
+             regardless of content complexity. bitrate becomes a maximum cap."""
         ffmpeg = self._get_ffmpeg_path()
         alloc = compute_allocation()
         encoder = alloc["gpu_encoder"]
@@ -289,14 +279,20 @@ class VideoPipeline:
         enc_threads = alloc["encode_threads"]
 
         def _run(enc, flags, use_lock, threads):
+            if crf and enc == "libx264":
+                # CRF mode: guaranteed quality, bitrate is an upper cap
+                quality_flags = ["-crf", str(crf), "-maxrate", bitrate, "-bufsize", bitrate]
+            else:
+                # ABR mode for lower presets or GPU encoders
+                quality_flags = ["-b:v", bitrate]
+
             cmd = [
                 ffmpeg, "-y",
                 "-framerate", str(fps),
                 "-i", os.path.join(frames_dir, "frame_%06d.png"),
                 "-i", audio_path,
                 "-c:v", enc,
-            ] + flags + [
-                "-b:v", bitrate,
+            ] + flags + quality_flags + [
                 "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "192k",
                 "-threads", threads,
@@ -362,13 +358,14 @@ class VideoPipeline:
 
     # ── Cleanup ───────────────────────────────────────────────────────────────
 
-    def _cleanup_temp_audio(self, qid, output_dir):
+    def _cleanup_temp_audio(self, output_dir):
         """Delete audio segments + intermediate audio files after successful render."""
-        audio_dir = os.path.join(output_dir, f"audio_{qid}")
-        if os.path.isdir(audio_dir):
-            shutil.rmtree(audio_dir, ignore_errors=True)
-        for suffix in (f"{qid}_audio.mp3", f"{qid}_bgm.wav", f"{qid}_mixed.mp3"):
-            path = os.path.join(output_dir, suffix)
+        for name in ("audio", "frames"):
+            p = os.path.join(output_dir, name)
+            if os.path.isdir(p):
+                shutil.rmtree(p, ignore_errors=True)
+        for name in ("audio.mp3", "bgm.wav", "mixed.mp3"):
+            path = os.path.join(output_dir, name)
             if os.path.exists(path):
                 try:
                     os.remove(path)

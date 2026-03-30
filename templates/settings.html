@@ -202,8 +202,9 @@
                         return r.blob();
                     })
                     .then(function(blob) {
+                        if (blob.size === 0) { throw new Error('No audio data — voice unavailable'); }
                         audio.src = URL.createObjectURL(blob);
-                        audio.play();
+                        audio.play().catch(function(e) { status.textContent = 'Playback error: ' + e.message; });
                         status.textContent = 'Playing: ' + voice;
                     })
                     .catch(function(e) {

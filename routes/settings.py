@@ -101,7 +101,7 @@ def tts_preview():
     static_dir = os.path.join(current_app.root_path, "static", "voice_samples")
     cached = os.path.join(static_dir, f"{voice}.mp3")
 
-    if os.path.exists(cached):
+    if os.path.exists(cached) and os.path.getsize(cached) > 0:
         return send_file(cached, mimetype="audio/mpeg", as_attachment=False,
                          download_name="preview.mp3")
 

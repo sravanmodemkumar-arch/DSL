@@ -196,6 +196,12 @@ def process():
                 requeued += 1
                 continue
 
+        # Each question gets its own directory named by question ID
+        _output_dir = os.path.join(
+            current_app.config["VIDEOS_DIR"],
+            qid,
+        )
+
         video = Video(
             video_id=qid,
             title=title,
@@ -211,6 +217,7 @@ def process():
             quality_preset=quality,
             theme=theme,
             json_path=json_path,
+            output_dir=_output_dir,
             status="pending",
         )
         db.session.add(video)
@@ -420,10 +427,11 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             if not question_data:
                 raise ValueError(f"Question {video.video_id} not found in JSON")
 
-            output_dir = os.path.join(
+            # Use the pre-assigned UUID output directory (set at job creation)
+            output_dir = video.output_dir or os.path.join(
                 config_dict["VIDEOS_DIR"],
                 video.subject,
-                video.topic,
+                video.topic or "general",
                 video.subtopic or "general",
             )
             os.makedirs(output_dir, exist_ok=True)

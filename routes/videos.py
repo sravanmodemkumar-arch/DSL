@@ -218,11 +218,11 @@ def preview_frames(video_id):
 
 @videos_bp.route("/<video_id>/stream")
 def stream(video_id):
-    """Stream video file for in-browser playback."""
+    """Stream video file for in-browser playback with Range request support."""
     video = Video.query.filter_by(video_id=video_id).first_or_404()
     if not video.video_path or not os.path.exists(video.video_path):
         abort(404, "Video file not found")
-    return send_file(video.video_path, mimetype="video/mp4")
+    return send_file(video.video_path, mimetype="video/mp4", conditional=True)
 
 
 @videos_bp.route("/<video_id>/thumbnail")
@@ -237,14 +237,10 @@ def thumbnail(video_id):
 def delete(video_id):
     video = Video.query.filter_by(video_id=video_id).first_or_404()
 
-    # Delete files
-    for path in [video.video_path, video.audio_path, video.thumbnail_path]:
-        if path and os.path.exists(path):
-            os.remove(path)
-
-    # Delete jobs
     from models import JobQueue
+    from routes.queue_routes import _cleanup_video_files
     JobQueue.query.filter_by(video_id=video_id).delete()
+    _cleanup_video_files(video)
 
     db.session.delete(video)
     db.session.commit()
@@ -303,6 +299,10 @@ def retry(video_id):
     video.status = "pending"
     video.progress = 0
     video.error_message = ""
+    video.output_dir = os.path.join(
+        current_app.config["VIDEOS_DIR"],
+        video_id,
+    )
 
     from models import JobQueue
     job = JobQueue(video_id=video_id, priority=2, status="queued")

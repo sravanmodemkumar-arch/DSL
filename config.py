@@ -65,9 +65,10 @@ class Config:
         "P2": {"bitrate": "2M",  "fps": 24, "antialiasing": True,  "label": "Draft"},
         "P3": {"bitrate": "4M",  "fps": 30, "antialiasing": True,  "label": "Mobile"},
         "P4": {"bitrate": "6M",  "fps": 30, "antialiasing": True,  "label": "Standard"},
-        "P5": {"bitrate": "10M", "fps": 30, "antialiasing": True,  "label": "YouTube"},
-        "P6": {"bitrate": "15M", "fps": 60, "antialiasing": True,  "label": "High Quality"},
-        "P7": {"bitrate": "25M", "fps": 60, "antialiasing": True,  "label": "Maximum"},
+        # P5-P7: CRF-based quality (guaranteed minimum quality regardless of content complexity)
+        "P5": {"bitrate": "10M", "crf": "22", "fps": 30, "antialiasing": True,  "label": "YouTube"},
+        "P6": {"bitrate": "15M", "crf": "20", "fps": 60, "antialiasing": True,  "label": "High Quality"},
+        "P7": {"bitrate": "25M", "crf": "18", "fps": 60, "antialiasing": True,  "label": "Maximum"},
     }
 
     # TTS
