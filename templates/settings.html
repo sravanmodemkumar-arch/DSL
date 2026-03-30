@@ -1,690 +1,995 @@
 {% extends "base.html" %}
-{% block title %}Settings - STEM Video Generator{% endblock %}
+{% block title %}Settings — STEM Video Generator{% endblock %}
+
+{% block head %}
+<style>
+.tab-btn { transition: all 0.2s ease; }
+.tab-btn.active {
+    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,212,255,0.05));
+    color: #00d4ff;
+    border-color: rgba(0,212,255,0.4);
+    box-shadow: 0 0 16px rgba(0,212,255,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: tabIn 0.2s ease; }
+@keyframes tabIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+.field-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 0.35rem; display: block; }
+.field-input {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    font-size: 0.875rem;
+    color: #e5e7eb;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field-input:focus {
+    border-color: rgba(0,212,255,0.45);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.08);
+}
+.field-hint { font-size: 0.7rem; color: #4b5563; margin-top: 0.3rem; }
+.section-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 1.75rem;
+}
+.section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #00d4ff;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,212,255,0.3), transparent);
+}
+.save-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: linear-gradient(135deg, rgba(15,15,35,0.97), rgba(26,26,46,0.97));
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: -1.5rem -1.5rem 0 -1.5rem;
+}
+.btn-primary {
+    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    color: #0f0f23;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.55rem 1.4rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.35); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost {
+    background: rgba(255,255,255,0.05);
+    color: #9ca3af;
+    font-size: 0.8rem;
+    padding: 0.55rem 1.1rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.07);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.1); color: #e5e7eb; }
+.badge-saved {
+    font-size: 0.7rem;
+    color: #10b981;
+    background: rgba(16,185,129,0.12);
+    border: 1px solid rgba(16,185,129,0.2);
+    border-radius: 20px;
+    padding: 0.25rem 0.7rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.toggle-row:last-child { border-bottom: none; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <div>
-        <h2 class="text-2xl font-bold">Settings</h2>
-        <p class="text-gray-400 text-sm mt-1">Configure default video generation settings</p>
+<form id="settings-form">
+
+<!-- ── Sticky Save Bar ───────────────────────────────────────────────── -->
+<div class="save-bar">
+    <div class="flex items-center gap-3">
+        <svg class="w-4 h-4 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <div>
+            <p class="text-sm font-semibold text-white leading-tight">Settings</p>
+            <p class="text-xs text-gray-500 leading-tight">Configure video generation defaults</p>
+        </div>
     </div>
-
-    <form id="settings-form">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Video Defaults -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">Video Defaults</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Default Resolution</label>
-                        <select name="default_resolution" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            {% for res in resolutions %}
-                            <option value="{{ res }}" {{ 'selected' if settings.default_resolution == res }}>{{ res }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Default Quality Preset</label>
-                        <select name="default_quality_preset" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            {% for key, val in presets.items() %}
-                            <option value="{{ key }}" {{ 'selected' if settings.default_quality_preset == key }}>{{ key }} - {{ val.label }} ({{ val.bitrate }}, {{ val.fps }}fps)</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Default Duration (minutes)</label>
-                        <input type="number" name="default_duration_minutes" value="{{ settings.default_duration_minutes }}" min="1" max="30"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Default Theme</label>
-                        <select name="default_theme" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="dark" {{ 'selected' if settings.default_theme == 'dark' }}>Dark</option>
-                            <option value="light" {{ 'selected' if settings.default_theme == 'light' }}>Light</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Default FPS</label>
-                        <select name="default_fps" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="24" {{ 'selected' if settings.default_fps == '24' }}>24 fps</option>
-                            <option value="30" {{ 'selected' if settings.default_fps == '30' }}>30 fps</option>
-                            <option value="60" {{ 'selected' if settings.default_fps == '60' }}>60 fps</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Audio / TTS -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">Audio / TTS</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">TTS Engine</label>
-                        <select name="tts_engine" id="tts_engine" onchange="toggleTtsFields()" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="edge_tts" {{ 'selected' if settings.tts_engine == 'edge_tts' }}>Edge TTS — Neural (Best, Free)</option>
-                            <option value="gtts" {{ 'selected' if settings.tts_engine == 'gtts' }}>Google TTS (Online)</option>
-                            <option value="pyttsx3" {{ 'selected' if settings.tts_engine == 'pyttsx3' }}>pyttsx3 (Offline)</option>
-                        </select>
-                    </div>
-                    <!-- Edge TTS voice selector -->
-                    <div id="edge_voice_row">
-                        <label class="block text-xs text-gray-400 mb-1">Voice (Edge TTS)</label>
-                        <div class="flex gap-2 items-start">
-                        <select id="edge_voice_select" name="tts_tld" class="flex-1 bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none" onchange="resetPreview()">
-                            <optgroup label="— Indian English —">
-                                <option value="en-IN-NeerjaNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaNeural' }}>Neerja — Indian Female (clear)</option>
-                                <option value="en-IN-NeerjaExpressiveNeural" {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaExpressiveNeural' }}>Neerja Expressive — Indian Female</option>
-                                <option value="en-IN-PrabhatNeural"          {{ 'selected' if settings.tts_tld == 'en-IN-PrabhatNeural' }}>Prabhat — Indian Male (clear)</option>
-                                <option value="en-IN-AaravNeural"            {{ 'selected' if settings.tts_tld == 'en-IN-AaravNeural' }}>Aarav — Indian Male (young)</option>
-                                <option value="en-IN-AnanyaNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-AnanyaNeural' }}>Ananya — Indian Female (warm)</option>
-                                <option value="en-IN-KavyaNeural"            {{ 'selected' if settings.tts_tld == 'en-IN-KavyaNeural' }}>Kavya — Indian Female (bright)</option>
-                                <option value="en-IN-KunalNeural"            {{ 'selected' if settings.tts_tld == 'en-IN-KunalNeural' }}>Kunal — Indian Male (deep)</option>
-                                <option value="en-IN-RehaanNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-RehaanNeural' }}>Rehaan — Indian Male (casual)</option>
-                            </optgroup>
-                            <optgroup label="— Hindi —">
-                                <option value="hi-IN-SwaraNeural"  {{ 'selected' if settings.tts_tld == 'hi-IN-SwaraNeural' }}>Swara — Hindi Female</option>
-                                <option value="hi-IN-MadhurNeural" {{ 'selected' if settings.tts_tld == 'hi-IN-MadhurNeural' }}>Madhur — Hindi Male</option>
-                            </optgroup>
-                            <optgroup label="— Tamil —">
-                                <option value="ta-IN-PallaviNeural"  {{ 'selected' if settings.tts_tld == 'ta-IN-PallaviNeural' }}>Pallavi — Tamil Female</option>
-                                <option value="ta-IN-ValluvarNeural" {{ 'selected' if settings.tts_tld == 'ta-IN-ValluvarNeural' }}>Valluvar — Tamil Male</option>
-                            </optgroup>
-                            <optgroup label="— Telugu —">
-                                <option value="te-IN-ShrutiNeural" {{ 'selected' if settings.tts_tld == 'te-IN-ShrutiNeural' }}>Shruti — Telugu Female</option>
-                                <option value="te-IN-MohanNeural"  {{ 'selected' if settings.tts_tld == 'te-IN-MohanNeural' }}>Mohan — Telugu Male</option>
-                            </optgroup>
-                            <optgroup label="— Marathi —">
-                                <option value="mr-IN-AarohiNeural"  {{ 'selected' if settings.tts_tld == 'mr-IN-AarohiNeural' }}>Aarohi — Marathi Female</option>
-                                <option value="mr-IN-ManoharNeural" {{ 'selected' if settings.tts_tld == 'mr-IN-ManoharNeural' }}>Manohar — Marathi Male</option>
-                            </optgroup>
-                            <optgroup label="— Bengali —">
-                                <option value="bn-IN-TanishaaNeural" {{ 'selected' if settings.tts_tld == 'bn-IN-TanishaaNeural' }}>Tanishaa — Bengali Female</option>
-                                <option value="bn-IN-BashkarNeural"  {{ 'selected' if settings.tts_tld == 'bn-IN-BashkarNeural' }}>Bashkar — Bengali Male</option>
-                            </optgroup>
-                            <optgroup label="— Gujarati —">
-                                <option value="gu-IN-DhwaniNeural"   {{ 'selected' if settings.tts_tld == 'gu-IN-DhwaniNeural' }}>Dhwani — Gujarati Female</option>
-                                <option value="gu-IN-NiranjanNeural" {{ 'selected' if settings.tts_tld == 'gu-IN-NiranjanNeural' }}>Niranjan — Gujarati Male</option>
-                            </optgroup>
-                            <optgroup label="— Kannada —">
-                                <option value="kn-IN-SapnaNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-SapnaNeural' }}>Sapna — Kannada Female</option>
-                                <option value="kn-IN-GaganNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-GaganNeural' }}>Gagan — Kannada Male</option>
-                            </optgroup>
-                            <optgroup label="— Malayalam —">
-                                <option value="ml-IN-SobhanaNeural" {{ 'selected' if settings.tts_tld == 'ml-IN-SobhanaNeural' }}>Sobhana — Malayalam Female</option>
-                                <option value="ml-IN-MidhunNeural"  {{ 'selected' if settings.tts_tld == 'ml-IN-MidhunNeural' }}>Midhun — Malayalam Male</option>
-                            </optgroup>
-                            <optgroup label="— International —">
-                                <option value="en-US-JennyNeural" {{ 'selected' if settings.tts_tld == 'en-US-JennyNeural' }}>Jenny — US Female</option>
-                                <option value="en-US-GuyNeural"   {{ 'selected' if settings.tts_tld == 'en-US-GuyNeural' }}>Guy — US Male</option>
-                                <option value="en-GB-SoniaNeural" {{ 'selected' if settings.tts_tld == 'en-GB-SoniaNeural' }}>Sonia — British Female</option>
-                            </optgroup>
-                        </select>
-                        <button type="button" onclick="previewVoice()"
-                            class="shrink-0 px-3 py-2 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
-                            ▶ Preview
-                        </button>
-                        </div>
-                        <div id="preview_player" class="mt-2 hidden">
-                            <audio id="preview_audio" controls class="w-full h-8"></audio>
-                            <p id="preview_status" class="text-xs text-gray-500 mt-1"></p>
-                        </div>
-                        <!-- Pre-generate all samples -->
-                        <div class="mt-3 flex items-center gap-3">
-                            <button type="button" onclick="generateAllSamples()"
-                                class="px-3 py-1.5 bg-dark-bg hover:bg-dark-border border border-dark-border rounded-lg text-xs text-gray-300 transition-colors">
-                                Generate All Samples
-                            </button>
-                            <span class="text-xs text-gray-500">saves to <code>static/voice_samples/</code> for instant playback</span>
-                        </div>
-                        <div id="gen_samples_result" class="mt-2"></div>
-                    </div>
-                    <!-- gTTS accent selector (shown only when gtts selected) -->
-                    <div id="gtts_rows" style="display:none">
-                        <div>
-                            <label class="block text-xs text-gray-400 mb-1">Language</label>
-                            <select name="tts_lang" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                <option value="en" {{ 'selected' if settings.tts_lang == 'en' }}>English</option>
-                                <option value="hi" {{ 'selected' if settings.tts_lang == 'hi' }}>Hindi</option>
-                            </select>
-                        </div>
-                        <div class="mt-3">
-                            <label class="block text-xs text-gray-400 mb-1">Accent (gTTS TLD)</label>
-                            <select name="tts_tld_gtts" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                <option value="co.in" {{ 'selected' if settings.tts_tld == 'co.in' }}>Indian English</option>
-                                <option value="com"   {{ 'selected' if settings.tts_tld == 'com' }}>US English</option>
-                                <option value="co.uk" {{ 'selected' if settings.tts_tld == 'co.uk' }}>UK English</option>
-                                <option value="com.au" {{ 'selected' if settings.tts_tld == 'com.au' }}>Australian English</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <script>
-            function generateAllSamples() {
-                var btn = event.target;
-                var res = document.getElementById('gen_samples_result');
-                btn.disabled = true;
-                btn.textContent = 'Generating…';
-                res.innerHTML = '<p class="text-xs text-gray-400">This may take a minute…</p>';
-                fetch('/settings/tts-generate-samples', {method: 'POST', body: new FormData()})
-                    .then(function(r){ return r.text(); })
-                    .then(function(html){
-                        res.innerHTML = html;
-                        btn.disabled = false;
-                        btn.textContent = 'Generate All Samples';
-                    })
-                    .catch(function(e){
-                        res.innerHTML = '<p class="text-xs text-red-400">Error: ' + e.message + '</p>';
-                        btn.disabled = false;
-                        btn.textContent = 'Generate All Samples';
-                    });
-            }
-            function toggleTtsFields() {
-                var eng = document.getElementById('tts_engine').value;
-                document.getElementById('edge_voice_row').style.display = eng === 'edge_tts' ? '' : 'none';
-                document.getElementById('gtts_rows').style.display = eng === 'gtts' ? '' : 'none';
-                resetPreview();
-            }
-            function resetPreview() {
-                document.getElementById('preview_player').classList.add('hidden');
-                document.getElementById('preview_status').textContent = '';
-            }
-            function previewVoice() {
-                var voice = document.getElementById('edge_voice_select').value;
-                var status = document.getElementById('preview_status');
-                var player = document.getElementById('preview_player');
-                var audio  = document.getElementById('preview_audio');
-                status.textContent = 'Generating sample…';
-                player.classList.remove('hidden');
-                audio.src = '';
-                fetch('/settings/tts-preview?voice=' + encodeURIComponent(voice))
-                    .then(function(r) {
-                        if (!r.ok) return r.json().then(function(j){ throw new Error(j.error); });
-                        return r.blob();
-                    })
-                    .then(function(blob) {
-                        if (blob.size === 0) { throw new Error('No audio data — voice unavailable'); }
-                        audio.src = URL.createObjectURL(blob);
-                        audio.play().catch(function(e) { status.textContent = 'Playback error: ' + e.message; });
-                        status.textContent = 'Playing: ' + voice;
-                    })
-                    .catch(function(e) {
-                        status.textContent = 'Error: ' + e.message;
-                    });
-            }
-            toggleTtsFields();
-            </script>
-
-            <!-- Background Music -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">Background Music</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Enable BGM</label>
-                        <select name="bgm_enabled" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="true" {{ 'selected' if settings.bgm_enabled == 'true' }}>Enabled</option>
-                            <option value="false" {{ 'selected' if settings.bgm_enabled == 'false' }}>Disabled</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Music Style</label>
-                        <select name="bgm_style" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="calm_waves" {{ 'selected' if settings.bgm_style == 'calm_waves' }}>Calm Waves — slow sine pad</option>
-                            <option value="zen_garden" {{ 'selected' if settings.bgm_style == 'zen_garden' }}>Zen Garden — soft pentatonic chimes</option>
-                            <option value="morning_dew" {{ 'selected' if settings.bgm_style == 'morning_dew' }}>Morning Dew — light airy shimmer</option>
-                            <option value="deep_focus" {{ 'selected' if settings.bgm_style == 'deep_focus' }}>Deep Focus — low drone</option>
-                            <option value="soft_piano" {{ 'selected' if settings.bgm_style == 'soft_piano' }}>Soft Piano — gentle arpeggio</option>
-                            <option value="crystal_bowl" {{ 'selected' if settings.bgm_style == 'crystal_bowl' }}>Crystal Bowl — singing bowl resonance</option>
-                            <option value="forest_stream" {{ 'selected' if settings.bgm_style == 'forest_stream' }}>Forest Stream — nature ambience</option>
-                            <option value="twilight" {{ 'selected' if settings.bgm_style == 'twilight' }}>Twilight — warm evening chords</option>
-                            <option value="lotus" {{ 'selected' if settings.bgm_style == 'lotus' }}>Lotus — Indian tanpura drone</option>
-                            <option value="bansuri" {{ 'selected' if settings.bgm_style == 'bansuri' }}>Bansuri — Indian meditation flute</option>
-                            <option value="silent_mind" {{ 'selected' if settings.bgm_style == 'silent_mind' }}>Silent Mind — barely-there hum</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">BGM Volume (0.05 - 0.30)</label>
-                        <input type="number" name="bgm_volume" value="{{ settings.bgm_volume }}" min="0.05" max="0.30" step="0.05"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-1">Lower = more subtle. Narration always stays clear.</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Watermark -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">Watermark (Copyright Protection)</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Enable Watermark</label>
-                        <select name="watermark_enabled" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="false" {{ 'selected' if settings.watermark_enabled == 'false' }}>Disabled</option>
-                            <option value="true"  {{ 'selected' if settings.watermark_enabled == 'true' }}>Enabled — moves every 4 sec</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Text Watermark (if no image)</label>
-                        <input type="text" name="watermark_text" value="{{ settings.watermark_text }}"
-                            placeholder="e.g. © MyChannel"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-1">Used only when no image is uploaded.</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Opacity (0.10 – 0.80)</label>
-                        <input type="number" name="watermark_opacity" value="{{ settings.watermark_opacity }}"
-                            min="0.10" max="0.80" step="0.05"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                    </div>
-                    <!-- Image upload (separate form, not part of main save) -->
-                    <div class="border border-dark-border rounded-lg p-3 space-y-2">
-                        <label class="block text-xs text-gray-400">Watermark Image (PNG / JPG / WEBP)</label>
-                        <div id="wm_status" hx-get="/settings/watermark/status"
-                             hx-trigger="load" class="mb-1"></div>
-                        <div class="flex gap-2">
-                            <input type="file" id="wm_file" accept=".png,.jpg,.jpeg,.webp"
-                                class="flex-1 text-xs text-gray-400 bg-dark-bg border border-dark-border rounded-lg px-2 py-1.5 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-accent/20 file:text-accent">
-                            <button type="button" onclick="uploadWatermark()"
-                                class="shrink-0 px-3 py-1.5 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
-                                Upload
-                            </button>
-                            <button type="button"
-                                hx-post="/settings/watermark/delete"
-                                hx-target="#wm_status" hx-swap="innerHTML"
-                                class="shrink-0 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-400 transition-colors">
-                                Remove
-                            </button>
-                        </div>
-                        <div id="wm_upload_result"></div>
-                    </div>
-                </div>
-            </div>
-            <script>
-            function uploadWatermark() {
-                var file = document.getElementById('wm_file').files[0];
-                if (!file) { alert('Select a file first.'); return; }
-                var fd = new FormData();
-                fd.append('watermark_file', file);
-                fetch('/settings/watermark/upload', { method: 'POST', body: fd })
-                    .then(function(r){ return r.text(); })
-                    .then(function(html){
-                        document.getElementById('wm_upload_result').innerHTML = html;
-                        htmx.trigger('#wm_status', 'load');
-                    });
-            }
-            </script>
-
-            <!-- Copyright & Licensing -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-1">Copyright &amp; Licensing</h3>
-                <p class="text-xs text-gray-500 mb-4">Controls rights notices added to YouTube descriptions and video metadata.</p>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Copyright Owner / Channel Name</label>
-                        <input type="text" name="copyright_owner"
-                            value="{{ settings.copyright_owner }}"
-                            placeholder="e.g. ExamReady Academy"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-0.5">Used in © notice: "© 2024 ExamReady Academy"</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Copyright Year</label>
-                        <input type="text" name="copyright_year"
-                            value="{{ settings.copyright_year }}"
-                            placeholder="2024  (leave blank = current year)"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Content License</label>
-                        <select name="content_license" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="all-rights-reserved"  {{ 'selected' if settings.content_license == 'all-rights-reserved' }}>All Rights Reserved — No re-use permitted</option>
-                            <option value="cc-by-nc-nd"          {{ 'selected' if settings.content_license == 'cc-by-nc-nd' }}>CC BY-NC-ND — Share only, no edits, no commercial</option>
-                            <option value="cc-by-nc"             {{ 'selected' if settings.content_license == 'cc-by-nc' }}>CC BY-NC — Share &amp; adapt, non-commercial only</option>
-                            <option value="cc-by"                {{ 'selected' if settings.content_license == 'cc-by' }}>CC BY — Free use with attribution</option>
-                            <option value="youtube-standard"     {{ 'selected' if settings.content_license == 'youtube-standard' }}>YouTube Standard License</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">No Re-upload / Clipping Notice</label>
-                        <select name="no_reuse_notice" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="true"  {{ 'selected' if settings.no_reuse_notice == 'true' }}>Enabled — append notice to all descriptions</option>
-                            <option value="false" {{ 'selected' if settings.no_reuse_notice == 'false' }}>Disabled</option>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-0.5">Adds: "Unauthorized re-upload, clipping, or redistribution is strictly prohibited."</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Custom Copyright Footer Text
-                            <span class="text-gray-600">(appended to every YouTube description)</span></label>
-                        <textarea name="copyright_footer_text" rows="3"
-                            placeholder="© 2024 ExamReady Academy. All rights reserved. Do not re-upload or clip without written permission."
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none resize-none">{{ settings.copyright_footer_text }}</textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Processing -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">Processing</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Max Workers (parallel jobs)</label>
-                        <input type="number" name="max_workers" value="{{ settings.max_workers }}" min="1" max="16"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Job Timeout (seconds)</label>
-                        <input type="number" name="job_timeout" value="{{ settings.job_timeout }}" min="60" max="3600"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">FFmpeg Path</label>
-                        <input type="text" name="ffmpeg_path" value="{{ settings.ffmpeg_path }}"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-1">Leave as "ffmpeg" if installed in PATH</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- YouTube (Optional) -->
-            <div class="bg-dark-card border border-dark-border rounded-xl p-5">
-                <h3 class="text-sm font-semibold mb-4">YouTube API Setup</h3>
-                <div class="space-y-4">
-
-                    <!-- Credentials panel -->
-                    <div class="border border-dark-border rounded-lg p-3 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <label class="text-xs text-gray-400 font-medium">YouTube OAuth Credentials</label>
-                            <div id="yt_secrets_status" hx-get="/settings/youtube/secrets-status" hx-trigger="load"></div>
-                        </div>
-
-                        <!-- Tab toggle -->
-                        <div class="flex gap-1 text-xs">
-                            <button type="button" onclick="ytTab('key')" id="tab-key"
-                                class="px-3 py-1.5 rounded bg-accent/20 text-accent border border-accent/30">
-                                Enter Client ID &amp; Secret
-                            </button>
-                            <button type="button" onclick="ytTab('file')" id="tab-file"
-                                class="px-3 py-1.5 rounded bg-white/10 text-gray-400 border border-dark-border">
-                                Upload JSON File
-                            </button>
-                        </div>
-
-                        <!-- Option 1: Client ID + Secret fields -->
-                        <div id="yt-key-panel" class="space-y-2">
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">OAuth Client ID</label>
-                                <input type="text" id="yt_client_id" placeholder="xxxx.apps.googleusercontent.com"
-                                    class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-xs font-mono focus:border-accent/50 focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">OAuth Client Secret</label>
-                                <input type="text" id="yt_client_secret" placeholder="GOCSPX-..."
-                                    class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-xs font-mono focus:border-accent/50 focus:outline-none">
-                            </div>
-                            <button type="button" onclick="saveOAuthKeys()"
-                                class="w-full px-3 py-2 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
-                                Save Credentials
-                            </button>
-                        </div>
-
-                        <!-- Option 2: File upload -->
-                        <div id="yt-file-panel" class="hidden space-y-2">
-                            <div class="flex gap-2">
-                                <input type="file" id="yt_secrets_file" accept=".json"
-                                    class="flex-1 text-xs text-gray-400 bg-dark-bg border border-dark-border rounded-lg px-2 py-1.5 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-accent/20 file:text-accent">
-                                <button type="button" onclick="uploadSecrets()"
-                                    class="shrink-0 px-3 py-1.5 bg-accent/20 hover:bg-accent/40 border border-accent/30 rounded-lg text-xs text-accent transition-colors">
-                                    Upload
-                                </button>
-                            </div>
-                        </div>
-
-                        <div id="yt_upload_result" class="text-xs"></div>
-
-                        <!-- Remove + Connect -->
-                        <div class="flex gap-2 pt-1">
-                            <a href="/youtube/auth"
-                                class="flex-1 text-center px-3 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs hover:bg-red-500/30 transition">
-                                Connect YouTube Account →
-                            </a>
-                            <button type="button"
-                                hx-post="/settings/youtube/remove-secrets"
-                                hx-target="#yt_secrets_status" hx-swap="innerHTML"
-                                hx-confirm="Remove credentials and disconnect YouTube?"
-                                class="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs text-red-400 transition-colors">
-                                Remove
-                            </button>
-                        </div>
-
-                        <div class="text-xs text-gray-600 space-y-1 bg-dark-bg rounded-lg p-3">
-                            <p class="text-gray-400 font-medium">Google Cloud Console setup:</p>
-                            <p>1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-accent hover:underline">Open Credentials</a> → your OAuth 2.0 Client ID → Edit</p>
-                            <p>2. Under <strong>Authorized redirect URIs</strong> add <strong>both</strong>:</p>
-                            <p class="font-mono bg-black/30 px-2 py-1 rounded text-accent select-all">http://127.0.0.1:5000/youtube/oauth-callback</p>
-                            <p class="font-mono bg-black/30 px-2 py-1 rounded text-accent select-all">http://localhost:5000/youtube/oauth-callback</p>
-                            <p>3. Click <strong>Save</strong> in Google Console, then Save Credentials here, then Connect</p>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">OAuth Redirect URI</label>
-                        <input type="text" name="youtube_redirect_uri"
-                            value="{{ settings.youtube_redirect_uri or 'http://127.0.0.1:5000/youtube/oauth-callback' }}"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-1">For cloud: use <code>https://yourdomain.com/youtube/oauth-callback</code> — add this same URI in Google Cloud Console</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">YouTube API Key <span class="text-gray-600">(read-only operations only)</span></label>
-                        <input type="text" name="youtube_api_key"
-                            value="{{ settings.youtube_api_key }}"
-                            placeholder="AIza..."
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
-                        <p class="text-xs text-gray-500 mt-1">API key is for reading YouTube data only. Uploading always requires OAuth.</p>
-                    </div>
-                    <!-- Upload behaviour -->
-                    <div class="border-t border-dark-border pt-3 space-y-3">
-                        <p class="text-xs text-gray-400 font-medium">Upload Behaviour</p>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Auto Upload after Render</label>
-                                <select name="auto_youtube_upload" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                    <option value="false" {{ 'selected' if settings.auto_youtube_upload == 'false' }}>Disabled</option>
-                                    <option value="true"  {{ 'selected' if settings.auto_youtube_upload == 'true' }}>Enabled</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Default Privacy</label>
-                                <select name="youtube_default_privacy" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                    <option value="public"   {{ 'selected' if settings.youtube_default_privacy == 'public' }}>Public</option>
-                                    <option value="unlisted" {{ 'selected' if settings.youtube_default_privacy == 'unlisted' }}>Unlisted</option>
-                                    <option value="private"  {{ 'selected' if settings.youtube_default_privacy == 'private' }}>Private</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Category</label>
-                                <select name="youtube_default_category" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                    <option value="27" {{ 'selected' if settings.youtube_default_category == '27' }}>Education (27)</option>
-                                    <option value="28" {{ 'selected' if settings.youtube_default_category == '28' }}>Science & Tech (28)</option>
-                                    <option value="26" {{ 'selected' if settings.youtube_default_category == '26' }}>How-to & Style (26)</option>
-                                    <option value="22" {{ 'selected' if settings.youtube_default_category == '22' }}>People & Blogs (22)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Language</label>
-                                <select name="youtube_language" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                    <option value="en"    {{ 'selected' if settings.youtube_language == 'en' }}>English</option>
-                                    <option value="hi"    {{ 'selected' if settings.youtube_language == 'hi' }}>Hindi</option>
-                                    <option value="te"    {{ 'selected' if settings.youtube_language == 'te' }}>Telugu</option>
-                                    <option value="ta"    {{ 'selected' if settings.youtube_language == 'ta' }}>Tamil</option>
-                                    <option value="kn"    {{ 'selected' if settings.youtube_language == 'kn' }}>Kannada</option>
-                                    <option value="ml"    {{ 'selected' if settings.youtube_language == 'ml' }}>Malayalam</option>
-                                    <option value="mr"    {{ 'selected' if settings.youtube_language == 'mr' }}>Marathi</option>
-                                    <option value="bn"    {{ 'selected' if settings.youtube_language == 'bn' }}>Bengali</option>
-                                    <option value="gu"    {{ 'selected' if settings.youtube_language == 'gu' }}>Gujarati</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">License</label>
-                                <select name="youtube_license" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                    <option value="youtube" {{ 'selected' if settings.youtube_license == 'youtube' }}>Standard YouTube</option>
-                                    <option value="creativeCommon" {{ 'selected' if settings.youtube_license == 'creativeCommon' }}>Creative Commons</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-500 mb-1">Made for Kids</label>
-                                <select name="youtube_made_for_kids" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                                    <option value="false" {{ 'selected' if settings.youtube_made_for_kids != 'true' }}>No</option>
-                                    <option value="true"  {{ 'selected' if settings.youtube_made_for_kids == 'true' }}>Yes</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- SEO Metadata -->
-                    <div class="border-t border-dark-border pt-3 space-y-3">
-                        <p class="text-xs text-gray-400 font-medium">SEO Metadata (applied to every video)</p>
-
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Channel / Brand Name</label>
-                            <input type="text" name="youtube_channel_name"
-                                value="{{ settings.youtube_channel_name }}"
-                                placeholder="e.g. ExamReady Academy"
-                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <p class="text-xs text-gray-600 mt-0.5">Appended to title: "Topic | ChannelName"</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Default Keywords / Tags
-                                <span class="text-gray-600">(comma-separated — added to every video)</span></label>
-                            <textarea name="youtube_default_tags" rows="3"
-                                placeholder="competitive exam, study tips, exam preparation, shortcut tricks, concept video, education"
-                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none resize-none">{{ settings.youtube_default_tags }}</textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Default Hashtags
-                                <span class="text-gray-600">(without #, comma-separated)</span></label>
-                            <input type="text" name="youtube_default_hashtags"
-                                value="{{ settings.youtube_default_hashtags }}"
-                                placeholder="Education, ExamPreparation, StudyWithMe, ShortTricks"
-                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Description Header
-                                <span class="text-gray-600">(shown at top of every description)</span></label>
-                            <textarea name="youtube_desc_header" rows="3"
-                                placeholder="Welcome to [Channel Name]! We make exam preparation easy with clear concept videos and shortcut tricks."
-                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none resize-none">{{ settings.youtube_desc_header }}</textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Description Footer / CTA
-                                <span class="text-gray-600">(shown at bottom — links, subscribe message)</span></label>
-                            <textarea name="youtube_desc_footer" rows="4"
-                                placeholder="🔔 SUBSCRIBE for daily exam shortcuts → [channel link]
-📱 Telegram: t.me/yourchannel
-📧 Contact: your@email.com
-👍 Like | 💬 Comment | 🔔 Subscribe"
-                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none resize-none">{{ settings.youtube_desc_footer }}</textarea>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs text-gray-500 mb-1">Playlist ID
-                                <span class="text-gray-600">(auto-add videos to this playlist)</span></label>
-                            <input type="text" name="youtube_playlist_id"
-                                value="{{ settings.youtube_playlist_id }}"
-                                placeholder="PLxxxxxxxxxxxxxxxxxxxxxx"
-                                class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm font-mono focus:border-accent/50 focus:outline-none">
-                            <p class="text-xs text-gray-600 mt-0.5">Find it in YouTube Studio → Playlists → share link → ?list=THIS_PART</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <script>
-            function ytTab(t) {
-                document.getElementById('yt-key-panel').classList.toggle('hidden', t !== 'key');
-                document.getElementById('yt-file-panel').classList.toggle('hidden', t !== 'file');
-                document.getElementById('tab-key').className = t === 'key'
-                    ? 'px-3 py-1.5 rounded bg-accent/20 text-accent border border-accent/30'
-                    : 'px-3 py-1.5 rounded bg-white/10 text-gray-400 border border-dark-border';
-                document.getElementById('tab-file').className = t === 'file'
-                    ? 'px-3 py-1.5 rounded bg-accent/20 text-accent border border-accent/30'
-                    : 'px-3 py-1.5 rounded bg-white/10 text-gray-400 border border-dark-border';
-            }
-            function saveOAuthKeys() {
-                var clientId     = document.getElementById('yt_client_id').value.trim();
-                var clientSecret = document.getElementById('yt_client_secret').value.trim();
-                if (!clientId || !clientSecret) { alert('Enter both Client ID and Client Secret.'); return; }
-                var fd = new FormData();
-                fd.append('client_id', clientId);
-                fd.append('client_secret', clientSecret);
-                fetch('/settings/youtube/save-oauth-keys', { method: 'POST', body: fd })
-                    .then(function(r){ return r.text(); })
-                    .then(function(html){
-                        document.getElementById('yt_upload_result').innerHTML = html;
-                        htmx.trigger('#yt_secrets_status', 'load');
-                    });
-            }
-            function uploadSecrets() {
-                var file = document.getElementById('yt_secrets_file').files[0];
-                if (!file) { alert('Select a file first.'); return; }
-                var fd = new FormData();
-                fd.append('secrets_file', file);
-                fetch('/settings/youtube/upload-secrets', { method: 'POST', body: fd })
-                    .then(function(r){ return r.text(); })
-                    .then(function(html){
-                        document.getElementById('yt_upload_result').innerHTML = html;
-                        htmx.trigger('#yt_secrets_status', 'load');
-                    });
-            }
-            </script>
-        </div>
-
-        <!-- Reset only — save is now automatic -->
-        <div class="flex items-center gap-3 mt-6">
-            <button type="button" hx-post="/settings/reset" hx-target="#save-result" hx-swap="innerHTML" hx-confirm="Reset all settings to defaults?"
-                class="bg-white/10 text-gray-300 px-6 py-2.5 rounded-lg hover:bg-white/20 transition text-sm">
-                Reset to Defaults
-            </button>
-            <span id="autosave-indicator" class="text-xs text-gray-500 transition-opacity duration-500 opacity-0">Saved</span>
-        </div>
-        <div id="save-result" class="mt-4"></div>
-    </form>
-
-    <script>
-    (function () {
-        var indicator = document.getElementById('autosave-indicator');
-        var hideTimer;
-
-        function showSaved() {
-            indicator.textContent = '✓ Saved';
-            indicator.classList.remove('opacity-0', 'text-gray-500');
-            indicator.classList.add('opacity-100', 'text-green-400');
-            clearTimeout(hideTimer);
-            hideTimer = setTimeout(function () {
-                indicator.classList.remove('opacity-100', 'text-green-400');
-                indicator.classList.add('opacity-0', 'text-gray-500');
-            }, 2000);
-        }
-
-        document.getElementById('settings-form').addEventListener('change', function (e) {
-            var el = e.target;
-            if (!el.name) return;
-            var fd = new FormData();
-            fd.append('key', el.name);
-            fd.append('value', el.type === 'checkbox' ? (el.checked ? 'true' : 'false') : el.value);
-            fetch('/settings/save-field', { method: 'POST', body: fd }).then(showSaved);
-        });
-
-        // Textareas/inputs: also save on blur (covers typing without change event)
-        document.getElementById('settings-form').addEventListener('blur', function (e) {
-            var el = e.target;
-            if (!el.name || el.tagName === 'SELECT') return;
-            var fd = new FormData();
-            fd.append('key', el.name);
-            fd.append('value', el.value);
-            fetch('/settings/save-field', { method: 'POST', body: fd }).then(showSaved);
-        }, true);
-    })();
-    </script>
+    <div class="flex items-center gap-2">
+        <span id="badge-saved" class="badge-saved">✓ Saved</span>
+        <button type="button" id="btn-reset" onclick="resetSettings()"
+            class="btn-ghost">Reset</button>
+        <button type="button" id="btn-save" onclick="saveAllSettings()"
+            class="btn-primary">Save Settings</button>
+    </div>
 </div>
+<div id="save-result" class="mt-3"></div>
+
+<!-- ── Tab Nav ──────────────────────────────────────────────────────── -->
+<div class="mt-5 flex gap-1.5 flex-wrap" id="tab-nav">
+    <button type="button" class="tab-btn active flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400"
+        onclick="switchTab('video', this)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Video
+    </button>
+    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400"
+        onclick="switchTab('audio', this)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+        Voice / TTS
+    </button>
+    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400"
+        onclick="switchTab('music', this)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+        Background Music
+    </button>
+    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400"
+        onclick="switchTab('branding', this)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+        Branding
+    </button>
+    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400"
+        onclick="switchTab('processing', this)">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        Processing
+    </button>
+    <button type="button" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-transparent text-gray-400"
+        onclick="switchTab('youtube', this)">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+        YouTube
+    </button>
+</div>
+
+<!-- ── TAB: VIDEO ───────────────────────────────────────────────────── -->
+<div id="tab-video" class="tab-panel active mt-5">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/></svg>
+                Output Quality
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="field-label">Resolution</label>
+                    <select name="default_resolution" class="field-input">
+                        {% for res in resolutions %}
+                        <option value="{{ res }}" {{ 'selected' if settings.default_resolution == res }}>{{ res }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Quality Preset</label>
+                    <select name="default_quality_preset" class="field-input">
+                        {% for key, val in presets.items() %}
+                        <option value="{{ key }}" {{ 'selected' if settings.default_quality_preset == key }}>
+                            {{ key }} — {{ val.label }} &nbsp;({{ val.bitrate }}, {{ val.fps }}fps)
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="field-hint">P5–P7 use CRF encoding for consistent quality on static content</p>
+                </div>
+                <div>
+                    <label class="field-label">Frames Per Second</label>
+                    <div class="flex gap-2">
+                        {% for fps in ['24', '30', '60'] %}
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="default_fps" value="{{ fps }}" class="sr-only"
+                                {{ 'checked' if settings.default_fps == fps }}>
+                            <div class="fps-opt text-center py-2 rounded-lg border text-sm font-medium transition-all
+                                {{ 'border-accent/50 bg-accent/10 text-accent' if settings.default_fps == fps else 'border-white/8 bg-white/3 text-gray-400' }}
+                                hover:border-accent/30 hover:text-gray-200">
+                                {{ fps }}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Defaults
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="field-label">Duration (minutes)</label>
+                    <input type="number" name="default_duration_minutes"
+                        value="{{ settings.default_duration_minutes }}" min="1" max="30"
+                        class="field-input">
+                    <p class="field-hint">Target video length — actual duration depends on content</p>
+                </div>
+                <div>
+                    <label class="field-label">Theme</label>
+                    <div class="flex gap-3 mt-1">
+                        <label class="flex-1 cursor-pointer group">
+                            <input type="radio" name="default_theme" value="dark" class="sr-only"
+                                {{ 'checked' if settings.default_theme == 'dark' }}>
+                            <div class="theme-opt rounded-xl border p-3 text-center transition-all
+                                {{ 'border-accent/50 bg-accent/8' if settings.default_theme == 'dark' else 'border-white/8 bg-white/3' }}">
+                                <div class="w-8 h-5 rounded-md bg-gray-900 border border-gray-700 mx-auto mb-1.5"></div>
+                                <p class="text-xs font-semibold {{ 'text-accent' if settings.default_theme == 'dark' else 'text-gray-400' }}">Dark</p>
+                            </div>
+                        </label>
+                        <label class="flex-1 cursor-pointer group">
+                            <input type="radio" name="default_theme" value="light" class="sr-only"
+                                {{ 'checked' if settings.default_theme == 'light' }}>
+                            <div class="theme-opt rounded-xl border p-3 text-center transition-all
+                                {{ 'border-accent/50 bg-accent/8' if settings.default_theme == 'light' else 'border-white/8 bg-white/3' }}">
+                                <div class="w-8 h-5 rounded-md bg-white border border-gray-200 mx-auto mb-1.5"></div>
+                                <p class="text-xs font-semibold {{ 'text-accent' if settings.default_theme == 'light' else 'text-gray-400' }}">Light</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── TAB: AUDIO ───────────────────────────────────────────────────── -->
+<div id="tab-audio" class="tab-panel mt-5">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+                TTS Engine
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="field-label">Engine</label>
+                    <select name="tts_engine" id="tts_engine" onchange="toggleTtsFields()" class="field-input">
+                        <option value="edge_tts" {{ 'selected' if settings.tts_engine == 'edge_tts' }}>Edge TTS — Neural (Best, Free)</option>
+                        <option value="gtts" {{ 'selected' if settings.tts_engine == 'gtts' }}>Google TTS (Online)</option>
+                        <option value="pyttsx3" {{ 'selected' if settings.tts_engine == 'pyttsx3' }}>pyttsx3 (Offline)</option>
+                    </select>
+                </div>
+
+                <!-- Edge TTS -->
+                <div id="edge_voice_row">
+                    <label class="field-label">Voice</label>
+                    <select id="edge_voice_select" name="tts_tld" class="field-input" onchange="resetPreview()">
+                        <optgroup label="Indian English">
+                            <option value="en-IN-NeerjaNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaNeural' }}>Neerja — Indian Female (clear)</option>
+                            <option value="en-IN-NeerjaExpressiveNeural" {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaExpressiveNeural' }}>Neerja Expressive</option>
+                            <option value="en-IN-PrabhatNeural"          {{ 'selected' if settings.tts_tld == 'en-IN-PrabhatNeural' }}>Prabhat — Indian Male (clear)</option>
+                        </optgroup>
+                        <optgroup label="Hindi">
+                            <option value="hi-IN-SwaraNeural"  {{ 'selected' if settings.tts_tld == 'hi-IN-SwaraNeural' }}>Swara — Hindi Female</option>
+                            <option value="hi-IN-MadhurNeural" {{ 'selected' if settings.tts_tld == 'hi-IN-MadhurNeural' }}>Madhur — Hindi Male</option>
+                        </optgroup>
+                        <optgroup label="Tamil">
+                            <option value="ta-IN-PallaviNeural"  {{ 'selected' if settings.tts_tld == 'ta-IN-PallaviNeural' }}>Pallavi — Tamil Female</option>
+                            <option value="ta-IN-ValluvarNeural" {{ 'selected' if settings.tts_tld == 'ta-IN-ValluvarNeural' }}>Valluvar — Tamil Male</option>
+                        </optgroup>
+                        <optgroup label="Telugu">
+                            <option value="te-IN-ShrutiNeural" {{ 'selected' if settings.tts_tld == 'te-IN-ShrutiNeural' }}>Shruti — Telugu Female</option>
+                            <option value="te-IN-MohanNeural"  {{ 'selected' if settings.tts_tld == 'te-IN-MohanNeural' }}>Mohan — Telugu Male</option>
+                        </optgroup>
+                        <optgroup label="Marathi">
+                            <option value="mr-IN-AarohiNeural"  {{ 'selected' if settings.tts_tld == 'mr-IN-AarohiNeural' }}>Aarohi — Marathi Female</option>
+                            <option value="mr-IN-ManoharNeural" {{ 'selected' if settings.tts_tld == 'mr-IN-ManoharNeural' }}>Manohar — Marathi Male</option>
+                        </optgroup>
+                        <optgroup label="Bengali">
+                            <option value="bn-IN-TanishaaNeural" {{ 'selected' if settings.tts_tld == 'bn-IN-TanishaaNeural' }}>Tanishaa — Bengali Female</option>
+                            <option value="bn-IN-BashkarNeural"  {{ 'selected' if settings.tts_tld == 'bn-IN-BashkarNeural' }}>Bashkar — Bengali Male</option>
+                        </optgroup>
+                        <optgroup label="Gujarati">
+                            <option value="gu-IN-DhwaniNeural"   {{ 'selected' if settings.tts_tld == 'gu-IN-DhwaniNeural' }}>Dhwani — Gujarati Female</option>
+                            <option value="gu-IN-NiranjanNeural" {{ 'selected' if settings.tts_tld == 'gu-IN-NiranjanNeural' }}>Niranjan — Gujarati Male</option>
+                        </optgroup>
+                        <optgroup label="Kannada">
+                            <option value="kn-IN-SapnaNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-SapnaNeural' }}>Sapna — Kannada Female</option>
+                            <option value="kn-IN-GaganNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-GaganNeural' }}>Gagan — Kannada Male</option>
+                        </optgroup>
+                        <optgroup label="Malayalam">
+                            <option value="ml-IN-SobhanaNeural" {{ 'selected' if settings.tts_tld == 'ml-IN-SobhanaNeural' }}>Sobhana — Malayalam Female</option>
+                            <option value="ml-IN-MidhunNeural"  {{ 'selected' if settings.tts_tld == 'ml-IN-MidhunNeural' }}>Midhun — Malayalam Male</option>
+                        </optgroup>
+                        <optgroup label="International">
+                            <option value="en-US-JennyNeural" {{ 'selected' if settings.tts_tld == 'en-US-JennyNeural' }}>Jenny — US Female</option>
+                            <option value="en-US-GuyNeural"   {{ 'selected' if settings.tts_tld == 'en-US-GuyNeural' }}>Guy — US Male</option>
+                            <option value="en-GB-SoniaNeural" {{ 'selected' if settings.tts_tld == 'en-GB-SoniaNeural' }}>Sonia — British Female</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- gTTS rows -->
+                <div id="gtts_rows" style="display:none" class="space-y-3">
+                    <div>
+                        <label class="field-label">Language</label>
+                        <select name="tts_lang" class="field-input">
+                            <option value="en" {{ 'selected' if settings.tts_lang == 'en' }}>English</option>
+                            <option value="hi" {{ 'selected' if settings.tts_lang == 'hi' }}>Hindi</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Accent (gTTS TLD)</label>
+                        <select name="tts_tld_gtts" class="field-input">
+                            <option value="co.in" {{ 'selected' if settings.tts_tld == 'co.in' }}>Indian English</option>
+                            <option value="com"   {{ 'selected' if settings.tts_tld == 'com' }}>US English</option>
+                            <option value="co.uk" {{ 'selected' if settings.tts_tld == 'co.uk' }}>UK English</option>
+                            <option value="com.au" {{ 'selected' if settings.tts_tld == 'com.au' }}>Australian</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Preview
+            </div>
+            <div class="space-y-4">
+                <button type="button" onclick="previewVoice()"
+                    class="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-accent/30 bg-accent/8 text-accent text-sm font-medium hover:bg-accent/15 transition-all">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    Play Voice Sample
+                </button>
+                <div id="preview_player" class="hidden">
+                    <audio id="preview_audio" controls class="w-full rounded-lg" style="height:36px"></audio>
+                    <p id="preview_status" class="text-xs text-gray-500 mt-1.5"></p>
+                </div>
+
+                <div class="border-t border-white/5 pt-4">
+                    <p class="field-label mb-2">Pre-generate All Samples</p>
+                    <p class="text-xs text-gray-500 mb-3">Saves MP3s to <code class="text-gray-400">static/voice_samples/</code> for instant playback on next visit.</p>
+                    <button type="button" onclick="generateAllSamples()"
+                        class="w-full py-2.5 rounded-xl border border-white/10 bg-white/4 text-sm text-gray-300 hover:bg-white/8 transition-all font-medium">
+                        Generate All Samples
+                    </button>
+                    <div id="gen_samples_result" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── TAB: MUSIC ───────────────────────────────────────────────────── -->
+<div id="tab-music" class="tab-panel mt-5">
+    <div class="max-w-lg">
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                Background Music
+            </div>
+            <div class="space-y-4">
+                <div class="toggle-row">
+                    <div>
+                        <p class="text-sm font-medium text-gray-200">Enable BGM</p>
+                        <p class="text-xs text-gray-500">Background music under narration</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <select name="bgm_enabled" class="field-input w-28 text-sm">
+                            <option value="true"  {{ 'selected' if settings.bgm_enabled == 'true' }}>On</option>
+                            <option value="false" {{ 'selected' if settings.bgm_enabled == 'false' }}>Off</option>
+                        </select>
+                    </label>
+                </div>
+                <div>
+                    <label class="field-label">Music Style</label>
+                    <select name="bgm_style" class="field-input">
+                        <option value="calm_waves"   {{ 'selected' if settings.bgm_style == 'calm_waves' }}>Calm Waves</option>
+                        <option value="zen_garden"   {{ 'selected' if settings.bgm_style == 'zen_garden' }}>Zen Garden</option>
+                        <option value="morning_dew"  {{ 'selected' if settings.bgm_style == 'morning_dew' }}>Morning Dew</option>
+                        <option value="deep_focus"   {{ 'selected' if settings.bgm_style == 'deep_focus' }}>Deep Focus</option>
+                        <option value="soft_piano"   {{ 'selected' if settings.bgm_style == 'soft_piano' }}>Soft Piano</option>
+                        <option value="crystal_bowl" {{ 'selected' if settings.bgm_style == 'crystal_bowl' }}>Crystal Bowl</option>
+                        <option value="forest_stream"{{ 'selected' if settings.bgm_style == 'forest_stream' }}>Forest Stream</option>
+                        <option value="twilight"     {{ 'selected' if settings.bgm_style == 'twilight' }}>Twilight</option>
+                        <option value="lotus"        {{ 'selected' if settings.bgm_style == 'lotus' }}>Lotus — Indian Tanpura</option>
+                        <option value="bansuri"      {{ 'selected' if settings.bgm_style == 'bansuri' }}>Bansuri — Meditation Flute</option>
+                        <option value="silent_mind"  {{ 'selected' if settings.bgm_style == 'silent_mind' }}>Silent Mind</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Volume — <span id="vol-display">{{ settings.bgm_volume }}</span></label>
+                    <input type="range" name="bgm_volume" id="bgm_vol_slider"
+                        value="{{ settings.bgm_volume }}" min="0.05" max="0.50" step="0.05"
+                        class="w-full accent-accent"
+                        oninput="document.getElementById('vol-display').textContent=this.value">
+                    <div class="flex justify-between text-xs text-gray-600 mt-1">
+                        <span>Subtle (0.05)</span><span>Loud (0.50)</span>
+                    </div>
+                    <p class="field-hint">Narration always stays clear regardless of volume</p>
+                    <!-- hidden number input for form submit -->
+                    <input type="hidden" name="bgm_volume_val" id="bgm_vol_val" value="{{ settings.bgm_volume }}">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── TAB: BRANDING ─────────────────────────────────────────────────── -->
+<div id="tab-branding" class="tab-panel mt-5">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- Watermark -->
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                Watermark
+            </div>
+            <div class="space-y-4">
+                <div class="toggle-row">
+                    <div>
+                        <p class="text-sm font-medium text-gray-200">Enable Watermark</p>
+                        <p class="text-xs text-gray-500">Moves position every 4 seconds</p>
+                    </div>
+                    <select name="watermark_enabled" class="field-input w-24 text-sm">
+                        <option value="false" {{ 'selected' if settings.watermark_enabled == 'false' }}>Off</option>
+                        <option value="true"  {{ 'selected' if settings.watermark_enabled == 'true' }}>On</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Text Watermark</label>
+                    <input type="text" name="watermark_text" value="{{ settings.watermark_text }}"
+                        placeholder="© MyChannel"
+                        class="field-input">
+                    <p class="field-hint">Used only when no image is uploaded</p>
+                </div>
+                <div>
+                    <label class="field-label">Opacity</label>
+                    <input type="number" name="watermark_opacity" value="{{ settings.watermark_opacity }}"
+                        min="0.10" max="0.80" step="0.05" class="field-input">
+                    <p class="field-hint">0.10 (faint) to 0.80 (strong)</p>
+                </div>
+                <div class="border border-white/6 rounded-xl p-3 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <label class="field-label mb-0">Watermark Image</label>
+                        <div id="wm_status" hx-get="/settings/watermark/status" hx-trigger="load"></div>
+                    </div>
+                    <input type="file" id="wm_file" accept=".png,.jpg,.jpeg,.webp"
+                        class="w-full text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-accent/15 file:text-accent file:cursor-pointer">
+                    <div class="flex gap-2">
+                        <button type="button" onclick="uploadWatermark()"
+                            class="flex-1 py-2 rounded-lg border border-accent/30 bg-accent/8 text-accent text-xs font-medium hover:bg-accent/15 transition">
+                            Upload Image
+                        </button>
+                        <button type="button" hx-post="/settings/watermark/delete"
+                            hx-target="#wm_status" hx-swap="innerHTML"
+                            class="flex-1 py-2 rounded-lg border border-red-500/20 bg-red-500/8 text-red-400 text-xs font-medium hover:bg-red-500/15 transition">
+                            Remove
+                        </button>
+                    </div>
+                    <div id="wm_upload_result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Copyright -->
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.83 14.83A4 4 0 119.17 9.17"/></svg>
+                Copyright & Licensing
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="field-label">Channel / Owner Name</label>
+                    <input type="text" name="copyright_owner" value="{{ settings.copyright_owner }}"
+                        placeholder="e.g. ExamReady Academy" class="field-input">
+                    <p class="field-hint">Used in © notice: "© 2025 ExamReady Academy"</p>
+                </div>
+                <div>
+                    <label class="field-label">Copyright Year</label>
+                    <input type="text" name="copyright_year" value="{{ settings.copyright_year }}"
+                        placeholder="2025 (blank = current year)" class="field-input">
+                </div>
+                <div>
+                    <label class="field-label">License</label>
+                    <select name="content_license" class="field-input">
+                        <option value="all-rights-reserved" {{ 'selected' if settings.content_license == 'all-rights-reserved' }}>All Rights Reserved</option>
+                        <option value="cc-by-nc-nd"         {{ 'selected' if settings.content_license == 'cc-by-nc-nd' }}>CC BY-NC-ND</option>
+                        <option value="cc-by-nc"            {{ 'selected' if settings.content_license == 'cc-by-nc' }}>CC BY-NC</option>
+                        <option value="cc-by"               {{ 'selected' if settings.content_license == 'cc-by' }}>CC BY</option>
+                        <option value="youtube-standard"    {{ 'selected' if settings.content_license == 'youtube-standard' }}>YouTube Standard</option>
+                    </select>
+                </div>
+                <div class="toggle-row">
+                    <div>
+                        <p class="text-sm font-medium text-gray-200">No Re-upload Notice</p>
+                        <p class="text-xs text-gray-500">Appended to all YouTube descriptions</p>
+                    </div>
+                    <select name="no_reuse_notice" class="field-input w-24 text-sm">
+                        <option value="true"  {{ 'selected' if settings.no_reuse_notice == 'true' }}>On</option>
+                        <option value="false" {{ 'selected' if settings.no_reuse_notice == 'false' }}>Off</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">Custom Footer Text</label>
+                    <textarea name="copyright_footer_text" rows="3"
+                        placeholder="© 2025 ExamReady Academy. All rights reserved."
+                        class="field-input resize-none">{{ settings.copyright_footer_text }}</textarea>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── TAB: PROCESSING ──────────────────────────────────────────────── -->
+<div id="tab-processing" class="tab-panel mt-5">
+    <div class="max-w-lg">
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Render Settings
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="field-label">Max Workers (parallel jobs)</label>
+                    <input type="number" name="max_workers" value="{{ settings.max_workers }}" min="1" max="16"
+                        class="field-input">
+                    <p class="field-hint">Each worker uses multiple CPU cores. Default: 4</p>
+                </div>
+                <div>
+                    <label class="field-label">Job Timeout (seconds)</label>
+                    <input type="number" name="job_timeout" value="{{ settings.job_timeout }}" min="60" max="3600"
+                        class="field-input">
+                    <p class="field-hint">Max time per video. Default: 600 (10 min)</p>
+                </div>
+                <div>
+                    <label class="field-label">FFmpeg Path</label>
+                    <input type="text" name="ffmpeg_path" value="{{ settings.ffmpeg_path }}"
+                        class="field-input font-mono text-sm">
+                    <p class="field-hint">Leave as <code>ffmpeg</code> if installed in PATH</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── TAB: YOUTUBE ─────────────────────────────────────────────────── -->
+<div id="tab-youtube" class="tab-panel mt-5">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+        <!-- OAuth Setup -->
+        <div class="section-card">
+            <div class="section-title">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                OAuth Credentials
+            </div>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs text-gray-500">Connection status</span>
+                    <div id="yt_secrets_status" hx-get="/settings/youtube/secrets-status" hx-trigger="load"></div>
+                </div>
+
+                <!-- Tab: Key vs File -->
+                <div class="flex gap-1 p-1 bg-white/4 rounded-xl">
+                    <button type="button" id="tab-yt-key" onclick="ytTab('key')"
+                        class="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all bg-accent/15 text-accent">
+                        Enter Credentials
+                    </button>
+                    <button type="button" id="tab-yt-file" onclick="ytTab('file')"
+                        class="flex-1 py-1.5 rounded-lg text-xs font-medium transition-all text-gray-400 hover:text-gray-200">
+                        Upload JSON
+                    </button>
+                </div>
+
+                <div id="yt-key-panel" class="space-y-2.5">
+                    <div>
+                        <label class="field-label">Client ID</label>
+                        <input type="text" id="yt_client_id" placeholder="xxxx.apps.googleusercontent.com"
+                            class="field-input text-xs font-mono">
+                    </div>
+                    <div>
+                        <label class="field-label">Client Secret</label>
+                        <input type="password" id="yt_client_secret" placeholder="GOCSPX-..."
+                            class="field-input text-xs font-mono">
+                    </div>
+                    <button type="button" onclick="saveOAuthKeys()"
+                        class="w-full py-2.5 rounded-xl bg-accent/12 border border-accent/30 text-accent text-sm font-medium hover:bg-accent/20 transition">
+                        Save Credentials
+                    </button>
+                </div>
+
+                <div id="yt-file-panel" class="hidden space-y-2.5">
+                    <input type="file" id="yt_secrets_file" accept=".json"
+                        class="w-full text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-accent/15 file:text-accent file:text-xs file:cursor-pointer">
+                    <button type="button" onclick="uploadSecrets()"
+                        class="w-full py-2.5 rounded-xl bg-accent/12 border border-accent/30 text-accent text-sm font-medium hover:bg-accent/20 transition">
+                        Upload JSON File
+                    </button>
+                </div>
+
+                <div id="yt_upload_result" class="text-xs"></div>
+
+                <div class="flex gap-2 pt-1">
+                    <a href="/youtube/auth"
+                        class="flex-1 text-center py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/18 transition">
+                        Connect Account →
+                    </a>
+                    <button type="button" hx-post="/settings/youtube/remove-secrets"
+                        hx-target="#yt_secrets_status" hx-swap="innerHTML"
+                        hx-confirm="Disconnect YouTube?"
+                        class="px-4 py-2 rounded-xl bg-white/5 border border-white/8 text-gray-400 text-xs hover:bg-white/10 transition">
+                        Disconnect
+                    </button>
+                </div>
+
+                <details class="group">
+                    <summary class="text-xs text-gray-600 cursor-pointer hover:text-gray-400 transition select-none">
+                        Setup guide ▾
+                    </summary>
+                    <div class="text-xs text-gray-600 space-y-1.5 mt-2 bg-black/20 rounded-xl p-3">
+                        <p class="text-gray-400 font-medium">Google Cloud Console:</p>
+                        <p>1. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-accent hover:underline">Open Credentials</a> → OAuth Client → Edit</p>
+                        <p>2. Add both redirect URIs:</p>
+                        <p class="font-mono bg-black/30 px-2 py-1 rounded text-accent/80 select-all">http://127.0.0.1:5000/youtube/oauth-callback</p>
+                        <p class="font-mono bg-black/30 px-2 py-1 rounded text-accent/80 select-all">http://localhost:5000/youtube/oauth-callback</p>
+                        <p>3. Save in Google Console → paste here → Connect</p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Upload Settings + SEO -->
+        <div class="space-y-5">
+            <div class="section-card">
+                <div class="section-title">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    Upload Behaviour
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="field-label">Auto Upload</label>
+                        <select name="auto_youtube_upload" class="field-input">
+                            <option value="false" {{ 'selected' if settings.auto_youtube_upload == 'false' }}>Off</option>
+                            <option value="true"  {{ 'selected' if settings.auto_youtube_upload == 'true' }}>On</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Privacy</label>
+                        <select name="youtube_default_privacy" class="field-input">
+                            <option value="public"   {{ 'selected' if settings.youtube_default_privacy == 'public' }}>Public</option>
+                            <option value="unlisted" {{ 'selected' if settings.youtube_default_privacy == 'unlisted' }}>Unlisted</option>
+                            <option value="private"  {{ 'selected' if settings.youtube_default_privacy == 'private' }}>Private</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Category</label>
+                        <select name="youtube_default_category" class="field-input">
+                            <option value="27" {{ 'selected' if settings.youtube_default_category == '27' }}>Education</option>
+                            <option value="28" {{ 'selected' if settings.youtube_default_category == '28' }}>Science & Tech</option>
+                            <option value="26" {{ 'selected' if settings.youtube_default_category == '26' }}>How-to</option>
+                            <option value="22" {{ 'selected' if settings.youtube_default_category == '22' }}>Blogs</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Language</label>
+                        <select name="youtube_language" class="field-input">
+                            <option value="en" {{ 'selected' if settings.youtube_language == 'en' }}>English</option>
+                            <option value="hi" {{ 'selected' if settings.youtube_language == 'hi' }}>Hindi</option>
+                            <option value="te" {{ 'selected' if settings.youtube_language == 'te' }}>Telugu</option>
+                            <option value="ta" {{ 'selected' if settings.youtube_language == 'ta' }}>Tamil</option>
+                            <option value="kn" {{ 'selected' if settings.youtube_language == 'kn' }}>Kannada</option>
+                            <option value="ml" {{ 'selected' if settings.youtube_language == 'ml' }}>Malayalam</option>
+                            <option value="mr" {{ 'selected' if settings.youtube_language == 'mr' }}>Marathi</option>
+                            <option value="bn" {{ 'selected' if settings.youtube_language == 'bn' }}>Bengali</option>
+                            <option value="gu" {{ 'selected' if settings.youtube_language == 'gu' }}>Gujarati</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">License</label>
+                        <select name="youtube_license" class="field-input">
+                            <option value="youtube"       {{ 'selected' if settings.youtube_license == 'youtube' }}>Standard YouTube</option>
+                            <option value="creativeCommon"{{ 'selected' if settings.youtube_license == 'creativeCommon' }}>Creative Commons</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label">Made for Kids</label>
+                        <select name="youtube_made_for_kids" class="field-input">
+                            <option value="false" {{ 'selected' if settings.youtube_made_for_kids != 'true' }}>No</option>
+                            <option value="true"  {{ 'selected' if settings.youtube_made_for_kids == 'true' }}>Yes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="field-label">OAuth Redirect URI</label>
+                    <input type="text" name="youtube_redirect_uri"
+                        value="{{ settings.youtube_redirect_uri or 'http://127.0.0.1:5000/youtube/oauth-callback' }}"
+                        class="field-input font-mono text-xs">
+                </div>
+                <div class="mt-3">
+                    <label class="field-label">API Key <span class="normal-case font-normal text-gray-600">(read-only operations)</span></label>
+                    <input type="text" name="youtube_api_key" value="{{ settings.youtube_api_key }}"
+                        placeholder="AIza..." class="field-input font-mono text-xs">
+                </div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-title">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/></svg>
+                    SEO Metadata
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="field-label">Channel / Brand Name</label>
+                        <input type="text" name="youtube_channel_name" value="{{ settings.youtube_channel_name }}"
+                            placeholder="ExamReady Academy" class="field-input">
+                        <p class="field-hint">Appended to title: "Topic | ChannelName"</p>
+                    </div>
+                    <div>
+                        <label class="field-label">Default Tags <span class="normal-case font-normal text-gray-600">(comma-separated)</span></label>
+                        <textarea name="youtube_default_tags" rows="2"
+                            placeholder="competitive exam, education, shortcuts"
+                            class="field-input resize-none">{{ settings.youtube_default_tags }}</textarea>
+                    </div>
+                    <div>
+                        <label class="field-label">Default Hashtags <span class="normal-case font-normal text-gray-600">(no #, comma-separated)</span></label>
+                        <input type="text" name="youtube_default_hashtags" value="{{ settings.youtube_default_hashtags }}"
+                            placeholder="Education, ExamPreparation" class="field-input">
+                    </div>
+                    <div>
+                        <label class="field-label">Description Header</label>
+                        <textarea name="youtube_desc_header" rows="2"
+                            placeholder="Welcome! We make exam prep easy with clear concept videos."
+                            class="field-input resize-none">{{ settings.youtube_desc_header }}</textarea>
+                    </div>
+                    <div>
+                        <label class="field-label">Description Footer / CTA</label>
+                        <textarea name="youtube_desc_footer" rows="3"
+                            placeholder="Subscribe for daily exam shortcuts → [link]"
+                            class="field-input resize-none">{{ settings.youtube_desc_footer }}</textarea>
+                    </div>
+                    <div>
+                        <label class="field-label">Playlist ID</label>
+                        <input type="text" name="youtube_playlist_id" value="{{ settings.youtube_playlist_id }}"
+                            placeholder="PLxxxxxxxxxxxxxx" class="field-input font-mono text-xs">
+                        <p class="field-hint">YouTube Studio → Playlists → share link → ?list=THIS_PART</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+</form>
+
+<script>
+/* ── Tab switching ───────────────────────────────────────────── */
+function switchTab(name, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+}
+
+/* ── BGM volume slider syncs hidden input ────────────────────── */
+document.getElementById('bgm_vol_slider').addEventListener('input', function() {
+    document.getElementById('bgm_vol_val').value = this.value;
+});
+
+/* ── FPS radio visual update ─────────────────────────────────── */
+document.querySelectorAll('input[name="default_fps"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.fps-opt').forEach(function(d) {
+            d.className = d.className
+                .replace('border-accent/50 bg-accent/10 text-accent', '')
+                .replace('border-white/8 bg-white/3 text-gray-400', '')
+                .trim() + ' border-white/8 bg-white/3 text-gray-400';
+        });
+        var opt = this.closest('label').querySelector('.fps-opt');
+        opt.className = opt.className
+            .replace('border-white/8 bg-white/3 text-gray-400', '')
+            .trim() + ' border-accent/50 bg-accent/10 text-accent';
+    });
+});
+
+/* ── Theme radio visual update ───────────────────────────────── */
+document.querySelectorAll('input[name="default_theme"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.theme-opt').forEach(function(d) {
+            d.className = d.className.replace('border-accent/50 bg-accent/8','').trim();
+        });
+        this.closest('label').querySelector('.theme-opt').classList.add('border-accent/50','bg-accent/8');
+    });
+});
+
+/* ── TTS engine toggle ───────────────────────────────────────── */
+function toggleTtsFields() {
+    var eng = document.getElementById('tts_engine').value;
+    document.getElementById('edge_voice_row').style.display = eng === 'edge_tts' ? '' : 'none';
+    document.getElementById('gtts_rows').style.display = eng === 'gtts' ? '' : 'none';
+    resetPreview();
+}
+function resetPreview() {
+    document.getElementById('preview_player').classList.add('hidden');
+    document.getElementById('preview_status').textContent = '';
+}
+function previewVoice() {
+    var voice = document.getElementById('edge_voice_select').value;
+    var status = document.getElementById('preview_status');
+    var player = document.getElementById('preview_player');
+    var audio  = document.getElementById('preview_audio');
+    status.textContent = 'Loading…';
+    player.classList.remove('hidden');
+    audio.src = '';
+    fetch('/settings/tts-preview?voice=' + encodeURIComponent(voice))
+        .then(function(r) {
+            if (!r.ok) return r.json().then(function(j){ throw new Error(j.error); });
+            return r.blob();
+        })
+        .then(function(blob) {
+            if (blob.size === 0) throw new Error('Voice unavailable');
+            audio.src = URL.createObjectURL(blob);
+            audio.play().catch(function(e) { status.textContent = 'Playback error: ' + e.message; });
+            status.textContent = 'Playing: ' + voice;
+        })
+        .catch(function(e) { status.textContent = 'Error: ' + e.message; });
+}
+function generateAllSamples() {
+    var btn = event.target;
+    var res = document.getElementById('gen_samples_result');
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+    res.innerHTML = '<p class="text-xs text-gray-500 mt-1">This may take a minute…</p>';
+    fetch('/settings/tts-generate-samples', {method:'POST',body:new FormData()})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            res.innerHTML = html;
+            btn.disabled = false;
+            btn.textContent = 'Generate All Samples';
+        })
+        .catch(function(e){
+            res.innerHTML = '<p class="text-xs text-red-400">Error: ' + e.message + '</p>';
+            btn.disabled = false;
+            btn.textContent = 'Generate All Samples';
+        });
+}
+toggleTtsFields();
+
+/* ── YouTube credential tabs ─────────────────────────────────── */
+function ytTab(t) {
+    document.getElementById('yt-key-panel').classList.toggle('hidden', t !== 'key');
+    document.getElementById('yt-file-panel').classList.toggle('hidden', t !== 'file');
+    var active = 'bg-accent/15 text-accent';
+    var idle   = 'text-gray-400 hover:text-gray-200';
+    document.getElementById('tab-yt-key').className  = 'flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ' + (t==='key' ? active : idle);
+    document.getElementById('tab-yt-file').className = 'flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ' + (t==='file' ? active : idle);
+}
+function saveOAuthKeys() {
+    var fd = new FormData();
+    fd.append('client_id',     document.getElementById('yt_client_id').value.trim());
+    fd.append('client_secret', document.getElementById('yt_client_secret').value.trim());
+    if (!fd.get('client_id') || !fd.get('client_secret')) { alert('Enter both fields.'); return; }
+    fetch('/settings/youtube/save-oauth-keys', {method:'POST',body:fd})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            document.getElementById('yt_upload_result').innerHTML = html;
+            htmx.trigger('#yt_secrets_status','load');
+        });
+}
+function uploadSecrets() {
+    var file = document.getElementById('yt_secrets_file').files[0];
+    if (!file) { alert('Select a file first.'); return; }
+    var fd = new FormData();
+    fd.append('secrets_file', file);
+    fetch('/settings/youtube/upload-secrets', {method:'POST',body:fd})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            document.getElementById('yt_upload_result').innerHTML = html;
+            htmx.trigger('#yt_secrets_status','load');
+        });
+}
+
+/* ── Watermark upload ────────────────────────────────────────── */
+function uploadWatermark() {
+    var file = document.getElementById('wm_file').files[0];
+    if (!file) { alert('Select a file first.'); return; }
+    var fd = new FormData();
+    fd.append('watermark_file', file);
+    fetch('/settings/watermark/upload', {method:'POST',body:fd})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            document.getElementById('wm_upload_result').innerHTML = html;
+            htmx.trigger('#wm_status','load');
+        });
+}
+
+/* ── Save / Reset ────────────────────────────────────────────── */
+function saveAllSettings() {
+    var form = document.getElementById('settings-form');
+    var fd = new FormData(form);
+    // sync bgm volume from slider
+    fd.set('bgm_volume', document.getElementById('bgm_vol_slider').value);
+    // include unchecked checkboxes
+    form.querySelectorAll('input[type=checkbox]').forEach(function(cb) {
+        if (!cb.checked) fd.set(cb.name, 'false');
+    });
+    var btn = document.getElementById('btn-save');
+    btn.textContent = 'Saving…';
+    btn.disabled = true;
+    fetch('/settings/save', {method:'POST', body:fd})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            btn.textContent = 'Save Settings';
+            btn.disabled = false;
+            document.getElementById('save-result').innerHTML = html;
+            showSaved();
+        })
+        .catch(function(){
+            btn.textContent = 'Save Settings';
+            btn.disabled = false;
+        });
+}
+function resetSettings() {
+    if (!confirm('Reset all settings to defaults?')) return;
+    fetch('/settings/reset', {method:'POST'})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+            document.getElementById('save-result').innerHTML = html;
+            setTimeout(function(){ location.reload(); }, 800);
+        });
+}
+
+/* ── Saved badge ─────────────────────────────────────────────── */
+var _hideTimer;
+function showSaved() {
+    var badge = document.getElementById('badge-saved');
+    badge.style.opacity = '1';
+    clearTimeout(_hideTimer);
+    _hideTimer = setTimeout(function(){ badge.style.opacity = '0'; }, 2500);
+}
+
+/* ── Auto-save on change ─────────────────────────────────────── */
+document.getElementById('settings-form').addEventListener('change', function(e) {
+    var el = e.target;
+    if (!el.name || el.type === 'radio' || el.type === 'checkbox') return;
+    var fd = new FormData();
+    fd.append('key', el.name);
+    fd.append('value', el.value);
+    fetch('/settings/save-field', {method:'POST', body:fd}).then(showSaved);
+});
+document.getElementById('settings-form').addEventListener('blur', function(e) {
+    var el = e.target;
+    if (!el.name || el.tagName === 'SELECT') return;
+    var fd = new FormData();
+    fd.append('key', el.name);
+    fd.append('value', el.value);
+    fetch('/settings/save-field', {method:'POST', body:fd}).then(showSaved);
+}, true);
+</script>
 {% endblock %}

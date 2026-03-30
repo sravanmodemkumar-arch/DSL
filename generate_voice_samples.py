@@ -15,15 +15,10 @@ import sys
 SAMPLE_TEXT = "Hello! I am your learning assistant. Let's explore this topic together."
 
 VOICES = [
-    # Indian English
+    # Indian English (voices confirmed available in edge_tts 7.x)
     "en-IN-NeerjaNeural",
     "en-IN-NeerjaExpressiveNeural",
     "en-IN-PrabhatNeural",
-    "en-IN-AaravNeural",
-    "en-IN-AnanyaNeural",
-    "en-IN-KavyaNeural",
-    "en-IN-KunalNeural",
-    "en-IN-RehaanNeural",
     # Hindi
     "hi-IN-SwaraNeural",
     "hi-IN-MadhurNeural",
@@ -73,7 +68,7 @@ async def generate_all(force: bool = False):
     skipped = []
     for voice in VOICES:
         out_path = os.path.join(OUT_DIR, f"{voice}.mp3")
-        if not force and os.path.exists(out_path):
+        if not force and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
             skipped.append(voice)
             continue
         tasks.append(generate_one(voice, out_path))

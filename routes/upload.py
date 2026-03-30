@@ -263,8 +263,6 @@ _active_jobs = {}              # job_id -> thread, tracks running jobs
 _active_lock = threading.Lock()
 _cancelled_jobs = set()
 _cancelled_lock = threading.Lock()
-_config_dict = None            # built once, reused
-_config_lock = threading.Lock()
 
 
 def _mark_cancelled(job_id):
@@ -284,34 +282,29 @@ def _clear_cancelled(job_id):
 
 
 def _get_config(app):
-    """Build config dict once, reuse across all jobs."""
-    global _config_dict
-    with _config_lock:
-        if _config_dict is not None:
-            return _config_dict
-        with app.app_context():
-            from config import THEMES
-            from models import Setting as _Setting
-            _wm_path = _Setting.get("watermark_image_path", app.config.get("WATERMARK_IMAGE", ""))
-            _config_dict = {
-                "RESOLUTIONS":       app.config["RESOLUTIONS"],
-                "QUALITY_PRESETS":   app.config["QUALITY_PRESETS"],
-                "TTS_ENGINE":        app.config["TTS_ENGINE"],
-                "TTS_LANG":          app.config["TTS_LANG"],
-                "TTS_TLD":           app.config["TTS_TLD"],
-                "ASSETS_DIR":        app.config["ASSETS_DIR"],
-                "THEMES":            THEMES,
-                "BGM_ENABLED":       app.config.get("BGM_ENABLED", True),
-                "BGM_STYLE":         app.config.get("BGM_STYLE", "ambient"),
-                "BGM_VOLUME":        app.config.get("BGM_VOLUME", 0.30),
-                "BGM_FILES":         app.config.get("BGM_FILES", []),
-                "WATERMARK_ENABLED": _Setting.get("watermark_enabled", "false") == "true",
-                "WATERMARK_TEXT":    _Setting.get("watermark_text", ""),
-                "WATERMARK_IMAGE":   _wm_path,
-                "WATERMARK_OPACITY": float(_Setting.get("watermark_opacity", "0.35")),
-                "VIDEOS_DIR":        app.config["VIDEOS_DIR"],
-            }
-        return _config_dict
+    """Build config dict — always reads live settings from DB so changes apply immediately."""
+    with app.app_context():
+        from config import THEMES
+        from models import Setting as _Setting
+        _wm_path = _Setting.get("watermark_image_path", app.config.get("WATERMARK_IMAGE", ""))
+        return {
+            "RESOLUTIONS":       app.config["RESOLUTIONS"],
+            "QUALITY_PRESETS":   app.config["QUALITY_PRESETS"],
+            "TTS_ENGINE":        _Setting.get("tts_engine",  app.config["TTS_ENGINE"]),
+            "TTS_LANG":          _Setting.get("tts_lang",    app.config["TTS_LANG"]),
+            "TTS_TLD":           _Setting.get("tts_tld",     app.config["TTS_TLD"]),
+            "ASSETS_DIR":        app.config["ASSETS_DIR"],
+            "THEMES":            THEMES,
+            "BGM_ENABLED":       _Setting.get("bgm_enabled", str(app.config.get("BGM_ENABLED", True))).lower() in ("true", "1", "yes"),
+            "BGM_STYLE":         _Setting.get("bgm_style",   app.config.get("BGM_STYLE", "ambient")),
+            "BGM_VOLUME":        float(_Setting.get("bgm_volume", str(app.config.get("BGM_VOLUME", 0.30)))),
+            "BGM_FILES":         app.config.get("BGM_FILES", []),
+            "WATERMARK_ENABLED": _Setting.get("watermark_enabled", "false").lower() in ("true", "1", "yes"),
+            "WATERMARK_TEXT":    _Setting.get("watermark_text", ""),
+            "WATERMARK_IMAGE":   _wm_path,
+            "WATERMARK_OPACITY": float(_Setting.get("watermark_opacity", "0.35")),
+            "VIDEOS_DIR":        app.config["VIDEOS_DIR"],
+        }
 
 
 def _start_processing(app):
@@ -413,44 +406,60 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             _job_finished(app, job_id)
             return
 
+        # Save plain string ID early — avoids SQLAlchemy lazy-reload crashes in except blocks
+        video_id = job.video_id
+        json_path = video.json_path
+        output_dir = video.output_dir or os.path.join(
+            config_dict["VIDEOS_DIR"],
+            video.subject,
+            video.topic or "general",
+            video.subtopic or "general",
+        )
+        resolution = video.resolution
+        quality_preset = video.quality_preset
+        theme = video.theme
+
         video.status = "processing"
         db.session.commit()
-        print(f"[Video] START {video.video_id} ({frame_workers} cores)")
+        print(f"[Video] START {video_id} ({frame_workers} cores)")
 
         try:
-            with open(video.json_path, "r", encoding="utf-8") as f:
+            with open(json_path, "r", encoding="utf-8") as f:
                 all_questions = json.load(f)
 
             question_data = next(
-                (q for q in all_questions if q.get("id") == video.video_id), None
+                (q for q in all_questions if q.get("id") == video_id), None
             )
             if not question_data:
-                raise ValueError(f"Question {video.video_id} not found in JSON")
+                raise ValueError(f"Question {video_id} not found in JSON")
 
-            # Use the pre-assigned UUID output directory (set at job creation)
-            output_dir = video.output_dir or os.path.join(
-                config_dict["VIDEOS_DIR"],
-                video.subject,
-                video.topic or "general",
-                video.subtopic or "general",
-            )
             os.makedirs(output_dir, exist_ok=True)
 
             def progress_cb(stage, percent):
                 if _is_cancelled(job_id):
                     raise InterruptedError("Job cancelled by user")
-                job.stage = stage
-                job.progress = percent
-                video.progress = percent
-                db.session.commit()
+                try:
+                    j = db.session.get(JobQueue, job_id)
+                    v = Video.query.filter_by(video_id=video_id).first()
+                    if j:
+                        j.stage = stage
+                        j.progress = percent
+                    if v:
+                        v.progress = percent
+                    db.session.commit()
+                except Exception:
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
 
             pipeline = VideoPipeline(config_dict)
             result = pipeline.process_question(
                 question_data=question_data,
                 output_dir=output_dir,
-                resolution=video.resolution,
-                quality_preset=video.quality_preset,
-                theme=video.theme,
+                resolution=resolution,
+                quality_preset=quality_preset,
+                theme=theme,
                 progress_callback=progress_cb,
                 frame_workers=frame_workers,
             )
@@ -458,41 +467,49 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
             if _is_cancelled(job_id):
                 raise InterruptedError("Job cancelled by user")
 
-            print(f"[Video] DONE  {video.video_id} ({result.get('duration', 0):.1f}s)")
-            video.video_path       = result.get("video_path", "")
-            video.audio_path       = result.get("audio_path", "")
-            video.thumbnail_path   = result.get("thumbnail_path", "")
-            video.duration_seconds = result.get("duration", 0)
-            video.status           = "completed"
-            video.progress         = 100
-            video.completed_at     = datetime.now(timezone.utc)
-            job.status             = "completed"
-            job.progress           = 100
-            job.completed_at       = datetime.now(timezone.utc)
+            print(f"[Video] DONE  {video_id} ({result.get('duration', 0):.1f}s)")
+            db.session.expire_all()
+            job = db.session.get(JobQueue, job_id)
+            video = Video.query.filter_by(video_id=video_id).first()
+            if video:
+                video.video_path       = result.get("video_path", "")
+                video.audio_path       = result.get("audio_path", "")
+                video.thumbnail_path   = result.get("thumbnail_path", "")
+                video.duration_seconds = result.get("duration", 0)
+                video.status           = "completed"
+                video.progress         = 100
+                video.completed_at     = datetime.now(timezone.utc)
+            if job:
+                job.status             = "completed"
+                job.progress           = 100
+                job.completed_at       = datetime.now(timezone.utc)
             db.session.commit()
 
             _cleanup_after_success()
 
         except InterruptedError:
-            print(f"[Video] CANCELLED {video.video_id}")
+            print(f"[Video] CANCELLED {video_id}")
             _clear_cancelled(job_id)
             db.session.expire_all()
             job = db.session.get(JobQueue, job_id)
-            video_check = Video.query.filter_by(video_id=video.video_id).first()
+            video_check = Video.query.filter_by(video_id=video_id).first()
             if job:
                 job.status = "cancelled"
                 job.completed_at = datetime.now(timezone.utc)
             if video_check:
                 video_check.status = "failed"
                 video_check.error_message = "Cancelled by user"
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         except Exception as e:
             _clear_cancelled(job_id)
-            print(f"[Video] FAIL  {video.video_id}: {e}")
+            print(f"[Video] FAIL  {video_id}: {e}")
             db.session.expire_all()
             job = db.session.get(JobQueue, job_id)
-            video_obj = Video.query.filter_by(video_id=video.video_id).first()
+            video_obj = Video.query.filter_by(video_id=video_id).first()
             if video_obj:
                 video_obj.status = "failed"
                 video_obj.error_message = str(e)
@@ -505,7 +522,10 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
                     job.status = "queued"
                     if video_obj:
                         video_obj.status = "pending"
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         # Trigger: job done, check for more queued work
         _job_finished(app, job_id)

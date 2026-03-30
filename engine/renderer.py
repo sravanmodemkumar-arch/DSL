@@ -68,20 +68,44 @@ OPTION_BAR_COLORS = {
 # Font helpers
 # ---------------------------------------------------------------------------
 
+# Bundled Google Fonts (downloaded once into storage/assets/fonts/)
+_FONTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "storage", "assets", "fonts")
+
+_FONT_REGULAR  = os.path.join(_FONTS_DIR, "Poppins-Regular.ttf")
+_FONT_MEDIUM   = os.path.join(_FONTS_DIR, "Poppins-Medium.ttf")
+_FONT_SEMIBOLD = os.path.join(_FONTS_DIR, "Poppins-SemiBold.ttf")
+_FONT_BOLD     = os.path.join(_FONTS_DIR, "Poppins-Bold.ttf")
+_FONT_MATH     = os.path.join(_FONTS_DIR, "NotoSansMath-Regular.ttf")
+
+
 def _get_font(size=32, bold=False):
-    font_names = []
+    # 1. Bundled Poppins (always available after first run)
+    primary = _FONT_BOLD if bold else _FONT_REGULAR
+    if os.path.exists(primary):
+        try:
+            return ImageFont.truetype(primary, size)
+        except Exception:
+            pass
+    # 2. System fonts — Linux then Windows
+    candidates = []
     if bold:
-        font_names += [
+        candidates += [
+            "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
             "C:/Windows/Fonts/segoeuib.ttf",
             "C:/Windows/Fonts/arialbd.ttf",
         ]
-    font_names += [
+    candidates += [
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "C:/Windows/Fonts/segoeui.ttf",
-        "C:/Windows/Fonts/seguisym.ttf",   # Segoe UI Symbol — full Unicode/tick support
         "C:/Windows/Fonts/arial.ttf",
-        "C:/Windows/Fonts/consola.ttf",
     ]
-    for fname in font_names:
+    for fname in candidates:
         if os.path.exists(fname):
             try:
                 return ImageFont.truetype(fname, size)
@@ -91,27 +115,31 @@ def _get_font(size=32, bold=False):
 
 
 def _get_symbol_font(size=42):
-    """Font guaranteed to render ✓ ✗ and other Unicode symbols."""
+    """Font with ✓ ✗ and Unicode symbols — falls back to regular font."""
     for fname in [
+        os.path.join(_FONTS_DIR, "NotoSansMath-Regular.ttf"),
+        "/usr/share/fonts/truetype/noto/NotoSansSymbols-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "C:/Windows/Fonts/seguisym.ttf",
         "C:/Windows/Fonts/seguiemj.ttf",
-        "C:/Windows/Fonts/arial.ttf",
     ]:
         if os.path.exists(fname):
             try:
                 return ImageFont.truetype(fname, size)
             except Exception:
                 continue
-    return ImageFont.load_default()
+    return _get_font(size)
 
 
 def _get_math_font(size=36):
-    font_names = [
+    for fname in [
+        os.path.join(_FONTS_DIR, "NotoSansMath-Regular.ttf"),
+        "/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
         "C:/Windows/Fonts/cambria.ttc",
         "C:/Windows/Fonts/times.ttf",
-        "C:/Windows/Fonts/consola.ttf",
-    ]
-    for fname in font_names:
+    ]:
         if os.path.exists(fname):
             try:
                 return ImageFont.truetype(fname, size)
@@ -536,11 +564,11 @@ class FrameRenderer:
         fg, bg = color_map.get(color, color_map["orange"])
 
         font  = _get_font(int(52 * s), bold=True)
-        pad_x = int(48 * s)
-        pad_y = int(28 * s)
+        pad_x = int(64 * s)
+        pad_y = int(36 * s)
         max_w = self.content_w - 2 * pad_x
         lines = self._wrap_text(text, font, max_w)
-        line_h = int(font.size * 1.35)
+        line_h = int(font.size * 1.45)
         card_h = len(lines) * line_h + 2 * pad_y
 
         draw.rounded_rectangle(
@@ -569,11 +597,11 @@ class FrameRenderer:
         head_font = _get_font(int(46 * s), bold=True)
         key_font  = _get_font(int(44 * s), bold=True)
         val_font  = _get_font(int(44 * s), bold=False)
-        pad_x     = int(36 * s)
-        pad_y     = int(20 * s)
-        row_h     = int(key_font.size * 1.8)
+        pad_x     = int(52 * s)
+        pad_y     = int(30 * s)
+        row_h     = int(key_font.size * 2.0)
         sep       = int(3 * s)
-        head_h    = int(head_font.size * 1.5) if heading else 0
+        head_h    = int(head_font.size * 1.6) if heading else 0
         card_h    = head_h + len(facts) * row_h + 2 * pad_y
 
         cx = self.content_x
@@ -618,11 +646,11 @@ class FrameRenderer:
         head_font = _get_font(int(46 * s), bold=True)
         step_font = _get_font(int(44 * s), bold=False)
         num_font  = _get_font(int(42 * s), bold=True)
-        pad_x     = int(36 * s)
-        pad_y     = int(20 * s)
-        num_r     = int(26 * s)          # circle radius
-        line_h    = int(step_font.size * 1.6)
-        head_h    = int(head_font.size * 1.5) if heading else 0
+        pad_x     = int(52 * s)
+        pad_y     = int(30 * s)
+        num_r     = int(28 * s)          # circle radius
+        line_h    = int(step_font.size * 1.9)
+        head_h    = int(head_font.size * 1.6) if heading else 0
         card_h    = head_h + len(steps) * line_h + 2 * pad_y
 
         cx = self.content_x
@@ -672,9 +700,9 @@ class FrameRenderer:
         col_w    = (self.content_w - col_gap) // 2
         head_f   = _get_font(int(46 * s), bold=True)
         body_f   = _get_font(int(44 * s), bold=False)
-        pad_x    = int(28 * s)
-        pad_y    = int(20 * s)
-        line_h   = int(body_f.size * 1.5)
+        pad_x    = int(44 * s)
+        pad_y    = int(30 * s)
+        line_h   = int(body_f.size * 1.7)
         colors   = [self._rgb("blue"), self._rgb("orange")]
 
         # Measure height from the taller column
@@ -1143,23 +1171,23 @@ class FrameRenderer:
         elif etype == "concept_text":
             head_font = _get_font(int(52 * s), bold=True)
             body_font = _get_font(int(48 * s))
-            pad_y     = int(22 * s)
-            line_gap  = int(14 * s)
+            pad_y     = int(32 * s)
+            line_gap  = int(18 * s)
             h = 2 * pad_y
             if element.get("heading", ""):
                 h += int(head_font.size * 1.3) + line_gap
             items = element.get("items", [])
             if items:
-                max_w = self.content_w - int(116 * s)
+                max_w = self.content_w - int(128 * s)
                 for item in items:
                     wrapped = self._wrap_text(item, body_font, max_w)
                     h += len(wrapped) * int(body_font.size * 1.45) + line_gap
             else:
                 text = element.get("text", "")
                 if text:
-                    for line in self._wrap_text(text, body_font, self.content_w - int(80 * s)):
+                    for line in self._wrap_text(text, body_font, self.content_w - int(112 * s)):
                         h += int(body_font.size * 1.45)
-            return max(h, int(100 * s))
+            return max(h, int(120 * s))
         elif etype == "instruction_text":
             return int(110 * s)
         elif etype == "image":
@@ -1201,9 +1229,9 @@ class FrameRenderer:
         font = _get_math_font(int(56 * s))
 
         tw = draw.textlength(value, font=font)
-        pad_x = int(40 * s)
-        pad_y = int(20 * s)
-        card_h = int(font.size * 1.3) + 2 * pad_y
+        pad_x = int(56 * s)
+        pad_y = int(30 * s)
+        card_h = int(font.size * 1.5) + 2 * pad_y
 
         card_x = self.content_x
         card_w = self.content_w
@@ -1718,10 +1746,10 @@ class FrameRenderer:
         highlighted = element.get("highlighted", False)
         s           = self.scale
 
-        pad_x    = int(40 * s)
-        pad_y    = int(22 * s)
+        pad_x    = int(56 * s)
+        pad_y    = int(32 * s)
         max_w    = self.content_w - 2 * pad_x
-        line_gap = int(14 * s)
+        line_gap = int(18 * s)
 
         head_font  = _get_font(int(52 * s), bold=True)
         body_font  = _get_font(int(48 * s), bold=False)

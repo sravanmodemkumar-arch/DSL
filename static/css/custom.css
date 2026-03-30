@@ -1,5 +1,26 @@
 /* Custom overrides for STEM Video Generator */
 
+/* Dark dropdown options — prevents white background on select open */
+select,
+select option,
+select optgroup {
+    background-color: #1a1a2e;
+    color: #e5e7eb;
+}
+select option:hover,
+select option:focus,
+select option:checked {
+    background-color: #2a2a4a;
+    color: #00d4ff;
+}
+select optgroup {
+    color: #6b7280;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 /* JSON editor */
 #json-editor {
     tab-size: 2;
