@@ -52,55 +52,102 @@
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Resolution</label>
                         <select id="resolution" name="resolution" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="360p">360p (640x360)</option>
-                            <option value="720p">720p HD (1280x720)</option>
-                            <option value="1080p" selected>1080p Full HD (1920x1080)</option>
-                            <option value="2K">2K QHD (2560x1440)</option>
-                            <option value="4K">4K Ultra HD (3840x2160)</option>
+                            <option value="360p"  {{ 'selected' if settings.resolution == '360p' }}>360p (640x360)</option>
+                            <option value="720p"  {{ 'selected' if settings.resolution == '720p' }}>720p HD (1280x720)</option>
+                            <option value="1080p" {{ 'selected' if settings.resolution == '1080p' }}>1080p Full HD (1920x1080)</option>
+                            <option value="2K"    {{ 'selected' if settings.resolution == '2K' }}>2K QHD (2560x1440)</option>
+                            <option value="4K"    {{ 'selected' if settings.resolution == '4K' }}>4K Ultra HD (3840x2160)</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Quality Preset</label>
                         <select id="quality_preset" name="quality_preset" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="P1">P1 - Preview (1M, 24fps)</option>
-                            <option value="P2">P2 - Draft (2M, 24fps)</option>
-                            <option value="P3">P3 - Mobile (4M, 30fps)</option>
-                            <option value="P4">P4 - Standard (6M, 30fps)</option>
-                            <option value="P5" selected>P5 - YouTube (10M, 30fps)</option>
-                            <option value="P6">P6 - High Quality (15M, 60fps)</option>
-                            <option value="P7">P7 - Maximum (25M, 60fps)</option>
+                            <option value="P1" {{ 'selected' if settings.quality_preset == 'P1' }}>P1 - Preview (1M, 24fps)</option>
+                            <option value="P2" {{ 'selected' if settings.quality_preset == 'P2' }}>P2 - Draft (2M, 24fps)</option>
+                            <option value="P3" {{ 'selected' if settings.quality_preset == 'P3' }}>P3 - Mobile (4M, 30fps)</option>
+                            <option value="P4" {{ 'selected' if settings.quality_preset == 'P4' }}>P4 - Standard (6M, 30fps)</option>
+                            <option value="P5" {{ 'selected' if settings.quality_preset == 'P5' }}>P5 - YouTube (10M, 30fps)</option>
+                            <option value="P6" {{ 'selected' if settings.quality_preset == 'P6' }}>P6 - High Quality (15M, 60fps)</option>
+                            <option value="P7" {{ 'selected' if settings.quality_preset == 'P7' }}>P7 - Maximum (25M, 60fps)</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-xs text-gray-400 mb-1">Theme</label>
                         <select id="theme" name="theme" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="dark" selected>Dark</option>
-                            <option value="light">Light</option>
+                            <option value="dark"  {{ 'selected' if settings.theme == 'dark' }}>Dark</option>
+                            <option value="light" {{ 'selected' if settings.theme == 'light' }}>Light</option>
                         </select>
                     </div>
 
-                    <div>
-                        <label class="block text-xs text-gray-400 mb-1">Max Duration (minutes)</label>
-                        <input type="number" id="max_duration" name="max_duration" value="8" min="1" max="30"
-                            class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                    <div class="border-t border-dark-border pt-4">
+                        <label class="block text-xs text-gray-400 mb-1">Voice</label>
+                        <select id="voice" name="voice" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
+                            <optgroup label="Indian English">
+                                <option value="en-IN-PrabhatNeural"          {{ 'selected' if settings.tts_tld == 'en-IN-PrabhatNeural' }}>Prabhat — Indian Male</option>
+                                <option value="en-IN-NeerjaNeural"           {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaNeural' }}>Neerja — Indian Female</option>
+                                <option value="en-IN-NeerjaExpressiveNeural" {{ 'selected' if settings.tts_tld == 'en-IN-NeerjaExpressiveNeural' }}>Neerja Expressive</option>
+                            </optgroup>
+                            <optgroup label="Hindi">
+                                <option value="hi-IN-MadhurNeural" {{ 'selected' if settings.tts_tld == 'hi-IN-MadhurNeural' }}>Madhur — Hindi Male</option>
+                                <option value="hi-IN-SwaraNeural"  {{ 'selected' if settings.tts_tld == 'hi-IN-SwaraNeural' }}>Swara — Hindi Female</option>
+                            </optgroup>
+                            <optgroup label="Tamil">
+                                <option value="ta-IN-ValluvarNeural" {{ 'selected' if settings.tts_tld == 'ta-IN-ValluvarNeural' }}>Valluvar — Tamil Male</option>
+                                <option value="ta-IN-PallaviNeural"  {{ 'selected' if settings.tts_tld == 'ta-IN-PallaviNeural' }}>Pallavi — Tamil Female</option>
+                            </optgroup>
+                            <optgroup label="Telugu">
+                                <option value="te-IN-MohanNeural"  {{ 'selected' if settings.tts_tld == 'te-IN-MohanNeural' }}>Mohan — Telugu Male</option>
+                                <option value="te-IN-ShrutiNeural" {{ 'selected' if settings.tts_tld == 'te-IN-ShrutiNeural' }}>Shruti — Telugu Female</option>
+                            </optgroup>
+                            <optgroup label="Kannada">
+                                <option value="kn-IN-GaganNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-GaganNeural' }}>Gagan — Kannada Male</option>
+                                <option value="kn-IN-SapnaNeural" {{ 'selected' if settings.tts_tld == 'kn-IN-SapnaNeural' }}>Sapna — Kannada Female</option>
+                            </optgroup>
+                            <optgroup label="Malayalam">
+                                <option value="ml-IN-MidhunNeural"  {{ 'selected' if settings.tts_tld == 'ml-IN-MidhunNeural' }}>Midhun — Malayalam Male</option>
+                                <option value="ml-IN-SobhanaNeural" {{ 'selected' if settings.tts_tld == 'ml-IN-SobhanaNeural' }}>Sobhana — Malayalam Female</option>
+                            </optgroup>
+                            <optgroup label="Marathi">
+                                <option value="mr-IN-ManoharNeural" {{ 'selected' if settings.tts_tld == 'mr-IN-ManoharNeural' }}>Manohar — Marathi Male</option>
+                                <option value="mr-IN-AarohiNeural"  {{ 'selected' if settings.tts_tld == 'mr-IN-AarohiNeural' }}>Aarohi — Marathi Female</option>
+                            </optgroup>
+                            <optgroup label="Bengali">
+                                <option value="bn-IN-BashkarNeural"  {{ 'selected' if settings.tts_tld == 'bn-IN-BashkarNeural' }}>Bashkar — Bengali Male</option>
+                                <option value="bn-IN-TanishaaNeural" {{ 'selected' if settings.tts_tld == 'bn-IN-TanishaaNeural' }}>Tanishaa — Bengali Female</option>
+                            </optgroup>
+                            <optgroup label="Gujarati">
+                                <option value="gu-IN-NiranjanNeural" {{ 'selected' if settings.tts_tld == 'gu-IN-NiranjanNeural' }}>Niranjan — Gujarati Male</option>
+                                <option value="gu-IN-DhwaniNeural"   {{ 'selected' if settings.tts_tld == 'gu-IN-DhwaniNeural' }}>Dhwani — Gujarati Female</option>
+                            </optgroup>
+                            <optgroup label="International">
+                                <option value="en-US-GuyNeural"   {{ 'selected' if settings.tts_tld == 'en-US-GuyNeural' }}>Guy — US Male</option>
+                                <option value="en-US-JennyNeural" {{ 'selected' if settings.tts_tld == 'en-US-JennyNeural' }}>Jenny — US Female</option>
+                                <option value="en-GB-SoniaNeural" {{ 'selected' if settings.tts_tld == 'en-GB-SoniaNeural' }}>Sonia — British Female</option>
+                            </optgroup>
+                            <optgroup label="Auto (from JSON)">
+                                <option value="auto" {{ 'selected' if settings.tts_tld == 'auto' }}>Auto — detect from meta.language</option>
+                            </optgroup>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Override with per-upload voice, or "Auto" uses JSON meta.language</p>
                     </div>
 
-                    <div class="border-t border-dark-border pt-4">
+                    <div>
                         <label class="block text-xs text-gray-400 mb-1">Background Music</label>
                         <select id="bgm_style" name="bgm_style" class="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm focus:border-accent/50 focus:outline-none">
-                            <option value="calm_waves" selected>Calm Waves</option>
-                            <option value="zen_garden">Zen Garden</option>
-                            <option value="morning_dew">Morning Dew</option>
-                            <option value="deep_focus">Deep Focus</option>
-                            <option value="soft_piano">Soft Piano</option>
-                            <option value="crystal_bowl">Crystal Bowl</option>
-                            <option value="forest_stream">Forest Stream</option>
-                            <option value="twilight">Twilight</option>
-                            <option value="lotus">Lotus (Tanpura)</option>
-                            <option value="silent_mind">Silent Mind</option>
-                            <option value="none">No Music</option>
+                            <option value="calm_waves"    {{ 'selected' if settings.bgm_style == 'calm_waves' }}>Calm Waves</option>
+                            <option value="zen_garden"    {{ 'selected' if settings.bgm_style == 'zen_garden' }}>Zen Garden</option>
+                            <option value="morning_dew"   {{ 'selected' if settings.bgm_style == 'morning_dew' }}>Morning Dew</option>
+                            <option value="deep_focus"    {{ 'selected' if settings.bgm_style == 'deep_focus' }}>Deep Focus</option>
+                            <option value="soft_piano"    {{ 'selected' if settings.bgm_style == 'soft_piano' }}>Soft Piano</option>
+                            <option value="crystal_bowl"  {{ 'selected' if settings.bgm_style == 'crystal_bowl' }}>Crystal Bowl</option>
+                            <option value="forest_stream" {{ 'selected' if settings.bgm_style == 'forest_stream' }}>Forest Stream</option>
+                            <option value="twilight"      {{ 'selected' if settings.bgm_style == 'twilight' }}>Twilight</option>
+                            <option value="lotus"         {{ 'selected' if settings.bgm_style == 'lotus' }}>Lotus (Tanpura)</option>
+                            <option value="bansuri"       {{ 'selected' if settings.bgm_style == 'bansuri' }}>Bansuri (Flute)</option>
+                            <option value="silent_mind"   {{ 'selected' if settings.bgm_style == 'silent_mind' }}>Silent Mind</option>
+                            <option value="none"          {{ 'selected' if settings.bgm_style == 'none' }}>No Music</option>
                         </select>
                     </div>
                 </div>
@@ -243,8 +290,8 @@
         formData.append('resolution', document.getElementById('resolution').value);
         formData.append('quality_preset', document.getElementById('quality_preset').value);
         formData.append('theme', document.getElementById('theme').value);
-        formData.append('max_duration', document.getElementById('max_duration').value);
         formData.append('bgm_style', document.getElementById('bgm_style').value);
+        formData.append('voice', document.getElementById('voice').value);
         // Only attach file if it's a ZIP (JSON files are already loaded into editor)
         if (uploadedFile && uploadedFile.name.endsWith('.zip')) {
             formData.append('json_file', uploadedFile);

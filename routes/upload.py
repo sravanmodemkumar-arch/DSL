@@ -18,7 +18,15 @@ upload_bp = Blueprint("upload", __name__)
 
 @upload_bp.route("/")
 def index():
-    return render_template("upload.html")
+    from models import Setting
+    settings = {
+        "resolution": Setting.get("default_resolution", "1080p"),
+        "quality_preset": Setting.get("default_quality_preset", "P7"),
+        "theme": Setting.get("default_theme", "dark"),
+        "bgm_style": Setting.get("bgm_style", "calm_waves"),
+        "tts_tld": Setting.get("tts_tld", "en-IN-PrabhatNeural"),
+    }
+    return render_template("upload.html", settings=settings)
 
 
 @upload_bp.route("/download/reference-schema")
@@ -76,6 +84,10 @@ def process():
     resolution = request.form.get("resolution") or _Setting.get("default_resolution", current_app.config["DEFAULT_RESOLUTION"])
     quality = request.form.get("quality_preset") or _Setting.get("default_quality_preset", current_app.config["DEFAULT_QUALITY_PRESET"])
     theme = request.form.get("theme") or _Setting.get("default_theme", current_app.config["DEFAULT_THEME"])
+    voice = request.form.get("voice") or _Setting.get("tts_tld", "en-IN-PrabhatNeural")
+    # Save voice override so pipeline picks it up for this batch
+    if voice and voice != "auto":
+        _Setting.set("tts_tld", voice)
 
     # Get JSON content — support .json and .zip files
     data = []

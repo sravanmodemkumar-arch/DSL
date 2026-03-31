@@ -344,7 +344,9 @@ class VideoPipeline:
                                                     stdout, stderr)
 
         def _run_2pass(enc, preset, threads, use_lock):
-            """2-pass ABR encoding — guarantees target bitrate for static content."""
+            """2-pass ABR encoding — forces target bitrate for consistent file sizes.
+            Educational content (PPT-style static frames) needs forced bitrate
+            otherwise CRF compresses too aggressively and files are tiny."""
             # Strip -preset from original flags to avoid duplicates
             extra = []
             skip = False
@@ -357,12 +359,13 @@ class VideoPipeline:
                     continue
                 extra.append(f)
 
+            # Force bitrate with tight VBV — no -tune stillimage (over-compresses)
+            # Use -minrate = 60% of target to keep bitrate high even on static frames
             common = [
                 "-preset", preset,
-                "-tune", "stillimage",
                 "-b:v", bitrate,
-                "-minrate", _min_bitrate(bitrate),
-                "-maxrate", bitrate,
+                "-minrate", bitrate,
+                "-maxrate", _double_bitrate(bitrate),
                 "-bufsize", _double_bitrate(bitrate),
             ]
 

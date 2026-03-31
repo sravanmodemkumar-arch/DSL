@@ -6889,10 +6889,11 @@ class FrameRenderer:
         rule_area = avail_h - header_h - verdict_h - gap * (n_checks + 2)
         rule_h    = max(int(140 * s), rule_area // n_checks)
 
-        # ── Option header band (colored) ──
+        # ── Option header band (orange for all — exam explanation style) ──
+        orange_bg = self._rgb("orange")
         draw.rounded_rectangle(
             [cx, y, cx + cw, y + header_h],
-            radius=int(14 * s), fill=bar_color,
+            radius=int(14 * s), fill=orange_bg,
         )
         # "Option A" small label
         draw.text((cx + pad_x, y + int(12 * s)),
