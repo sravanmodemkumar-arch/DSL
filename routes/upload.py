@@ -570,3 +570,27 @@ def _cleanup_after_success():
                 shutil.rmtree(full, ignore_errors=True)
             except Exception:
                 pass
+
+    # 4. Clear JSON batch files that are no longer needed
+    #    A JSON file is safe to delete when ALL videos referencing it are completed/failed
+    json_dir = os.path.join(storage_dir, "json")
+    if os.path.isdir(json_dir):
+        try:
+            # Collect all json_paths still in use by pending/processing videos
+            active_paths = set()
+            pending = Video.query.filter(Video.status.in_(["pending", "processing"])).all()
+            for v in pending:
+                if v.json_path:
+                    active_paths.add(os.path.abspath(v.json_path))
+
+            for fname in os.listdir(json_dir):
+                if not fname.endswith(".json"):
+                    continue
+                fpath = os.path.abspath(os.path.join(json_dir, fname))
+                if fpath not in active_paths:
+                    try:
+                        os.remove(fpath)
+                    except OSError:
+                        pass
+        except Exception:
+            pass
