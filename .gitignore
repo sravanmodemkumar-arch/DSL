@@ -37,6 +37,7 @@ storage/assets/svgs/
 storage/assets/videos/
 storage/assets/watermark/
 storage/assets/audio_clips/
+storage/assets/cache/
 
 # Keep the assets folder structure
 !storage/assets/.gitkeep
