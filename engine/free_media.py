@@ -569,17 +569,68 @@ def _default_cache(media_type: str) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+def download_url(url: str, cache_dir: str = "", media_type: str = "image") -> str:
+    """Download a direct URL and cache locally.
+
+    Supports any public image/video URL (Wikipedia, Wikimedia Commons,
+    NASA, NCBI, etc.). Cached by URL hash — downloads at most once.
+
+    Returns absolute path to cached file, or "" on failure.
+    """
+    if not url or not url.startswith(("http://", "https://")):
+        return ""
+
+    if not cache_dir:
+        cache_dir = _default_cache(media_type)
+    os.makedirs(cache_dir, exist_ok=True)
+
+    # Determine extension from URL
+    url_path = urllib.parse.urlparse(url).path.lower()
+    ext = ""
+    for e in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".mp4", ".webm"):
+        if url_path.endswith(e):
+            ext = e
+            break
+    if not ext:
+        ext = ".jpg" if media_type == "image" else ".mp4"
+
+    # Cache key from URL hash
+    url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+    cached = os.path.join(cache_dir, f"url_{url_hash}{ext}")
+    if os.path.exists(cached) and os.path.getsize(cached) > 100:
+        return cached
+
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Educational Video Generator)"
+        })
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = resp.read()
+        if len(data) < 100:
+            return ""
+        with open(cached, "wb") as f:
+            f.write(data)
+        log.info("URL download OK: %s → %s", url[:80], cached)
+        return cached
+    except Exception as exc:
+        log.warning("URL download failed: %s — %s", url[:80], exc)
+        return ""
+
+
 def resolve_media(
     query: str,
     media_type: str = "image",     # "image" | "video"
     subject: str = "",
     topic_hint: str = "",
     cache_dir: str = "",
+    url: str = "",
 ) -> str:
     """Resolve a free media file for the given query.
 
-    Tries providers in priority order; returns first successful local path.
-    All results are cached — each query downloads at most once.
+    Priority order:
+      1. Direct URL (if provided) — exact image, deterministic
+      2. Local cache hit
+      3. Provider search chain (Wikimedia → Pixabay → Pexels → Unsplash)
 
     Args:
         query:      Search phrase (e.g. "animal cell biology microscope")
@@ -587,12 +638,19 @@ def resolve_media(
         subject:    Subject key for hint expansion (e.g. "biology")
         topic_hint: Sub-topic key within subject hints (e.g. "cell")
         cache_dir:  Override local cache directory
+        url:        Direct URL to download (highest priority, skips search)
 
     Returns:
         Absolute path to cached file, or "" if all providers fail.
     """
     if not cache_dir:
         cache_dir = _default_cache(media_type)
+
+    # Priority 1: Direct URL — exact image, no search needed
+    if url:
+        path = download_url(url, cache_dir, media_type)
+        if path:
+            return path
 
     # Expand short/generic queries via subject hint map
     if len(query.split()) <= 2:

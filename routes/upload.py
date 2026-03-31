@@ -71,10 +71,11 @@ def process():
     json_text = request.form.get("json_content", "")
     json_file = request.files.get("json_file")
 
-    # Settings from form
-    resolution = request.form.get("resolution", current_app.config["DEFAULT_RESOLUTION"])
-    quality = request.form.get("quality_preset", current_app.config["DEFAULT_QUALITY_PRESET"])
-    theme = request.form.get("theme", current_app.config["DEFAULT_THEME"])
+    # Settings from form → DB Settings → config.py (in priority order)
+    from models import Setting as _Setting
+    resolution = request.form.get("resolution") or _Setting.get("default_resolution", current_app.config["DEFAULT_RESOLUTION"])
+    quality = request.form.get("quality_preset") or _Setting.get("default_quality_preset", current_app.config["DEFAULT_QUALITY_PRESET"])
+    theme = request.form.get("theme") or _Setting.get("default_theme", current_app.config["DEFAULT_THEME"])
 
     # Get JSON content — support .json and .zip files
     data = []
@@ -297,7 +298,7 @@ def _get_config(app):
             "THEMES":            THEMES,
             "BGM_ENABLED":       _Setting.get("bgm_enabled", str(app.config.get("BGM_ENABLED", True))).lower() in ("true", "1", "yes"),
             "BGM_STYLE":         _Setting.get("bgm_style",   app.config.get("BGM_STYLE", "ambient")),
-            "BGM_VOLUME":        float(_Setting.get("bgm_volume", str(app.config.get("BGM_VOLUME", 0.30)))),
+            "BGM_VOLUME":        float(_Setting.get("bgm_volume", str(app.config.get("BGM_VOLUME", 0.08)))),
             "BGM_FILES":         app.config.get("BGM_FILES", []),
             "WATERMARK_ENABLED": _Setting.get("watermark_enabled", "false").lower() in ("true", "1", "yes"),
             "WATERMARK_TEXT":    _Setting.get("watermark_text", ""),

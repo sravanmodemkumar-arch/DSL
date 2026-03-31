@@ -430,18 +430,21 @@ def _gen_bansuri(n, sr, vol):
 # Audio mixing
 # ---------------------------------------------------------------------------
 
-def mix_audio_with_bgm(narration_path, bgm_path, output_path, bgm_volume=0.30):
+def mix_audio_with_bgm(narration_path, bgm_path, output_path, bgm_volume=0.08):
     """Mix narration audio with background music using FFmpeg.
 
-    BGM volume is automatically ducked so narration stays clear.
-    Uses FFmpeg amix filter — no pydub/ffprobe needed.
+    BGM is kept very low (default 8%) so narration dominates completely.
+    Uses sidechaincompress to auto-duck BGM when narration is active.
 
     Args:
         narration_path: str — path to narration MP3/WAV
         bgm_path: str — path to BGM WAV
         output_path: str — output MP3 path
-        bgm_volume: float — BGM volume relative to narration (0.05-0.30)
+        bgm_volume: float — BGM volume (0.03–0.15 recommended, default 0.08)
     """
+    # Clamp volume to sane range — never let BGM dominate narration
+    bgm_volume = max(0.02, min(bgm_volume, 0.20))
+
     try:
         import subprocess
         try:
@@ -451,11 +454,13 @@ def mix_audio_with_bgm(narration_path, bgm_path, output_path, bgm_volume=0.30):
             import shutil as _sh
             ffmpeg = _sh.which("ffmpeg") or "ffmpeg"
 
-        # Loop BGM, set its volume directly, mix without normalization
-        # normalize=0 keeps narration at full level — BGM is additive on top
+        # Sidechain ducking: BGM volume drops further when narration is speaking
+        # sidechaincompress: threshold=-30dB, ratio=6:1, attack=200ms, release=1000ms
+        # This makes BGM nearly silent during speech, slightly louder in pauses
         filter_complex = (
             f"[1:a]aloop=loop=-1:size=2e+09,volume={bgm_volume:.4f}[bgm];"
-            f"[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[out]"
+            f"[bgm][0:a]sidechaincompress=threshold=0.02:ratio=6:attack=200:release=1000[ducked];"
+            f"[0:a][ducked]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[out]"
         )
 
         subprocess.run(
@@ -471,6 +476,24 @@ def mix_audio_with_bgm(narration_path, bgm_path, output_path, bgm_volume=0.30):
         return output_path
 
     except Exception:
-        import shutil
-        shutil.copy2(narration_path, output_path)
-        return output_path
+        # Fallback: simple mix without ducking (still at low volume)
+        try:
+            filter_simple = (
+                f"[1:a]aloop=loop=-1:size=2e+09,volume={bgm_volume:.4f}[bgm];"
+                f"[0:a][bgm]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[out]"
+            )
+            subprocess.run(
+                [ffmpeg, "-y",
+                 "-i", narration_path,
+                 "-i", bgm_path,
+                 "-filter_complex", filter_simple,
+                 "-map", "[out]",
+                 "-c:a", "libmp3lame", "-b:a", "192k",
+                 output_path],
+                capture_output=True, text=True, timeout=120, check=True,
+            )
+            return output_path
+        except Exception:
+            import shutil
+            shutil.copy2(narration_path, output_path)
+            return output_path

@@ -62,6 +62,11 @@ RENDERING ENGINE FACTS
 - The question and options stay visible in the header once shown.
 - Highlighting an option turns it SAFFRON (orange) in the header options row.
 - final_answer turns the CORRECT option GREEN and removes any saffron highlight.
+- LaTeX equations rendered via matplotlib.mathtext — wrap in $...$: "$x^2 + 5x + 6 = 0$"
+- 8 subject themes: math (navy/orange), physics (electric blue), chemistry (purple), biology (green),
+  geography (teal), history (brown), economics (solarized teal), polity (maroon) — auto-selected from meta.subject
+- Subject-specific renderers: schemdraw circuits, RDKit molecules, geopandas maps, Pillow cell/DNA/Bohr diagrams
+- Multi-layer compositor: background → header → body → subject visual → LaTeX → annotations → narration bar
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FULL GENERATION MANDATE
@@ -124,16 +129,42 @@ ELEMENT PRIORITY ORDER (within a concept scene):
   5th: Verdict / result — confirms the conclusion
   Never violate this order within a single concept scene.
 
-VISUAL SYSTEM — 6 LAYERS:
+VISUAL SYSTEM — 10 LAYERS (degree-level):
 1. builtin_visual: 74 pure-Pillow illustrations (cell, atom, circuit, etc.) — works offline
-2. subject_image: Free photo from Pixabay/Wikimedia/Pexels/Unsplash — auto-fetched
-3. video_clip: Free video from Pixabay/Pexels — auto-fetched
+2. subject_image: Direct URL (best) OR search from Wikimedia/Pixabay/Pexels/Unsplash
+   → ALWAYS prefer "url" field with Wikimedia Commons link for exact educational diagrams
+   → Falls back to "query" search if no URL provided
+3. video_clip: Direct URL (best) OR local asset OR search from Pixabay/Pexels
 4. matplotlib_plot: Scientific graph (line/bar/scatter/pie/histogram) — requires matplotlib
    matplotlib_plot 3D: surface3d | wireframe3d | scatter3d | line3d | bar3d — same target, 3D plot_types
 5. rdkit_mol: 2D molecular structure from SMILES string — requires RDKit
 6. manim_scene: ANIMATED scenes (function plots, wave propagation, projectile motion, etc.) — requires manim. 20 pre-built templates: function_plot | multi_function | derivative | integral | vector_addition | matrix_transform | pythagorean | circle_theorem | number_line_walk | trig_circle | equation_transform | wave | projectile | pendulum | electric_field | lens_ray | energy_diagram | text_reveal | bar_chart_anim | graph_network
 7. map_plot: Geographic map — world highlight, world choropleth, india_states, india_choropleth — requires geopandas
 8. geometry_3d: 3D geometric solid — cube | cuboid | cylinder | cone | sphere | pyramid | prism — uses matplotlib 3D (no extra install)
+9. DEGREE-LEVEL DEDICATED TARGETS (new — higher quality than builtin_visual):
+   - latex_equation: LaTeX math rendered via matplotlib.mathtext — "$x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$"
+   - derivation_chain: Step-by-step LaTeX derivation — equation morphing effect
+   - circuit_diagram: Electric circuit via schemdraw (resistors, capacitors, etc.) — Physics
+   - bohr_model: Concentric electron shell diagram — Physics/Chemistry
+   - molecule_2d: 2D molecular structure from SMILES via RDKit — Chemistry
+   - cell_diagram: Labeled animal/plant cell with callout arrows — Biology
+   - punnett_square: Genetics Punnett square (2×2 monohybrid or 4×4 dihybrid) — Biology
+   - food_chain: Food chain/web with energy flow arrows — Biology
+   - dna_structure: DNA double helix with A-T/G-C base pairs — Biology
+   - india_map: India map with highlighted states (geopandas) — Geography
+   - world_map: World map with highlighted countries — Geography
+   - wave_diagram: Transverse/longitudinal wave with labeled parts — Physics
+   - ray_diagram: Optics ray diagram for mirrors/lenses — Physics
+   - free_body_diagram: Force vector arrows from center object — Physics
+   - energy_diagram: Potential energy curve (exothermic/endothermic) — Chemistry
+   - periodic_element: Single element tile (symbol, number, mass) — Chemistry
+   - periodic_table: Full mini periodic table with highlighted groups — Chemistry
+   - orbital_diagram: Electron orbital filling (Aufbau, box notation) — Chemistry
+10. WHEN TO USE DEDICATED vs BUILTIN:
+    - Use DEDICATED targets when you need scientific accuracy (real SMILES molecule, real circuit, real LaTeX)
+    - Use builtin_visual for quick illustrative diagrams (concept intro, visual anchor)
+    - Dedicated targets produce higher quality output but require specific libraries
+    - If a dedicated target fails (library not installed), it falls back to builtin_visual or text placeholder
 
 USE VISUALS ALWAYS — THIS IS A HARD RULE, NOT A SUGGESTION.
 
@@ -427,9 +458,12 @@ For other subjects, include at least ONE visual per concept scene.
 
 BIOLOGY — always use visuals for:
   Cell structure         → builtin_visual: "cell" or "plant_cell"  (green)
+                           OR DEGREE: cell_diagram (cell_type="animal", label_parts=[...]) — labeled callout arrows
   DNA / genetics         → builtin_visual: "dna"      (blue)
+                           OR DEGREE: dna_structure (sequence="ATGCATGC") — base pair labels
   Photosynthesis / plant → builtin_visual: "leaf"     (green)
   Food chains / ecology  → builtin_visual: "food_chain" or "ecosystem_pyramid" (orange)
+                           OR DEGREE: food_chain (organisms=["Grass","Grasshopper","Frog",...]) — energy flow arrows
   Heart / circulation    → builtin_visual: "heart"    (red)
   Nervous system         → builtin_visual: "neuron"   (blue)
   Eye / vision           → builtin_visual: "eye"      (blue)
@@ -437,6 +471,7 @@ BIOLOGY — always use visuals for:
   Cell division          → builtin_visual: "mitosis"  (blue)
   Diffusion / osmosis    → builtin_visual: "osmosis"  (blue)
   Genetics / heredity    → builtin_visual: "punnett_square" (green)
+                           OR DEGREE: punnett_square (parent1="Aa", parent2="Aa") — color-coded ratios
   Water / nitrogen cycle → builtin_visual: "water_cycle" or "nitrogen_cycle" (blue)
   Microorganisms         → builtin_visual: "virus" or "bacteria" (red)
   Digestion              → builtin_visual: "digestive_system" (orange)
@@ -445,13 +480,20 @@ BIOLOGY — always use visuals for:
 
 PHYSICS — always use visuals for:
   Circuits               → builtin_visual: "circuit"  (blue)
+                           OR DEGREE: circuit_diagram (components=[...], topology="series") — schemdraw symbols
   Oscillation/pendulum   → builtin_visual: "pendulum" (blue)  OR  manim_scene: "pendulum" (ANIMATED)
   Optics/lenses          → builtin_visual: "optics"   (purple) OR  manim_scene: "lens_ray" (ANIMATED ray diagram)
+                           OR DEGREE: ray_diagram (optic_type="convex_lens", params={...}) — construction rays
   Mirror (concave)       → builtin_visual: "concave_mirror" (blue)
+                           OR DEGREE: ray_diagram (optic_type="concave_mirror", params={...})
   Mirror (convex)        → builtin_visual: "convex_mirror" (blue)
+                           OR DEGREE: ray_diagram (optic_type="convex_mirror", params={...})
   Forces/vectors         → builtin_visual: "force"    (orange) OR  manim_scene: "vector_addition" (ANIMATED)
+                           OR DEGREE: free_body_diagram (forces=[{direction, label},...]) — labeled force arrows
   Waves/sound            → builtin_visual: "wave"     (blue)   OR  manim_scene: "wave" (ANIMATED propagation)
+                           OR DEGREE: wave_diagram (wave_type="transverse", params={...}) — λ, A labels
   Atoms/nuclear          → builtin_visual: "atom"     (red)
+                           OR DEGREE: bohr_model (element="Na", atomic_number=11, electrons_per_shell=[2,8,1])
   Magnetism              → builtin_visual: "bar_magnet" or "solenoid" (blue)
   Projectile motion      → builtin_visual: "projectile" (blue) OR  manim_scene: "projectile" (ANIMATED trajectory)
   Inclined plane / ramp  → builtin_visual: "inclined_plane" (orange)
@@ -463,23 +505,32 @@ PHYSICS — always use visuals for:
   Pulley systems         → builtin_visual: "pulley"   (blue)
   Fluid pressure         → builtin_visual: "pressure_column" (blue)
   Thermodynamics         → builtin_visual: "carnot_engine" (orange)
+  Energy levels          → DEGREE: energy_level (atom, transitions=[...]) — quantum transitions
   Velocity/time graphs   → matplotlib_plot: plot_type="line" OR  manim_scene: "function_plot" (ANIMATED graphing)
   Real experiment photo  → subject_image: query="[topic] physics experiment"
 
 CHEMISTRY — always use visuals for:
   Molecules/bonding      → builtin_visual: "molecule" (red)
+                           OR DEGREE: molecule_2d (smiles="CCO", name="Ethanol") — RDKit professional structure
   Lab equipment          → builtin_visual: "beaker" or "test_tube" (orange)
   Periodic table         → builtin_visual: "periodic_element" (blue)
+                           OR DEGREE: periodic_element (symbol="Fe", atomic_number=26, ...) — professional tile
+                           OR DEGREE: periodic_table (highlight_elements=["Na","K"], highlight_group="alkali_metals")
   pH / acid-base         → builtin_visual: "ph_scale" (green)
   Electrolysis           → builtin_visual: "electrolysis" (blue)
   Electrochemistry       → builtin_visual: "galvanic_cell" (blue)
   Ionic bonding          → builtin_visual: "bond_ionic" (red)
   Covalent bonding       → builtin_visual: "bond_covalent" (blue)
   Aromatic compounds     → builtin_visual: "benzene" (blue)
+                           OR DEGREE: molecule_2d (smiles="c1ccccc1", name="Benzene")
   Reaction energy        → builtin_visual: "activation_energy" (orange) OR  manim_scene: "energy_diagram" (ANIMATED)
+                           OR DEGREE: energy_diagram (reaction_type="exothermic", activation_energy=80, delta_h=-120)
   Distillation / lab     → builtin_visual: "distillation" (blue)
   Molecular structure    → rdkit_mol: smiles="[SMILES string]" (if complex molecule)
+                           OR DEGREE: molecule_2d (smiles="...", name="...") — same but theme-aware
+  Electron configuration → DEGREE: orbital_diagram (element="Sulfur", configuration="1s² 2s² 2p⁶ 3s² 3p⁴")
   Atoms                  → builtin_visual: "atom"     (blue)
+                           OR DEGREE: bohr_model (element="C", atomic_number=6, electrons_per_shell=[2,4])
   Real lab photo         → subject_image: query="[topic] chemistry laboratory"
 
 MATH — always use visuals for:
@@ -492,6 +543,8 @@ MATH — always use visuals for:
   Number patterns        → builtin_visual: "number_pattern" (orange)
   Fractions              → builtin_visual: "fraction_visual" (blue)
   Normal distribution    → builtin_visual: "normal_distribution" (blue)
+  LaTeX formulas         → DEGREE: latex_equation (value="$\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}$") — professional typeset
+  Step-by-step proof     → DEGREE: derivation_chain (steps=["$step1$", "$step2$", "$step3$"]) — equation morphing
   Function graphs        → matplotlib_plot: plot_type="line" OR  manim_scene: "function_plot" (ANIMATED)
   Derivatives/calculus   → manim_scene: "derivative" (ANIMATED tangent line)
   Integration/area       → manim_scene: "integral" (ANIMATED area under curve)
@@ -512,9 +565,12 @@ GEOGRAPHY — always use visuals for:
   Rivers / landforms     → builtin_visual: "river_landforms" (blue)
   Maps / landscapes      → subject_image: query="[place] geography"
   World country highlight→ map_plot: map_type="world_highlight", countries=["India","China"] (outlines + fill)
+                           OR DEGREE: world_map (highlight_countries=["India","China"]) — geopandas rendered
   World data comparison  → map_plot: map_type="world_choropleth", data={"China":95,"India":70,...}
   India states / regions → map_plot: map_type="india_states", highlighted=["Maharashtra","UP","Kerala"]
+                           OR DEGREE: india_map (highlight_states=[...], choropleth_data={...}) — geopandas rendered
   India state data       → map_plot: map_type="india_choropleth", data={"Maharashtra":120,"UP":235,...}
+  Historical timeline    → DEGREE: timeline_bar (events=[{year, event},...]) — professional timeline
 
 HISTORY — always use visuals for:
   Timelines              → timeline (render target) or builtin_visual: "timeline_visual"
@@ -556,9 +612,21 @@ ANY SUBJECT — for concept introduction:
   Timeline of events     → builtin_visual: "timeline_visual" (blue)
   Memory aid / mnemonic  → memory_trick (render target)
 
+IMAGE SOURCE PRIORITY (for subject_image):
+  1st: "url" field — DIRECT Wikimedia/Wikipedia URL = exact image, 100% reliable, best quality
+  2nd: "query" field — search-based = results vary, less reliable, may get wrong image
+  ALWAYS provide "url" when you know the exact image. Only use "query" as fallback.
+
+  Best free URL sources for educational images:
+    Wikimedia Commons → biology diagrams, chemistry structures, physics schematics, historical photos
+    Wikipedia articles → any topic's main image (right-click → "Copy image link")
+    NASA Image Gallery → space, Earth science, astronomy
+    USGS → geology, maps, landforms
+    NIH/NCBI → medical, biological, anatomical
+
 WHEN TO USE EACH VISUAL TYPE:
   builtin_visual  → Diagrams, schematics, labelled structures (ALWAYS works, offline)
-  subject_image   → Real photographs (organisms, landscapes, equipment, artifacts)
+  subject_image   → Real photographs, Wikipedia diagrams (with "url" for best results)
   video_clip      → Real experiment videos (pendulum, titration, microscope)
   matplotlib_plot → Scientific graphs: line, bar, scatter, pie, histogram
                     3D extension: surface3d | wireframe3d | scatter3d | line3d | bar3d
@@ -578,6 +646,10 @@ DO NOT skip option highlighting at the start of each per-option concept scene.
 DO NOT put all option workings into one giant concept scene — one option = one scene.
 DO NOT use "show" when the element is already on screen — use "update" or "clear" first.
 DO NOT put math symbols (÷ × ² √ %) in any audio field — spell them out in words.
+DO NOT read numbers digit-by-digit in audio. Read as whole numbers Indian style:
+   WRONG: "one zero zero nine eight"  CORRECT: "ten thousand and ninety eight"
+   WRONG: "one eight one nine nine eight"  CORRECT: "one lakh eighty one thousand nine hundred and ninety eight"
+   Exception: digit_boxes addition steps ("the digits are one, zero, zero, nine, eight").
 DO NOT use scene type "answer" — the answer is the final step inside the last concept scene.
 DO NOT end on anything other than { "action": "show", "target": "final_answer" }.
 
@@ -825,7 +897,7 @@ scenes array → scene objects → steps array → step objects → render objec
 ```json
 {
   "type": "options",
-  "audio": "Option A [read value]. Option B [read value]. Option C [read value]. Option D [read value]. Pause and think.",
+  "audio": "Option A — [read value as whole number, Indian style]. Option B — [whole number]. Option C — [whole number]. Option D — [whole number]. Pause and think.",
   "render": { "action": "show", "target": "options_grid" }
 }
 ```
@@ -1317,7 +1389,19 @@ Display an uploaded SVG.
 ---
 
 ### 24. `video_clip`
-Display first frame of an uploaded video asset OR auto-fetch a free Pixabay video.
+Display first frame of a video. Supports: direct URL, uploaded asset, or auto-search.
+
+**METHOD 1 (BEST) — Direct URL:**
+```json
+{
+  "action": "show",
+  "target": "video_clip",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Pendulum_animation.gif",
+  "caption": "Simple Pendulum — Oscillation Demo"
+}
+```
+
+**METHOD 2 — Uploaded asset:**
 ```json
 {
   "action": "show",
@@ -1326,7 +1410,8 @@ Display first frame of an uploaded video asset OR auto-fetch a free Pixabay vide
   "caption": "Simple Pendulum — Oscillation Demo"
 }
 ```
-**Auto-fetch from Pixabay (no upload needed):**
+
+**METHOD 3 — Search query (fallback):**
 ```json
 {
   "action": "show",
@@ -1337,14 +1422,30 @@ Display first frame of an uploaded video asset OR auto-fetch a free Pixabay vide
   "caption": "Simple Pendulum — Oscillation Demo"
 }
 ```
-- Use `query` instead of `src` to auto-download a royalty-free video from Pixabay
-- Video is cached in `storage/assets/videos/` — only fetches once
-- Requires `PIXABAY_API_KEY` env variable (free at pixabay.com/api) — works without it at reduced rate
+- Priority: `url` → `src` (uploaded asset) → `query` (Pixabay/Pexels search)
+- First frame extracted by FFmpeg and shown as still image in the video
+- Cached in `storage/assets/videos/` — downloads at most once per URL/query
 
 ---
 
 ### 24b. `subject_image`
-Auto-fetch a free Pixabay image relevant to the topic (no upload needed).
+Fetch an image for the topic. Three ways to provide the image (in priority order):
+
+**METHOD 1 (BEST) — Direct URL from Wikipedia/Wikimedia (recommended for educational content):**
+```json
+{
+  "action": "show",
+  "target": "subject_image",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Animal_cell_structure_en.svg/800px-Animal_cell_structure_en.svg.png",
+  "caption": "Animal Cell Structure"
+}
+```
+- `url` — direct link to any public image (Wikipedia, Wikimedia Commons, NASA, NCBI, etc.)
+- Downloaded once, cached permanently in `storage/assets/images/`
+- **Best results** because the AI picks the EXACT diagram/photo needed
+- Always prefer Wikimedia Commons URLs for scientific diagrams — free, high quality, educational
+
+**METHOD 2 — Search query (fallback if no URL known):**
 ```json
 {
   "action": "show",
@@ -1355,18 +1456,42 @@ Auto-fetch a free Pixabay image relevant to the topic (no upload needed).
   "caption": "Animal Cell Structure"
 }
 ```
-- Automatically downloads and caches a royalty-free image from Pixabay
-- Use for: biology diagrams, chemistry lab photos, physics experiment setups, geography maps
-- Image cached in `storage/assets/images/` — only fetches once per query
-- Falls back to a placeholder if offline
+- Searches: Wikimedia Commons → Pixabay → Pexels → Unsplash (in order)
+- Results vary — search is less reliable than a direct URL
+- Use when you cannot provide a specific URL
+
+**METHOD 3 — Both URL + query (URL tried first, query as fallback):**
+```json
+{
+  "action": "show",
+  "target": "subject_image",
+  "url": "https://upload.wikimedia.org/wikipedia/commons/...",
+  "query": "animal cell diagram",
+  "subject": "biology",
+  "caption": "Animal Cell"
+}
+```
+
+**BEST PRACTICE FOR AI GENERATORS:**
+When generating JSON, ALWAYS try to provide a `url` field with a specific Wikimedia Commons image.
+Wikipedia images follow this URL pattern:
+  `https://upload.wikimedia.org/wikipedia/commons/thumb/[hash]/[filename]/[width]px-[filename].png`
+
+Common educational image sources (all free, no API key):
+  - Wikimedia Commons: diagrams, scientific illustrations, labeled anatomy
+  - Wikipedia article images: historical photos, maps, scientific figures
+  - NASA: space, astronomy, Earth science images
+  - NCBI/NIH: medical and biological images
+  - USGS: geology, geography images
 
 **When to use `subject_image` vs `builtin_visual`:**
-| Use `subject_image` | Use `builtin_visual` |
+| Use `subject_image` (with URL or query) | Use `builtin_visual` |
 |---|---|
-| Real photograph of a cell, plant, experiment | Diagram/schematic (labelled parts) |
-| Biology: organism photos, ecosystem scenes | Biology: cell cross-section, DNA helix |
-| Physics: actual lab equipment photo | Physics: circuit diagram, force arrows |
-| Geography: real landscape photos | Math: clock, number line, analogy |
+| Real photograph of a cell, plant, experiment | Simple schematic diagram (labelled parts) |
+| Detailed Wikipedia diagram of an organ | Quick conceptual illustration |
+| Historical photo of a monument, battle site | Force arrows, circuit schematic |
+| Lab equipment setup, real experiment | Clock, number line, Venn diagram |
+| Geography: satellite photo, landscape | Compass rose, rock cycle diagram |
 
 ---
 
@@ -2032,6 +2157,305 @@ Geographic map rendered via geopandas + matplotlib. Four map types: world highli
 
 ---
 
+### 25f. DEGREE-LEVEL DEDICATED TARGETS (NEW)
+
+These targets produce university-quality scientific visuals. Use them instead of builtin_visual when you need scientific accuracy and professional output.
+
+#### `latex_equation` — LaTeX Math (any subject with formulas)
+```json
+{
+  "action": "show",
+  "target": "latex_equation",
+  "value": "$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$",
+  "color": "accent"
+}
+```
+- `value`: LaTeX string wrapped in `$...$`
+- Supports: fractions, square roots, summations, integrals, matrices, Greek letters
+- Use for: Any formula that looks ugly in plain text (quadratic formula, derivatives, integrals)
+- Falls back to plain text equation if mathtext rendering fails
+- Common LaTeX: `\frac{a}{b}`, `\sqrt{x}`, `\sum_{i=1}^{n}`, `\int_a^b`, `\alpha`, `\beta`, `\theta`
+
+#### `derivation_chain` — Step-by-Step LaTeX Derivation
+```json
+{
+  "action": "show",
+  "target": "derivation_chain",
+  "steps": [
+    "$x^2 - 5x + 6 = 0$",
+    "$(x-2)(x-3) = 0$",
+    "$x = 2 \\quad\\text{or}\\quad x = 3$"
+  ]
+}
+```
+- `steps`: Array of LaTeX strings — each appears below the previous with typewriter effect
+- Use for: Math derivations, proofs, algebraic simplification chains
+- Ideal for: JEE/NEET math, calculus proofs, completing the square, integration by parts
+- Shows ALL steps simultaneously after reveal — student can review the chain
+
+#### `circuit_diagram` — Electric Circuit (Physics)
+```json
+{
+  "action": "show",
+  "target": "circuit_diagram",
+  "components": [
+    {"type": "battery", "label": "V = 12V"},
+    {"type": "resistor", "label": "R₁ = 10Ω"},
+    {"type": "resistor", "label": "R₂ = 20Ω"}
+  ],
+  "topology": "series"
+}
+```
+- `topology`: `"series"` | `"parallel"`
+- Component types: `resistor`, `capacitor`, `inductor`, `battery`, `bulb`, `switch`, `ground`, `wire`
+- Uses schemdraw for professional circuit symbols (NOT text labels)
+- Use INSTEAD of builtin_visual "circuit" for degree-level physics
+
+#### `bohr_model` — Bohr Atomic Model (Physics/Chemistry)
+```json
+{
+  "action": "show",
+  "target": "bohr_model",
+  "element": "Na",
+  "atomic_number": 11,
+  "electrons_per_shell": [2, 8, 1]
+}
+```
+- Draws concentric circles (electron shells) with dots for electrons
+- Nucleus labeled with element symbol and atomic number
+- Use INSTEAD of builtin_visual "atom" for specific element models
+
+#### `free_body_diagram` — Force Diagram (Physics)
+```json
+{
+  "action": "show",
+  "target": "free_body_diagram",
+  "forces": [
+    {"direction": "up", "label": "N = 50N"},
+    {"direction": "down", "label": "mg = 50N"},
+    {"direction": "right", "label": "F = 20N"},
+    {"direction": "left", "label": "f = 10N"}
+  ]
+}
+```
+- Directions: `"up"`, `"down"`, `"left"`, `"right"`, `"diagonal_ur"`, `"diagonal_ul"`, `"diagonal_dr"`, `"diagonal_dl"`
+- Box object at center with labeled force arrows
+- Use INSTEAD of builtin_visual "force" for degree-level problems
+
+#### `wave_diagram` — Wave with Labels (Physics)
+```json
+{
+  "action": "show",
+  "target": "wave_diagram",
+  "wave_type": "transverse",
+  "params": {"wavelength": 2, "amplitude": 1, "label_parts": true}
+}
+```
+- `wave_type`: `"transverse"` | `"longitudinal"` | `"standing"`
+- Labels: crest, trough, wavelength (λ), amplitude (A), node, antinode
+- Use INSTEAD of builtin_visual "wave" for degree-level physics
+
+#### `ray_diagram` — Optics Ray Diagram (Physics)
+```json
+{
+  "action": "show",
+  "target": "ray_diagram",
+  "optic_type": "convex_lens",
+  "params": {"object_distance": 30, "focal_length": 20, "show_image": true}
+}
+```
+- `optic_type`: `"convex_lens"` | `"concave_lens"` | `"concave_mirror"` | `"convex_mirror"`
+- Draws: principal axis, lens/mirror, object arrow, image arrow, 3 construction rays
+- Use INSTEAD of builtin_visual "optics"/"concave_mirror"/"convex_mirror" for degree-level optics
+
+#### `energy_level` — Quantum Energy Levels (Physics)
+```json
+{
+  "action": "show",
+  "target": "energy_level",
+  "atom": "Hydrogen",
+  "transitions": [
+    {"from": 3, "to": 1, "type": "emission", "label": "Lyman series"},
+    {"from": 3, "to": 2, "type": "emission", "label": "Balmer series"}
+  ]
+}
+```
+- Horizontal energy levels (n=1,2,3,4...)
+- Vertical arrows: emission (downward) or absorption (upward)
+
+#### `molecule_2d` — Molecular Structure (Chemistry)
+```json
+{
+  "action": "show",
+  "target": "molecule_2d",
+  "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+  "name": "Aspirin"
+}
+```
+- Renders professional 2D structure from SMILES via RDKit
+- Use INSTEAD of rdkit_mol (same but integrated with subject theme)
+- Same SMILES reference table as rdkit_mol above
+
+#### `periodic_element` — Element Tile (Chemistry)
+```json
+{
+  "action": "show",
+  "target": "periodic_element",
+  "symbol": "Fe",
+  "atomic_number": 26,
+  "atomic_mass": 55.845,
+  "name": "Iron"
+}
+```
+- Professional element card: large symbol, atomic number, mass, name
+- Use INSTEAD of builtin_visual "periodic_element" for degree-level chemistry
+
+#### `periodic_table` — Full Periodic Table (Chemistry)
+```json
+{
+  "action": "show",
+  "target": "periodic_table",
+  "highlight_elements": ["Na", "K", "Li", "Rb", "Cs"],
+  "highlight_group": "alkali_metals"
+}
+```
+- All 118 elements in standard layout
+- `highlight_group`: `"alkali_metals"`, `"alkaline_earth"`, `"transition"`, `"halogens"`, `"noble_gases"`
+- Highlighted elements get accent color fill
+
+#### `energy_diagram` — Reaction Energy (Chemistry)
+```json
+{
+  "action": "show",
+  "target": "energy_diagram",
+  "reaction_type": "exothermic",
+  "activation_energy": 80,
+  "delta_h": -120
+}
+```
+- `reaction_type`: `"exothermic"` | `"endothermic"`
+- Shows: reactants level, products level, activation energy peak, ΔH arrow, Ea arrow
+- Use INSTEAD of builtin_visual "activation_energy" for degree-level chemistry
+
+#### `orbital_diagram` — Electron Filling (Chemistry)
+```json
+{
+  "action": "show",
+  "target": "orbital_diagram",
+  "element": "Sulfur",
+  "configuration": "1s² 2s² 2p⁶ 3s² 3p⁴"
+}
+```
+- Box notation: boxes for each orbital with up/down arrows for electrons
+- Follows Aufbau principle, Hund's rule
+
+#### `cell_diagram` — Labeled Cell (Biology)
+```json
+{
+  "action": "show",
+  "target": "cell_diagram",
+  "cell_type": "animal",
+  "label_parts": ["nucleus", "mitochondria", "golgi_body", "endoplasmic_reticulum"]
+}
+```
+- `cell_type`: `"animal"` | `"plant"` | `"bacteria"` | `"neuron"`
+- Professional labeled diagram with callout arrows to each organelle
+- Use INSTEAD of builtin_visual "cell"/"plant_cell" for degree-level biology
+
+#### `punnett_square` — Genetics Cross (Biology)
+```json
+{
+  "action": "show",
+  "target": "punnett_square",
+  "parent1": "Aa",
+  "parent2": "Aa",
+  "trait_name": "Tallness"
+}
+```
+- 2×2 for monohybrid (Aa × Aa), 4×4 for dihybrid (AaBb × AaBb)
+- Color-coded: dominant = green, heterozygous = yellow, recessive = red
+- Shows phenotype ratio below
+- Use INSTEAD of builtin_visual "punnett_square" for degree-level genetics
+
+#### `food_chain` — Ecology Chain (Biology)
+```json
+{
+  "action": "show",
+  "target": "food_chain",
+  "organisms": ["Grass", "Grasshopper", "Frog", "Snake", "Eagle"]
+}
+```
+- Energy flow arrows between boxes
+- Trophic level labels below each organism
+- Use INSTEAD of builtin_visual "food_chain" for degree-level ecology
+
+#### `dna_structure` — DNA Double Helix (Biology)
+```json
+{
+  "action": "show",
+  "target": "dna_structure",
+  "sequence": "ATGCATGC"
+}
+```
+- Double helix with base pair labels (A-T blue, G-C green)
+- Sugar-phosphate backbone curves
+- Use INSTEAD of builtin_visual "dna" for degree-level genetics
+
+#### `india_map` — India Map (Geography)
+```json
+{
+  "action": "show",
+  "target": "india_map",
+  "highlight_states": ["Maharashtra", "Kerala", "Tamil Nadu"],
+  "choropleth_data": {"Maharashtra": 95.5, "Kerala": 94.0, "Tamil Nadu": 80.3}
+}
+```
+- Professional geopandas rendered India map
+- Use INSTEAD of map_plot "india_states" for degree-level geography
+- Can do either highlight OR choropleth (provide one or both)
+
+#### `world_map` — World Map (Geography)
+```json
+{
+  "action": "show",
+  "target": "world_map",
+  "highlight_countries": ["India", "China", "Japan"]
+}
+```
+- Natural Earth dataset
+- Use INSTEAD of map_plot "world_highlight" for degree-level geography
+
+#### `timeline_bar` — Historical Timeline (History/Geography)
+```json
+{
+  "action": "show",
+  "target": "timeline_bar",
+  "events": [
+    {"year": 1857, "event": "First War of Independence"},
+    {"year": 1885, "event": "INC Founded"},
+    {"year": 1947, "event": "Independence"}
+  ]
+}
+```
+- Horizontal timeline with alternating above/below event labels
+
+#### WHEN TO USE DEDICATED vs BUILTIN_VISUAL:
+
+| Need | Use dedicated target | Use builtin_visual |
+|------|-------------------|--------------------|
+| Actual SMILES molecule structure | `molecule_2d` | `"molecule"` for simple conceptual |
+| Real circuit with component values | `circuit_diagram` | `"circuit"` for concept intro |
+| Specific element Bohr model (Na, Fe) | `bohr_model` | `"atom"` for generic atom concept |
+| Labeled cell with specific organelles | `cell_diagram` | `"cell"` for quick overview |
+| Genetics cross with ratios | `punnett_square` | `"punnett_square"` for concept intro |
+| LaTeX-rendered equation (fractions, roots) | `latex_equation` | `"equation"` for simple text math |
+| Multi-step derivation | `derivation_chain` | Multiple `equation` steps |
+| Professional India map (geopandas) | `india_map` | `map_plot` type="india_states" |
+
+**RULE: In PATH A (MCQ shortcut), prefer builtin_visual for speed. In PATH B (deep topic), prefer dedicated targets for quality.**
+
+---
+
 ### 26. `table`
 Data table with headers and rows.
 ```json
@@ -2239,15 +2663,57 @@ Answer box for numerical-type questions (no MCQ options).
 | ° | "degree" |
 | Σ | "sum of" |
 
-### Number pronunciation:
-| Written | Spoken |
-|---------|--------|
-| 1947 | "nineteen forty seven" |
+### Number pronunciation — INDIAN STYLE (MANDATORY):
+Read numbers as WHOLE NUMBERS in the Indian numbering system. NEVER read digit-by-digit.
+The only exception: when you are explicitly breaking digits apart for a calculation
+(e.g. "the digits are one, zero, zero, nine, eight" during digit_boxes).
+
+**WRONG (digit-by-digit):**
+  "one zero zero nine eight" ← NEVER do this when reading a number
+  "two seven seven two one eight" ← sounds robotic, no student talks like this
+
+**CORRECT (Indian whole-number reading):**
+  "ten thousand and ninety eight" ← how Indians actually say 10098
+  "two lakh seventy seven thousand two hundred and eighteen" ← how Indians say 277218
+
+| Written | CORRECT Spoken (Indian style) |
+|---------|-------------------------------|
+| 18 | "eighteen" |
+| 99 | "ninety nine" |
+| 247 | "two hundred and forty seven" |
+| 1947 | "nineteen forty seven" (year) OR "one thousand nine hundred and forty seven" (number) |
+| 5000 | "five thousand" |
 | 10098 | "ten thousand and ninety eight" |
+| 12345 | "twelve thousand three hundred and forty five" |
+| 49104 | "forty nine thousand one hundred and four" |
+| 77832 | "seventy seven thousand eight hundred and thirty two" |
+| 181998 | "one lakh eighty one thousand nine hundred and ninety eight" |
 | 277218 | "two lakh seventy seven thousand two hundred and eighteen" |
 | 1,50,000 | "one lakh fifty thousand" |
+| 35,00,000 | "thirty five lakh" |
+| 1,00,00,000 | "one crore" |
 | 3.14 | "three point one four" |
 | ¾ | "three fourths" or "three over four" |
+| 15% | "fifteen percent" |
+
+**Indian numbering system:**
+  1,000 = one thousand
+  10,000 = ten thousand
+  1,00,000 = one lakh
+  10,00,000 = ten lakh
+  1,00,00,000 = one crore
+
+**WHEN TO READ DIGIT-BY-DIGIT (only these cases):**
+  - Inside digit_boxes audio: "The digits are one, zero, zero, nine, eight"
+  - During addition steps: "one plus zero plus zero plus nine plus eight equals eighteen"
+  - When spelling out a phone number or code (rare)
+
+**EVERYWHERE ELSE — read as whole number:**
+  - Question audio: "ten thousand and ninety eight" NOT "one zero zero nine eight"
+  - Options audio: "Option A — two lakh seventy seven thousand two hundred and eighteen"
+  - instruction_text audio: "Testing Option B — ten thousand and ninety eight"
+  - Final answer audio: "The answer is Option B — ten thousand and ninety eight"
+  - Any reference to a number in narration
 
 ### Audio quality rules:
 1. **Complete sentences** — no fragments. Bad: "Digit sum eighteen." Good: "The digit sum is eighteen."
@@ -2257,6 +2723,10 @@ Answer box for numerical-type questions (no MCQ options).
 5. **Option keys** — Always say "Option A", never "(A)" or "paren A"
 6. **Minimum 2 sentences per step** — even simple reveal steps
 7. **Transition words** — Use "Now", "Let us", "Notice that", "Therefore", "So", "This means"
+8. **INDIAN NUMBER READING (CRITICAL)** — Read numbers as WHOLE NUMBERS, not digit-by-digit.
+   Bad: "one zero zero nine eight"  Good: "ten thousand and ninety eight"
+   Bad: "two seven seven two one eight"  Good: "two lakh seventy seven thousand two hundred and eighteen"
+   Use lakh/crore system (Indian). Only read digit-by-digit inside digit_boxes addition steps.
 
 ---
 
@@ -2357,22 +2827,22 @@ Step 7: left: { full }, right: { + sum_text + verdict + pass }    ← complete
 ## SUBJECT → ELEMENTS GUIDE
 ## ═══════════════════════════════════════════
 
-| Subject | Must-use elements | Recommended builtin_visuals | Good to add |
-|---------|------------------|---------------------------|-------------|
-| **Mathematics** | `formula_block`, `equation` | `clock`, `venn_diagram`, `coordinate_plane`, `pie_chart`, `bar_chart`, `triangle_parts`, `circle_parts`, `number_pattern`, `fraction_visual`, `normal_distribution` | `digit_boxes`, `shortcut_columns`, `fraction`, `running_sum`, `sum_box`, `number_line`, `matplotlib_plot`, `geometry_3d` (mensuration), `matplotlib_plot` 3D (calculus surfaces) |
-| **Biology** | `process_steps`, `flow_chart` | `cell`, `plant_cell`, `dna`, `leaf`, `food_chain`, `heart`, `neuron`, `eye`, `blood_cells`, `mitosis`, `osmosis`, `punnett_square`, `ecosystem_pyramid`, `water_cycle`, `nitrogen_cycle`, `virus`, `bacteria`, `digestive_system` | `chem_equation`, `key_facts`, `concept_text`, `subject_image`, `memory_trick` |
-| **Chemistry** | `chem_equation`, `highlight_box` | `molecule`, `beaker`, `atom`, `periodic_element`, `ph_scale`, `electrolysis`, `galvanic_cell`, `bond_ionic`, `bond_covalent`, `benzene`, `activation_energy`, `test_tube`, `distillation` | `concept_text`, `key_facts`, `two_col_text`, `flow_chart`, `rdkit_mol` |
-| **Physics** | `formula_block`, `equation` | `atom`, `circuit`, `pendulum`, `optics`, `force`, `wave`, `concave_mirror`, `convex_mirror`, `bar_magnet`, `solenoid`, `projectile`, `inclined_plane`, `transformer`, `capacitor`, `nuclear_fission`, `photoelectric`, `circular_motion`, `pulley`, `pressure_column`, `carnot_engine` | `highlight_box`, `two_col_text`, `key_facts`, `table`, `matplotlib_plot`, `subject_image` |
-| **History** | `timeline`, `key_facts` | `timeline_visual`, `steps_visual` | `two_col_text`, `memory_trick`, `concept_text`, `subject_image`, `map_plot` (empire territory / battle sites) |
-| **Geography** | `key_facts`, `two_col_text` | `compass`, `rock_cycle`, `climate_zones`, `river_landforms` | `timeline`, `memory_trick`, `table`, `subject_image`, `map_plot` (world_highlight / india_states / choropleth) |
-| **Polity / Civics** | `key_facts`, `concept_text` | `government_structure`, `parliament` | `timeline`, `two_col_text`, `subject_image` |
-| **Economics** | `key_facts`, `highlight_box` | `supply_demand`, `production_possibility` | `two_col_text`, `table`, `concept_text`, `matplotlib_plot` |
-| **Accounts** | `t_account`, `highlight_box` | `steps_visual`, `comparison_table` | `key_facts`, `concept_text`, `two_col_text` |
-| **Reasoning** | `analogy`, `concept_text` | `seating_circle`, `direction_sense`, `blood_relation` | `memory_trick`, `key_facts`, `process_steps` |
-| **English Grammar** | `concept_text`, `two_col_text` | `comparison_table`, `steps_visual` | `highlight_box`, `key_facts`, `table` |
-| **Computer Science** | `process_steps`, `flow_chart` | `flowchart`, `binary_tree`, `stack_visual`, `queue_visual`, `array_visual`, `osi_layers` | `table`, `highlight_box`, `concept_text` |
-| **Medical** | `process_steps`, `key_facts` | `heart`, `neuron`, `eye`, `blood_cells`, `digestive_system` | `subject_image`, `flow_chart`, `rdkit_mol` |
-| **Engineering** | `formula_block`, `equation` | `circuit`, `transformer`, `capacitor`, `carnot_engine` | `matplotlib_plot`, `table`, `two_col_text` |
+| Subject | Must-use elements | Recommended builtin_visuals | Degree-level targets (PATH B) | Good to add |
+|---------|------------------|---------------------------|-------------------------------|-------------|
+| **Mathematics** | `formula_block`, `equation` | `clock`, `venn_diagram`, `coordinate_plane`, `pie_chart`, `bar_chart`, `triangle_parts`, `circle_parts`, `number_pattern`, `fraction_visual`, `normal_distribution` | `latex_equation`, `derivation_chain` | `digit_boxes`, `shortcut_columns`, `fraction`, `running_sum`, `sum_box`, `number_line`, `matplotlib_plot`, `geometry_3d`, `matplotlib_plot` 3D |
+| **Biology** | `process_steps`, `flow_chart` | `cell`, `plant_cell`, `dna`, `leaf`, `food_chain`, `heart`, `neuron`, `eye`, `blood_cells`, `mitosis`, `osmosis`, `punnett_square`, `ecosystem_pyramid`, `water_cycle`, `nitrogen_cycle`, `virus`, `bacteria`, `digestive_system` | `cell_diagram`, `dna_structure`, `punnett_square` (degree), `food_chain` (degree) | `chem_equation`, `key_facts`, `concept_text`, `subject_image`, `memory_trick` |
+| **Chemistry** | `chem_equation`, `highlight_box` | `molecule`, `beaker`, `atom`, `periodic_element`, `ph_scale`, `electrolysis`, `galvanic_cell`, `bond_ionic`, `bond_covalent`, `benzene`, `activation_energy`, `test_tube`, `distillation` | `molecule_2d`, `periodic_element` (degree), `periodic_table`, `energy_diagram`, `orbital_diagram`, `bohr_model` | `concept_text`, `key_facts`, `two_col_text`, `flow_chart`, `rdkit_mol` |
+| **Physics** | `formula_block`, `equation` | `atom`, `circuit`, `pendulum`, `optics`, `force`, `wave`, `concave_mirror`, `convex_mirror`, `bar_magnet`, `solenoid`, `projectile`, `inclined_plane`, `transformer`, `capacitor`, `nuclear_fission`, `photoelectric`, `circular_motion`, `pulley`, `pressure_column`, `carnot_engine` | `circuit_diagram`, `bohr_model`, `free_body_diagram`, `wave_diagram`, `ray_diagram`, `energy_level`, `latex_equation` | `highlight_box`, `two_col_text`, `key_facts`, `table`, `matplotlib_plot`, `subject_image` |
+| **History** | `timeline`, `key_facts` | `timeline_visual`, `steps_visual` | `timeline_bar`, `world_map`, `india_map` | `two_col_text`, `memory_trick`, `concept_text`, `subject_image`, `map_plot` |
+| **Geography** | `key_facts`, `two_col_text` | `compass`, `rock_cycle`, `climate_zones`, `river_landforms` | `india_map`, `world_map`, `timeline_bar` | `timeline`, `memory_trick`, `table`, `subject_image`, `map_plot` |
+| **Polity / Civics** | `key_facts`, `concept_text` | `government_structure`, `parliament` | `india_map` | `timeline`, `two_col_text`, `subject_image` |
+| **Economics** | `key_facts`, `highlight_box` | `supply_demand`, `production_possibility` | `latex_equation`, `world_map` | `two_col_text`, `table`, `concept_text`, `matplotlib_plot` |
+| **Accounts** | `t_account`, `highlight_box` | `steps_visual`, `comparison_table` | — | `key_facts`, `concept_text`, `two_col_text` |
+| **Reasoning** | `analogy`, `concept_text` | `seating_circle`, `direction_sense`, `blood_relation` | — | `memory_trick`, `key_facts`, `process_steps` |
+| **English Grammar** | `concept_text`, `two_col_text` | `comparison_table`, `steps_visual` | — | `highlight_box`, `key_facts`, `table` |
+| **Computer Science** | `process_steps`, `flow_chart` | `flowchart`, `binary_tree`, `stack_visual`, `queue_visual`, `array_visual`, `osi_layers` | — | `table`, `highlight_box`, `concept_text` |
+| **Medical** | `process_steps`, `key_facts` | `heart`, `neuron`, `eye`, `blood_cells`, `digestive_system` | `cell_diagram`, `molecule_2d`, `dna_structure` | `subject_image`, `flow_chart`, `rdkit_mol` |
+| **Engineering** | `formula_block`, `equation` | `circuit`, `transformer`, `capacitor`, `carnot_engine` | `circuit_diagram`, `latex_equation`, `derivation_chain` | `matplotlib_plot`, `table`, `two_col_text` |
 
 ---
 
@@ -2469,6 +2939,15 @@ Correct: steps[0] = builtin_visual or subject_image or manim_scene — ALWAYS a 
 Wrong:  "audio": "Let us now check Option A, which is [read Option A value]."
 Correct: "audio": "Let us now check Option A — forty nine thousand one hundred and four."
 Generate REAL content. No brackets, no [PLACEHOLDERS], no [fill this in] in the output JSON.
+```
+
+❌ **DON'T: Read numbers digit-by-digit in audio**
+```
+Wrong:  "audio": "Option A — one zero zero nine eight."
+Correct: "audio": "Option A — ten thousand and ninety eight."
+Wrong:  "audio": "Testing Option D — one eight one nine nine eight."
+Correct: "audio": "Testing Option D — one lakh eighty one thousand nine hundred and ninety eight."
+Only digit-by-digit INSIDE digit_boxes: "The digits are one, zero, zero, nine, eight."
 ```
 
 ❌ **DON'T: Short audio steps (under 20 words)**
@@ -2595,7 +3074,7 @@ Difficulty:  [easy / medium / hard]
       // After all 4 options, add a short thinking prompt — give the student a moment.
       {
         "type": "options",
-        "audio": "Here are your four options. Option A — [read Option A value in natural spoken words]. Option B — [read Option B value]. Option C — [read Option C value]. Option D — [read Option D value]. Take a moment. Pause and think before we continue.",
+        "audio": "Here are your four options. Option A — [read as WHOLE NUMBER, Indian style, e.g. 'two lakh seventy seven thousand two hundred and eighteen' NOT 'two seven seven two one eight']. Option B — [whole number]. Option C — [whole number]. Option D — [whole number]. Take a moment. Pause and think before we continue.",
         "render": { "action": "show", "target": "options_grid" }
       },
 
@@ -2831,7 +3310,7 @@ Depth:       [beginner — explain everything from zero]
           {
             "text":  "[Real-world context]",
             "audio": "[Connect topic to something the student sees in daily life. 2-3 sentences.]",
-            "render": { "action": "show", "target": "subject_image", "query": "[real photo query of topic in daily life]", "subject": "[subject]", "topic": "[topic]", "caption": "[caption]" }
+            "render": { "action": "show", "target": "subject_image", "url": "[Wikimedia Commons or Wikipedia image URL — BEST]", "query": "[fallback search query if no URL]", "subject": "[subject]", "topic": "[topic]", "caption": "[caption]" }
           }
         ]
       },
@@ -2845,7 +3324,7 @@ Depth:       [beginner — explain everything from zero]
           {
             "text":  "[Familiar analogy name]",
             "audio": "Think of it this way. [Relatable everyday analogy that maps to the concept. 3 sentences minimum. Make it vivid.]",
-            "render": { "action": "show", "target": "subject_image", "query": "[everyday object/scenario related to analogy]", "subject": "[subject]", "topic": "[topic]", "caption": "[analogy caption]" }
+            "render": { "action": "show", "target": "subject_image", "url": "[Wikimedia/Wikipedia image URL if known]", "query": "[everyday object/scenario related to analogy]", "subject": "[subject]", "topic": "[topic]", "caption": "[analogy caption]" }
           },
           {
             "text":  "[How analogy maps to concept]",
@@ -2965,7 +3444,7 @@ Depth:       [beginner — explain everything from zero]
           {
             "text":  "[Real-world application]",
             "audio": "[Describe where this concept appears in real life. 2-3 sentences that make it feel relevant and important.]",
-            "render": { "action": "show", "target": "subject_image", "query": "[topic real world application photo]", "subject": "[subject]", "topic": "[topic]", "caption": "[caption]" }
+            "render": { "action": "show", "target": "subject_image", "url": "[Wikimedia/Wikipedia image URL if known]", "query": "[topic real world application photo]", "subject": "[subject]", "topic": "[topic]", "caption": "[caption]" }
           },
           {
             "text":  "In Your Exam",
@@ -3074,4 +3553,4 @@ The `_comment` fields are **ignored by the renderer** — they exist only for do
 
 ---
 
-*Engine: Python + Pillow + FFmpeg + matplotlib + geopandas + RDKit + Manim + edge-tts | DSL version: 5.1 | 8 video modes | 74 builtin visuals | 20 Manim animated scenes | 5 matplotlib 3D plot types | 4 map_plot types | 7 geometry_3d solids | 4-provider free media | All subjects, all exams*
+*Engine: Python + Pillow + FFmpeg + matplotlib + sympy + geopandas + RDKit + schemdraw + Manim + edge-tts | DSL version: 6.0 | 8 video modes | 74 builtin visuals | 18 degree-level dedicated targets | 20 Manim animated scenes | 5 matplotlib 3D plot types | 4 map_plot types | 7 geometry_3d solids | Direct URL + Wikimedia + Pixabay + Pexels + Unsplash media | Indian number reading | 8 subject themes | LaTeX equation rendering | All subjects, all exams*

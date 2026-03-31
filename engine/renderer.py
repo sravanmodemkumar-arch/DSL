@@ -79,29 +79,25 @@ _FONT_MATH     = os.path.join(_FONTS_DIR, "NotoSansMath-Regular.ttf")
 
 
 def _get_font(size=32, bold=False):
-    # 1. Bundled Poppins (always available after first run)
-    primary = _FONT_BOLD if bold else _FONT_REGULAR
-    if os.path.exists(primary):
-        try:
-            return ImageFont.truetype(primary, size)
-        except Exception:
-            pass
-    # 2. System fonts — Linux then Windows
+    # Priority: DejaVuSans (renders ALL Unicode symbols: ✓ ✗ → ÷ × √ ₂ ₃ π Σ α β)
+    # Poppins looks nicer but renders ✓ ✗ → ₂ as empty boxes — DO NOT use as primary
     candidates = []
     if bold:
         candidates += [
-            "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
-            "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+            "/usr/share/fonts/truetype/ubuntu/Ubuntu-B.ttf",
             "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            _FONT_BOLD,
             "C:/Windows/Fonts/segoeuib.ttf",
             "C:/Windows/Fonts/arialbd.ttf",
         ]
     candidates += [
-        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        _FONT_REGULAR,
         "C:/Windows/Fonts/segoeui.ttf",
         "C:/Windows/Fonts/arial.ttf",
     ]
@@ -115,12 +111,13 @@ def _get_font(size=32, bold=False):
 
 
 def _get_symbol_font(size=42):
-    """Font with ✓ ✗ and Unicode symbols — falls back to regular font."""
+    """Font with ✓ ✗ → ₂ ₃ and all Unicode symbols."""
+    # DejaVuSans has the best Unicode coverage — use it for symbols
     for fname in [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         os.path.join(_FONTS_DIR, "NotoSansMath-Regular.ttf"),
         "/usr/share/fonts/truetype/noto/NotoSansSymbols-Regular.ttf",
         "/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "C:/Windows/Fonts/seguisym.ttf",
         "C:/Windows/Fonts/seguiemj.ttf",
     ]:
@@ -133,7 +130,9 @@ def _get_symbol_font(size=42):
 
 
 def _get_math_font(size=36):
+    # DejaVuSans handles math symbols (÷ × √ ² ³ ≥ ≤ ≠ ± π Σ) correctly
     for fname in [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         os.path.join(_FONTS_DIR, "NotoSansMath-Regular.ttf"),
         "/usr/share/fonts/truetype/noto/NotoSansMath-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
@@ -540,6 +539,71 @@ class FrameRenderer:
             return self._draw_sequence_list(draw, frame, el, y)
         elif etype == "numerical_answer":
             return self._draw_numerical_answer(draw, frame, el, y)
+        # ── Degree-level dedicated targets ──
+        elif etype == "latex_equation":
+            return self._draw_latex_equation(draw, frame, el, y)
+        elif etype == "derivation_chain":
+            return self._draw_derivation_chain(draw, frame, el, y)
+        elif etype == "circuit_diagram":
+            return self._draw_circuit_diagram(draw, frame, el, y)
+        elif etype == "bohr_model":
+            return self._draw_bohr_model(draw, frame, el, y)
+        elif etype == "free_body_diagram":
+            return self._draw_free_body_diagram(draw, frame, el, y)
+        elif etype == "wave_diagram":
+            return self._draw_wave_diagram(draw, frame, el, y)
+        elif etype == "ray_diagram":
+            return self._draw_ray_diagram(draw, frame, el, y)
+        elif etype == "energy_level":
+            return self._draw_energy_level(draw, frame, el, y)
+        elif etype == "molecule_2d":
+            return self._draw_molecule_2d(draw, frame, el, y)
+        elif etype == "periodic_element":
+            return self._draw_periodic_element(draw, frame, el, y)
+        elif etype == "periodic_table":
+            return self._draw_periodic_table_mini(draw, frame, el, y)
+        elif etype == "energy_diagram":
+            return self._draw_energy_diagram(draw, frame, el, y)
+        elif etype == "orbital_diagram":
+            return self._draw_orbital_diagram(draw, frame, el, y)
+        elif etype == "cell_diagram":
+            return self._draw_cell_diagram(draw, frame, el, y)
+        elif etype == "punnett_square":
+            return self._draw_punnett_square(draw, frame, el, y)
+        elif etype == "food_chain":
+            return self._draw_food_chain_degree(draw, frame, el, y)
+        elif etype == "dna_structure":
+            return self._draw_dna_structure(draw, frame, el, y)
+        elif etype == "india_map":
+            return self._draw_india_map(draw, frame, el, y)
+        elif etype == "world_map":
+            return self._draw_world_map(draw, frame, el, y)
+        elif etype == "timeline_bar":
+            return self._draw_timeline_bar(draw, frame, el, y)
+        elif etype == "comparison_table":
+            return self._draw_comparison_table(draw, frame, el, y)
+        elif etype == "process_cycle":
+            return self._draw_process_cycle(draw, frame, el, y)
+        elif etype == "hierarchy_tree":
+            return self._draw_hierarchy_tree(draw, frame, el, y)
+        elif etype == "cause_effect":
+            return self._draw_cause_effect(draw, frame, el, y)
+        elif etype == "factor_tree":
+            return self._draw_factor_tree(draw, frame, el, y)
+        elif etype == "venn_diagram":
+            return self._draw_venn_diagram_degree(draw, frame, el, y)
+        elif etype == "balance_scale":
+            return self._draw_balance_scale(draw, frame, el, y)
+        elif etype == "coordinate_axes":
+            return self._draw_coordinate_axes(draw, frame, el, y)
+        elif etype == "bar_chart":
+            return self._draw_bar_chart(draw, frame, el, y)
+        elif etype == "pie_chart":
+            return self._draw_pie_chart(draw, frame, el, y)
+        elif etype == "clock_diagram":
+            return self._draw_clock_diagram(draw, frame, el, y)
+        elif etype == "reaction_equation":
+            return self._draw_reaction_equation(draw, frame, el, y)
         return y   # unknown type — skip silently
 
     # ------------------------------------------------------------------
@@ -5815,6 +5879,727 @@ class FrameRenderer:
                       caption, fill=(200, 200, 255), font=cf)
 
         return y + avail_h
+
+    # ==================================================================
+    # DEGREE-LEVEL DEDICATED TARGET RENDERERS
+    # ==================================================================
+
+    def _draw_latex_equation(self, draw, frame, element, y):
+        """Render LaTeX equation via matplotlib.mathtext."""
+        value = element.get("value", "")
+        s = self.scale
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            from io import BytesIO
+            fig, ax = plt.subplots(figsize=(12, 2), dpi=150)
+            ax.axis("off")
+            fontsize = max(16, int(28 * s))
+            ax.text(0.5, 0.5, value, fontsize=fontsize, ha="center", va="center",
+                    transform=ax.transAxes, color="#1A237E")
+            fig.patch.set_facecolor("white")
+            fig.tight_layout(pad=0.5)
+            buf = BytesIO()
+            fig.savefig(buf, format="png", bbox_inches="tight", facecolor="white")
+            plt.close(fig)
+            buf.seek(0)
+            img = Image.open(buf).convert("RGB")
+            ratio = min(self.content_w / img.width, int(200 * s) / img.height)
+            new_w, new_h = int(img.width * ratio), int(img.height * ratio)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+            px = self.content_x + (self.content_w - new_w) // 2
+            frame.paste(img, (px, int(y)))
+            return y + new_h + int(20 * s)
+        except Exception:
+            return self._draw_equation_element(draw, frame,
+                {"type": "equation", "value": value, "highlighted": False}, y)
+
+    def _draw_derivation_chain(self, draw, frame, element, y):
+        """Step-by-step LaTeX derivation — renders each step."""
+        steps = element.get("steps", [])
+        s = self.scale
+        for step_text in steps:
+            y = self._draw_latex_equation(draw, frame, {"value": step_text}, y)
+            y += int(8 * s)
+        return y
+
+    def _draw_circuit_diagram(self, draw, frame, element, y):
+        """Electric circuit via schemdraw → PIL."""
+        components = element.get("components", [])
+        topology = element.get("topology", "series")
+        s = self.scale
+        try:
+            import schemdraw
+            import schemdraw.elements as elm
+            from io import BytesIO
+            with schemdraw.Drawing(show=False) as d:
+                d.config(fontsize=14)
+                comp_map = {
+                    "resistor": elm.Resistor, "capacitor": elm.Capacitor,
+                    "inductor": elm.Inductor, "battery": elm.Battery,
+                    "switch": elm.Switch, "ground": elm.Ground,
+                    "wire": elm.Line, "bulb": elm.Lamp,
+                }
+                for c in components:
+                    ctype = c.get("type", "wire")
+                    label = c.get("label", "")
+                    elem_cls = comp_map.get(ctype, elm.Line)
+                    el_drawn = d.add(elem_cls().label(label) if label else elem_cls())
+                if topology == "series":
+                    d.add(elm.Line().down())
+                    d.add(elm.Line().left().tox(d.anchors.get("start", (0,0))[0] if hasattr(d, 'anchors') else 0))
+            buf = BytesIO()
+            d.save(buf, fmt="png", dpi=150)
+            buf.seek(0)
+            img = Image.open(buf).convert("RGB")
+            ratio = min(self.content_w / img.width, int(350 * s) / img.height)
+            new_w, new_h = int(img.width * ratio), int(img.height * ratio)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+            px = self.content_x + (self.content_w - new_w) // 2
+            frame.paste(img, (px, int(y)))
+            return y + new_h + int(20 * s)
+        except Exception:
+            return self._draw_builtin_visual(draw, frame,
+                {"type": "builtin_visual", "visual": "circuit", "label": "Circuit Diagram", "color": "blue"}, y)
+
+    def _draw_bohr_model(self, draw, frame, element, y):
+        """Bohr atomic model with concentric electron shells."""
+        symbol = element.get("element", element.get("symbol", "?"))
+        atomic_num = element.get("atomic_number", 0)
+        shells = element.get("electrons_per_shell", [])
+        s = self.scale
+        cx_center = self.content_x + self.content_w // 2
+        cy_center = int(y + 160 * s)
+        nucleus_r = int(30 * s)
+        shell_gap = int(45 * s)
+        # Nucleus
+        draw.ellipse([cx_center - nucleus_r, cy_center - nucleus_r,
+                      cx_center + nucleus_r, cy_center + nucleus_r],
+                     fill=(200, 50, 50))
+        nf = _get_font(int(28 * s), bold=True)
+        ntxt = f"{symbol}\n{atomic_num}"
+        draw.text((cx_center - int(15 * s), cy_center - int(18 * s)), ntxt,
+                  fill=(255, 255, 255), font=nf)
+        # Shells
+        import math
+        for i, e_count in enumerate(shells):
+            r = nucleus_r + (i + 1) * shell_gap
+            draw.ellipse([cx_center - r, cy_center - r, cx_center + r, cy_center + r],
+                         outline=(80, 80, 180), width=int(2 * s))
+            # Electrons as dots
+            for j in range(e_count):
+                angle = 2 * math.pi * j / e_count - math.pi / 2
+                ex = cx_center + int(r * math.cos(angle))
+                ey = cy_center + int(r * math.sin(angle))
+                dot_r = int(6 * s)
+                draw.ellipse([ex - dot_r, ey - dot_r, ex + dot_r, ey + dot_r],
+                             fill=(0, 100, 255))
+            # Shell label
+            lf = _get_font(int(20 * s))
+            draw.text((cx_center + r + int(5 * s), cy_center - int(10 * s)),
+                      f"n={i+1} ({e_count}e⁻)", fill=(80, 80, 180), font=lf)
+        total_h = nucleus_r + len(shells) * shell_gap + int(60 * s)
+        return y + total_h * 2
+
+    def _draw_free_body_diagram(self, draw, frame, element, y):
+        """Force vector arrows from center object."""
+        forces = element.get("forces", [])
+        s = self.scale
+        cx = self.content_x + self.content_w // 2
+        cy = int(y + 180 * s)
+        box_size = int(50 * s)
+        # Object box
+        draw.rounded_rectangle([cx - box_size, cy - box_size, cx + box_size, cy + box_size],
+                               radius=int(8 * s), fill=(220, 220, 240), outline=(60, 60, 100), width=int(2 * s))
+        bf = _get_font(int(22 * s), bold=True)
+        draw.text((cx - int(15 * s), cy - int(12 * s)), "obj", fill=(60, 60, 100), font=bf)
+        # Arrows
+        dir_map = {
+            "up": (0, -1), "down": (0, 1), "left": (-1, 0), "right": (1, 0),
+            "diagonal_ur": (0.7, -0.7), "diagonal_ul": (-0.7, -0.7),
+            "diagonal_dr": (0.7, 0.7), "diagonal_dl": (-0.7, 0.7),
+        }
+        arrow_len = int(120 * s)
+        lf = _get_font(int(24 * s), bold=True)
+        colors = [(220, 50, 50), (50, 50, 220), (50, 180, 50), (200, 120, 0)]
+        for i, f in enumerate(forces):
+            direction = f.get("direction", "up")
+            label = f.get("label", "F")
+            dx, dy = dir_map.get(direction, (0, -1))
+            x1 = cx + int(dx * box_size)
+            y1 = cy + int(dy * box_size)
+            x2 = cx + int(dx * (box_size + arrow_len))
+            y2 = cy + int(dy * (box_size + arrow_len))
+            color = colors[i % len(colors)]
+            draw.line([x1, y1, x2, y2], fill=color, width=int(4 * s))
+            # Arrowhead
+            draw.polygon([(x2, y2),
+                          (x2 - int(dx * 12 * s) + int(dy * 8 * s), y2 - int(dy * 12 * s) - int(dx * 8 * s)),
+                          (x2 - int(dx * 12 * s) - int(dy * 8 * s), y2 - int(dy * 12 * s) + int(dx * 8 * s))],
+                         fill=color)
+            draw.text((x2 + int(5 * s), y2 - int(12 * s)), label, fill=color, font=lf)
+        return y + int(380 * s)
+
+    def _draw_wave_diagram(self, draw, frame, element, y):
+        """Transverse/longitudinal wave with labeled parts."""
+        import math
+        wave_type = element.get("wave_type", "transverse")
+        params = element.get("params", {})
+        wavelength = params.get("wavelength", 2)
+        amplitude = params.get("amplitude", 1)
+        label_parts = params.get("label_parts", True)
+        s = self.scale
+        cx = self.content_x + int(40 * s)
+        w = self.content_w - int(80 * s)
+        h = int(200 * s)
+        mid_y = int(y + h // 2)
+        # Axis
+        draw.line([cx, mid_y, cx + w, mid_y], fill=(180, 180, 180), width=int(1 * s))
+        # Wave
+        points = []
+        for px in range(w):
+            t = px / w * 4 * math.pi
+            wy = mid_y - int(amplitude * (h * 0.35) * math.sin(t))
+            points.append((cx + px, wy))
+        for i in range(len(points) - 1):
+            draw.line([points[i], points[i+1]], fill=(0, 100, 220), width=int(3 * s))
+        if label_parts:
+            lf = _get_font(int(20 * s))
+            # Crest
+            draw.text((cx + w // 8, int(y + 10 * s)), "Crest", fill=(220, 50, 50), font=lf)
+            # Trough
+            draw.text((cx + w * 3 // 8, int(y + h - 30 * s)), "Trough", fill=(220, 50, 50), font=lf)
+            # Wavelength arrow
+            lam_y = int(y + h + 10 * s)
+            qw = w // 4
+            draw.line([cx + qw, lam_y, cx + qw * 3, lam_y], fill=(0, 150, 0), width=int(2 * s))
+            draw.text((cx + qw * 2 - int(10 * s), lam_y + int(5 * s)), "λ", fill=(0, 150, 0),
+                      font=_get_font(int(26 * s), bold=True))
+            # Amplitude
+            amp_x = cx + int(10 * s)
+            draw.line([amp_x, mid_y, amp_x, int(y + h * 0.15)], fill=(200, 0, 200), width=int(2 * s))
+            draw.text((amp_x + int(5 * s), int(y + h * 0.25)), "A", fill=(200, 0, 200),
+                      font=_get_font(int(24 * s), bold=True))
+        return y + h + int(50 * s)
+
+    def _draw_ray_diagram(self, draw, frame, element, y):
+        """Optics ray diagram for mirrors/lenses."""
+        optic_type = element.get("optic_type", "convex_lens")
+        params = element.get("params", {})
+        s = self.scale
+        # Fallback to builtin optics visual
+        visual_map = {
+            "convex_lens": "optics", "concave_lens": "optics",
+            "concave_mirror": "concave_mirror", "convex_mirror": "convex_mirror",
+        }
+        visual = visual_map.get(optic_type, "optics")
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": visual,
+             "label": optic_type.replace("_", " ").title(), "color": "blue"}, y)
+
+    def _draw_energy_level(self, draw, frame, element, y):
+        """Quantum energy level diagram with transitions."""
+        atom = element.get("atom", "H")
+        transitions = element.get("transitions", [])
+        s = self.scale
+        cx = self.content_x + int(60 * s)
+        w = self.content_w - int(120 * s)
+        levels = 5
+        level_gap = int(50 * s)
+        lf = _get_font(int(22 * s))
+        bf = _get_font(int(24 * s), bold=True)
+        draw.text((cx, y), f"{atom} Energy Levels", fill=(26, 35, 126), font=bf)
+        y += int(40 * s)
+        level_y = {}
+        for n in range(1, levels + 1):
+            ly = y + (levels - n) * level_gap
+            level_y[n] = ly
+            draw.line([cx, ly, cx + w, ly], fill=(60, 60, 100), width=int(2 * s))
+            draw.text((cx + w + int(10 * s), ly - int(10 * s)), f"n={n}", fill=(60, 60, 100), font=lf)
+        # Transitions
+        colors_t = {"emission": (220, 50, 50), "absorption": (50, 50, 220)}
+        for t in transitions:
+            n_from = t.get("from", 3)
+            n_to = t.get("to", 1)
+            ttype = t.get("type", "emission")
+            label = t.get("label", "")
+            if n_from in level_y and n_to in level_y:
+                x_pos = cx + w // 3 + transitions.index(t) * int(80 * s)
+                color = colors_t.get(ttype, (100, 100, 100))
+                draw.line([x_pos, level_y[n_from], x_pos, level_y[n_to]],
+                          fill=color, width=int(3 * s))
+                mid = (level_y[n_from] + level_y[n_to]) // 2
+                if label:
+                    draw.text((x_pos + int(5 * s), mid), label, fill=color, font=lf)
+        return y + levels * level_gap + int(30 * s)
+
+    def _draw_molecule_2d(self, draw, frame, element, y):
+        """2D molecule from SMILES via RDKit, fallback to rdkit_mol handler."""
+        return self._draw_rdkit_mol(draw, frame, {
+            "smiles": element.get("smiles", ""),
+            "name": element.get("name", ""),
+            "caption": element.get("name", ""),
+        }, y)
+
+    def _draw_periodic_element(self, draw, frame, element, y):
+        """Single element tile — symbol, atomic number, mass, name."""
+        symbol = element.get("symbol", "?")
+        atomic_num = element.get("atomic_number", 0)
+        atomic_mass = element.get("atomic_mass", 0)
+        name = element.get("name", "")
+        s = self.scale
+        tile_w = int(220 * s)
+        tile_h = int(260 * s)
+        tx = self.content_x + (self.content_w - tile_w) // 2
+        # Tile bg
+        draw.rounded_rectangle([tx, y, tx + tile_w, y + tile_h],
+                               radius=int(12 * s), fill=(230, 240, 255), outline=(26, 35, 126), width=int(3 * s))
+        nf = _get_font(int(22 * s))
+        sf = _get_font(int(72 * s), bold=True)
+        mf = _get_font(int(20 * s))
+        # Atomic number
+        draw.text((tx + int(12 * s), y + int(10 * s)), str(atomic_num), fill=(100, 100, 150), font=nf)
+        # Symbol
+        stw = draw.textlength(symbol, font=sf)
+        draw.text((tx + (tile_w - stw) / 2, y + int(50 * s)), symbol, fill=(26, 35, 126), font=sf)
+        # Name
+        ntw = draw.textlength(name, font=nf)
+        draw.text((tx + (tile_w - ntw) / 2, y + int(160 * s)), name, fill=(60, 60, 100), font=nf)
+        # Mass
+        mass_str = f"{atomic_mass:.3f}" if atomic_mass else ""
+        mtw = draw.textlength(mass_str, font=mf)
+        draw.text((tx + (tile_w - mtw) / 2, y + int(200 * s)), mass_str, fill=(120, 120, 160), font=mf)
+        return y + tile_h + int(20 * s)
+
+    def _draw_periodic_table_mini(self, draw, frame, element, y):
+        """Mini periodic table with highlighted elements/groups."""
+        highlight = set(element.get("highlight_elements", []))
+        s = self.scale
+        # Simplified — show first 36 elements in grid
+        elements_data = [
+            "H","He","Li","Be","B","C","N","O","F","Ne",
+            "Na","Mg","Al","Si","P","S","Cl","Ar","K","Ca",
+            "Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn",
+            "Ga","Ge","As","Se","Br","Kr"
+        ]
+        cols = 18
+        cell_w = int(self.content_w / cols)
+        cell_h = int(cell_w * 1.2)
+        cf = _get_font(max(10, int(14 * s)))
+        cx = self.content_x
+        for i, sym in enumerate(elements_data):
+            col = i % cols
+            row = i // cols
+            ex = cx + col * cell_w
+            ey = y + row * cell_h
+            fill = (255, 200, 100) if sym in highlight else (230, 240, 255)
+            draw.rectangle([ex, ey, ex + cell_w - 1, ey + cell_h - 1], fill=fill, outline=(180, 180, 200))
+            tw = draw.textlength(sym, font=cf)
+            draw.text((ex + (cell_w - tw) / 2, ey + int(4 * s)), sym, fill=(30, 30, 80), font=cf)
+        rows_used = (len(elements_data) + cols - 1) // cols
+        return y + rows_used * cell_h + int(20 * s)
+
+    def _draw_energy_diagram(self, draw, frame, element, y):
+        """Potential energy curve — exothermic/endothermic."""
+        reaction_type = element.get("reaction_type", "exothermic")
+        ea = element.get("activation_energy", 80)
+        dh = element.get("delta_h", -50)
+        s = self.scale
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            import numpy as np
+            from io import BytesIO
+            fig, ax = plt.subplots(figsize=(8, 5), dpi=120)
+            x = np.linspace(0, 10, 200)
+            reactant_e = 50
+            product_e = reactant_e + dh
+            peak_e = reactant_e + ea
+            curve = np.where(x < 3, reactant_e, np.where(x < 5,
+                reactant_e + (peak_e - reactant_e) * np.exp(-((x - 4)**2) / 0.5),
+                product_e + (peak_e - product_e) * np.exp(-((x - 4)**2) / 0.5)))
+            # Smooth gaussian-like curve
+            from scipy.ndimage import gaussian_filter1d
+            curve = gaussian_filter1d(curve, sigma=10)
+            ax.plot(x, curve, color="#1A237E", linewidth=2.5)
+            ax.axhline(y=reactant_e, color="gray", linestyle="--", alpha=0.5)
+            ax.axhline(y=product_e, color="gray", linestyle="--", alpha=0.5)
+            ax.set_xlabel("Reaction Progress →", fontsize=12)
+            ax.set_ylabel("Potential Energy", fontsize=12)
+            title = f"{'Exothermic' if dh < 0 else 'Endothermic'} Reaction"
+            ax.set_title(title, fontsize=14, fontweight="bold")
+            ax.annotate(f"Ea = {ea}", xy=(4, peak_e), fontsize=11, ha="center", color="red")
+            ax.annotate(f"ΔH = {dh}", xy=(7, (reactant_e + product_e) / 2), fontsize=11, color="blue")
+            fig.tight_layout()
+            buf = BytesIO()
+            fig.savefig(buf, format="png", bbox_inches="tight", facecolor="white")
+            plt.close(fig)
+            buf.seek(0)
+            img = Image.open(buf).convert("RGB")
+            ratio = min(self.content_w / img.width, int(350 * s) / img.height)
+            new_w, new_h = int(img.width * ratio), int(img.height * ratio)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+            px = self.content_x + (self.content_w - new_w) // 2
+            frame.paste(img, (px, int(y)))
+            return y + new_h + int(20 * s)
+        except Exception:
+            return self._draw_builtin_visual(draw, frame,
+                {"type": "builtin_visual", "visual": "activation_energy",
+                 "label": f"{'Exothermic' if dh < 0 else 'Endothermic'} Reaction", "color": "orange"}, y)
+
+    def _draw_orbital_diagram(self, draw, frame, element, y):
+        """Electron orbital filling — box notation."""
+        config_str = element.get("configuration", "1s²")
+        s = self.scale
+        import re
+        orbitals = re.findall(r'(\d[spdf])(\d*[⁰¹²³⁴⁵⁶⁷⁸⁹]*|\d*)', config_str)
+        cx = self.content_x + int(20 * s)
+        box_w = int(28 * s)
+        box_h = int(36 * s)
+        gap = int(6 * s)
+        lf = _get_font(int(20 * s))
+        bf = _get_font(int(18 * s), bold=True)
+        # Title
+        name = element.get("element", "")
+        if name:
+            draw.text((cx, y), f"{name}: {config_str}", fill=(26, 35, 126), font=_get_font(int(26 * s), bold=True))
+            y += int(40 * s)
+        max_boxes = {"s": 1, "p": 3, "d": 5, "f": 7}
+        superscripts = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+        for orb_name, electrons_str in orbitals:
+            electrons_str = electrons_str.translate(superscripts)
+            n_electrons = int(electrons_str) if electrons_str else 0
+            sublevel = orb_name[-1]
+            n_boxes = max_boxes.get(sublevel, 1)
+            draw.text((cx, y + int(5 * s)), orb_name, fill=(60, 60, 100), font=lf)
+            bx = cx + int(40 * s)
+            for b in range(n_boxes):
+                x1 = bx + b * (box_w + gap)
+                draw.rectangle([x1, y, x1 + box_w, y + box_h], outline=(100, 100, 150), width=int(2 * s))
+                e_in_box = min(2, max(0, n_electrons - b * 2))
+                if e_in_box >= 1:
+                    draw.text((x1 + int(4 * s), y + int(2 * s)), "↑", fill=(220, 50, 50), font=bf)
+                if e_in_box >= 2:
+                    draw.text((x1 + int(14 * s), y + int(2 * s)), "↓", fill=(50, 50, 220), font=bf)
+            y += box_h + int(10 * s)
+        return y + int(10 * s)
+
+    def _draw_cell_diagram(self, draw, frame, element, y):
+        """Labeled cell diagram with callout arrows."""
+        cell_type = element.get("cell_type", "animal")
+        label_parts = element.get("label_parts", [])
+        visual = "cell" if cell_type == "animal" else "plant_cell" if cell_type == "plant" else "cell"
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": visual,
+             "label": f"{cell_type.title()} Cell", "color": "green"}, y)
+
+    def _draw_punnett_square(self, draw, frame, element, y):
+        """Genetics Punnett square — 2×2 monohybrid."""
+        parent1 = element.get("parent1", "Aa")
+        parent2 = element.get("parent2", "Aa")
+        trait = element.get("trait_name", "Trait")
+        s = self.scale
+        cell_size = int(80 * s)
+        cx = self.content_x + (self.content_w - cell_size * 3) // 2
+        bf = _get_font(int(28 * s), bold=True)
+        lf = _get_font(int(24 * s))
+        # Title
+        draw.text((cx, y), f"Punnett Square: {parent1} × {parent2}", fill=(26, 35, 126), font=bf)
+        y += int(45 * s)
+        alleles1 = list(parent1)
+        alleles2 = list(parent2)
+        # Header row
+        for j, a in enumerate(alleles2):
+            x = cx + (j + 1) * cell_size
+            draw.rectangle([x, y, x + cell_size, y + cell_size], fill=(26, 35, 126))
+            tw = draw.textlength(a, font=bf)
+            draw.text((x + (cell_size - tw) / 2, y + int(20 * s)), a, fill=(255, 255, 255), font=bf)
+        y += cell_size
+        # Grid
+        dom_color = (200, 240, 200)
+        rec_color = (255, 240, 200)
+        for i, a1 in enumerate(alleles1):
+            # Row header
+            rx = cx
+            ry = y + i * cell_size
+            draw.rectangle([rx, ry, rx + cell_size, ry + cell_size], fill=(26, 35, 126))
+            tw = draw.textlength(a1, font=bf)
+            draw.text((rx + (cell_size - tw) / 2, ry + int(20 * s)), a1, fill=(255, 255, 255), font=bf)
+            for j, a2 in enumerate(alleles2):
+                gx = cx + (j + 1) * cell_size
+                gy = ry
+                genotype = a1 + a2
+                is_homo_rec = genotype.lower() == genotype
+                fill = rec_color if is_homo_rec else dom_color
+                draw.rectangle([gx, gy, gx + cell_size, gy + cell_size], fill=fill, outline=(150, 150, 180))
+                tw = draw.textlength(genotype, font=lf)
+                draw.text((gx + (cell_size - tw) / 2, gy + int(22 * s)), genotype, fill=(30, 30, 80), font=lf)
+        total_h = len(alleles1) * cell_size + int(20 * s)
+        return y + total_h
+
+    def _draw_food_chain_degree(self, draw, frame, element, y):
+        """Food chain with labeled energy flow arrows."""
+        organisms = element.get("organisms", [])
+        s = self.scale
+        if not organisms:
+            return y
+        box_w = int(min(180 * s, (self.content_w - int(40 * s) * len(organisms)) / len(organisms)))
+        box_h = int(60 * s)
+        gap = int(50 * s)
+        total_w = len(organisms) * box_w + (len(organisms) - 1) * gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+        bf = _get_font(int(22 * s), bold=True)
+        lf = _get_font(int(16 * s))
+        colors = [(120, 200, 80), (80, 180, 120), (60, 140, 200), (200, 120, 60), (180, 60, 60)]
+        for i, org in enumerate(organisms):
+            bx = start_x + i * (box_w + gap)
+            color = colors[i % len(colors)]
+            draw.rounded_rectangle([bx, y, bx + box_w, y + box_h],
+                                   radius=int(8 * s), fill=color, outline=(50, 50, 50))
+            tw = draw.textlength(org, font=bf)
+            draw.text((bx + (box_w - tw) / 2, y + int(15 * s)), org, fill=(255, 255, 255), font=bf)
+            # Trophic label
+            trophic = ["Producer", "Primary", "Secondary", "Tertiary", "Apex"][min(i, 4)]
+            tw2 = draw.textlength(trophic, font=lf)
+            draw.text((bx + (box_w - tw2) / 2, y + box_h + int(5 * s)), trophic, fill=(100, 100, 100), font=lf)
+            # Arrow
+            if i < len(organisms) - 1:
+                ax1 = bx + box_w + int(5 * s)
+                ax2 = bx + box_w + gap - int(5 * s)
+                ay = y + box_h // 2
+                draw.line([ax1, ay, ax2, ay], fill=(200, 100, 0), width=int(3 * s))
+                draw.polygon([(ax2, ay), (ax2 - int(10 * s), ay - int(7 * s)),
+                              (ax2 - int(10 * s), ay + int(7 * s))], fill=(200, 100, 0))
+        return y + box_h + int(40 * s)
+
+    def _draw_dna_structure(self, draw, frame, element, y):
+        """DNA double helix with base pair labels."""
+        sequence = element.get("sequence", "ATGC")
+        s = self.scale
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": "dna",
+             "label": f"DNA: {sequence[:8]}", "color": "blue"}, y)
+
+    def _draw_india_map(self, draw, frame, element, y):
+        """India map via geopandas or fallback to map_plot."""
+        return self._draw_map_plot(draw, frame, {
+            "type": "map_plot", "map_type": "india_states",
+            "highlighted": element.get("highlight_states", []),
+            "data": element.get("choropleth_data", {}),
+            "title": element.get("title", "India"),
+        }, y)
+
+    def _draw_world_map(self, draw, frame, element, y):
+        """World map via geopandas or fallback to map_plot."""
+        return self._draw_map_plot(draw, frame, {
+            "type": "map_plot", "map_type": "world_highlight",
+            "countries": element.get("highlight_countries", []),
+            "title": element.get("title", "World Map"),
+        }, y)
+
+    def _draw_timeline_bar(self, draw, frame, element, y):
+        """Horizontal timeline with events."""
+        events = element.get("events", [])
+        if not events:
+            return y
+        s = self.scale
+        cx = self.content_x + int(40 * s)
+        w = self.content_w - int(80 * s)
+        line_y = int(y + 80 * s)
+        # Main line
+        draw.line([cx, line_y, cx + w, line_y], fill=(100, 100, 150), width=int(3 * s))
+        lf = _get_font(int(18 * s))
+        bf = _get_font(int(20 * s), bold=True)
+        gap = w // max(1, len(events))
+        for i, ev in enumerate(events):
+            ex = cx + i * gap + gap // 2
+            year = str(ev.get("year", ""))
+            event = ev.get("event", "")
+            dot_r = int(6 * s)
+            draw.ellipse([ex - dot_r, line_y - dot_r, ex + dot_r, line_y + dot_r], fill=(239, 108, 0))
+            # Alternate above/below
+            if i % 2 == 0:
+                draw.line([ex, line_y - dot_r, ex, line_y - int(40 * s)], fill=(150, 150, 180))
+                draw.text((ex - int(20 * s), line_y - int(60 * s)), year, fill=(26, 35, 126), font=bf)
+                draw.text((ex - int(30 * s), line_y - int(80 * s)), event[:25], fill=(80, 80, 120), font=lf)
+            else:
+                draw.line([ex, line_y + dot_r, ex, line_y + int(40 * s)], fill=(150, 150, 180))
+                draw.text((ex - int(20 * s), line_y + int(45 * s)), year, fill=(26, 35, 126), font=bf)
+                draw.text((ex - int(30 * s), line_y + int(65 * s)), event[:25], fill=(80, 80, 120), font=lf)
+        return y + int(180 * s)
+
+    def _draw_comparison_table(self, draw, frame, element, y):
+        """Multi-column comparison table."""
+        return self._draw_table(draw, frame, element, y)
+
+    def _draw_process_cycle(self, draw, frame, element, y):
+        """Circular cycle diagram."""
+        steps = element.get("steps", [])
+        heading = element.get("heading", "")
+        s = self.scale
+        if not steps:
+            return y
+        import math
+        cx_c = self.content_x + self.content_w // 2
+        cy_c = int(y + 150 * s)
+        radius = int(120 * s)
+        bf = _get_font(int(20 * s), bold=True)
+        lf = _get_font(int(16 * s))
+        if heading:
+            hw = draw.textlength(heading, font=bf)
+            draw.text((cx_c - hw / 2, y), heading, fill=(26, 35, 126), font=bf)
+        n = len(steps)
+        for i, step in enumerate(steps):
+            angle = 2 * math.pi * i / n - math.pi / 2
+            sx = cx_c + int(radius * math.cos(angle))
+            sy = cy_c + int(radius * math.sin(angle))
+            box_r = int(35 * s)
+            draw.ellipse([sx - box_r, sy - box_r, sx + box_r, sy + box_r],
+                         fill=(230, 240, 255), outline=(26, 35, 126), width=int(2 * s))
+            text = step if isinstance(step, str) else step.get("text", "")
+            tw = draw.textlength(text[:10], font=lf)
+            draw.text((sx - tw / 2, sy - int(8 * s)), text[:10], fill=(26, 35, 126), font=lf)
+            # Arrow to next
+            next_angle = 2 * math.pi * ((i + 1) % n) / n - math.pi / 2
+            nx = cx_c + int(radius * math.cos(next_angle))
+            ny = cy_c + int(radius * math.sin(next_angle))
+            mid_x = (sx + nx) // 2
+            mid_y_a = (sy + ny) // 2
+            draw.line([sx + int(box_r * math.cos(next_angle - math.pi * i / n)),
+                       sy + int(box_r * math.sin(next_angle - math.pi * i / n)),
+                       nx - int(box_r * math.cos(next_angle - math.pi * i / n)),
+                       ny - int(box_r * math.sin(next_angle - math.pi * i / n))],
+                      fill=(200, 100, 0), width=int(2 * s))
+        return y + int(320 * s)
+
+    def _draw_hierarchy_tree(self, draw, frame, element, y):
+        """Tree hierarchy diagram."""
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": "binary_tree",
+             "label": element.get("heading", "Hierarchy"), "color": "blue"}, y)
+
+    def _draw_cause_effect(self, draw, frame, element, y):
+        """Cause → Effect arrows."""
+        causes = element.get("causes", element.get("left", []))
+        effects = element.get("effects", element.get("right", []))
+        if isinstance(causes, dict):
+            causes = causes.get("items", [])
+        if isinstance(effects, dict):
+            effects = effects.get("items", [])
+        return self._draw_flow_chart(draw, frame, {
+            "type": "flow_chart", "heading": "Cause → Effect",
+            "steps": [{"text": c, "color": "blue"} for c in causes] +
+                     [{"text": e, "color": "orange"} for e in effects],
+        }, y)
+
+    def _draw_factor_tree(self, draw, frame, element, y):
+        """Prime factor tree."""
+        number = element.get("number", element.get("value", 0))
+        s = self.scale
+        bf = _get_font(int(32 * s), bold=True)
+        lf = _get_font(int(24 * s))
+        cx = self.content_x + self.content_w // 2
+        draw.text((cx - int(20 * s), y), str(number), fill=(26, 35, 126), font=bf)
+        # Simple factorization display
+        n = int(number) if number else 0
+        factors = []
+        d = 2
+        temp = n
+        while d * d <= temp and temp > 1:
+            while temp % d == 0:
+                factors.append(d)
+                temp //= d
+            d += 1
+        if temp > 1:
+            factors.append(temp)
+        if factors:
+            y += int(50 * s)
+            fact_str = " × ".join(str(f) for f in factors)
+            draw.text((cx - draw.textlength(fact_str, font=lf) / 2, y),
+                      f"= {fact_str}", fill=(200, 100, 0), font=lf)
+            y += int(40 * s)
+        return y + int(20 * s)
+
+    def _draw_venn_diagram_degree(self, draw, frame, element, y):
+        """Venn diagram with labeled sets."""
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": "venn_diagram",
+             "label": element.get("heading", "Venn Diagram"), "color": "blue"}, y)
+
+    def _draw_balance_scale(self, draw, frame, element, y):
+        """Balance scale visualization."""
+        left_val = element.get("left", "?")
+        right_val = element.get("right", "?")
+        s = self.scale
+        cx = self.content_x + self.content_w // 2
+        bf = _get_font(int(28 * s), bold=True)
+        lf = _get_font(int(24 * s))
+        # Base triangle
+        base_y = int(y + 180 * s)
+        draw.polygon([(cx, base_y - int(20 * s)), (cx - int(30 * s), base_y), (cx + int(30 * s), base_y)],
+                     fill=(100, 100, 150))
+        # Beam
+        beam_w = int(300 * s)
+        draw.line([cx - beam_w // 2, base_y - int(22 * s), cx + beam_w // 2, base_y - int(22 * s)],
+                  fill=(80, 80, 120), width=int(4 * s))
+        # Pans
+        pan_w = int(100 * s)
+        for side, val, offset in [("L", str(left_val), -beam_w // 2), ("R", str(right_val), beam_w // 2)]:
+            px = cx + offset
+            pan_y = base_y - int(22 * s)
+            draw.line([px, pan_y, px, pan_y + int(40 * s)], fill=(120, 120, 150), width=int(2 * s))
+            draw.arc([px - pan_w // 2, pan_y + int(30 * s), px + pan_w // 2, pan_y + int(60 * s)],
+                     0, 180, fill=(120, 120, 150), width=int(2 * s))
+            tw = draw.textlength(val, font=bf)
+            draw.text((px - tw / 2, pan_y + int(65 * s)), val, fill=(26, 35, 126), font=bf)
+        # Equals
+        draw.text((cx - int(8 * s), base_y - int(55 * s)), "=", fill=(200, 100, 0), font=bf)
+        return base_y + int(100 * s)
+
+    def _draw_coordinate_axes(self, draw, frame, element, y):
+        """2D coordinate system with optional points."""
+        s = self.scale
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": "coordinate_plane",
+             "label": element.get("title", "Coordinate Axes"), "color": "blue"}, y)
+
+    def _draw_bar_chart(self, draw, frame, element, y):
+        """Bar chart via matplotlib."""
+        return self._draw_matplotlib_plot(draw, frame, {
+            "type": "matplotlib_plot", "plot_type": "bar",
+            "title": element.get("title", ""),
+            "data": element.get("data", {}),
+            "xlabel": element.get("xlabel", ""),
+            "ylabel": element.get("ylabel", ""),
+            "color": element.get("color", "blue"),
+        }, y)
+
+    def _draw_pie_chart(self, draw, frame, element, y):
+        """Pie chart via matplotlib."""
+        return self._draw_matplotlib_plot(draw, frame, {
+            "type": "matplotlib_plot", "plot_type": "pie",
+            "title": element.get("title", ""),
+            "data": element.get("data", {}),
+            "color": element.get("color", "blue"),
+        }, y)
+
+    def _draw_clock_diagram(self, draw, frame, element, y):
+        """Clock face diagram."""
+        return self._draw_builtin_visual(draw, frame,
+            {"type": "builtin_visual", "visual": "clock",
+             "label": element.get("label", "Clock"), "color": "blue"}, y)
+
+    def _draw_reaction_equation(self, draw, frame, element, y):
+        """Balanced chemical equation with state symbols."""
+        return self._draw_chem_equation(draw, frame, {
+            "type": "chem_equation",
+            "reactants": element.get("reactants", ""),
+            "products": element.get("products", ""),
+            "conditions": element.get("conditions", ""),
+            "reversible": element.get("reversible", False),
+        }, y)
 
     def _is_renderable(self, el):
         etype = el.get("type")

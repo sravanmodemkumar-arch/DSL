@@ -87,7 +87,7 @@ class Config:
     #         crystal_bowl | forest_stream | twilight | lotus | silent_mind | bansuri
     BGM_ENABLED = _bool("BGM_ENABLED", "true")
     BGM_STYLE   = os.environ.get("BGM_STYLE",  "lotus")
-    BGM_VOLUME  = _float("BGM_VOLUME", "0.30")
+    BGM_VOLUME  = _float("BGM_VOLUME", "0.08")
     BGM_FILES   = [
         os.path.join(BASE_DIR, "storage", "assets", "bgm", f)
         for f in [

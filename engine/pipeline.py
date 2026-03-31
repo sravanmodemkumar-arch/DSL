@@ -63,6 +63,31 @@ from .audio import generate_audio_for_question, concatenate_audio
 from .renderer import FrameRenderer
 from .sync import build_timeline, get_active_state
 from .bgmusic import generate_bg_music, mix_audio_with_bgm
+
+
+def _parse_bitrate_mb(bitrate_str):
+    """Parse bitrate string like '25M' → 25.0 (megabits)."""
+    s = bitrate_str.strip().upper()
+    if s.endswith("M"):
+        return float(s[:-1])
+    elif s.endswith("K"):
+        return float(s[:-1]) / 1000
+    return float(s) / 1_000_000  # assume bits
+
+
+def _min_bitrate(bitrate_str):
+    """Return 40% of max bitrate as minimum floor string.
+    E.g. '25M' → '10M', '10M' → '4M', '15M' → '6M'
+    This prevents CRF from over-compressing static PPT content."""
+    mb = _parse_bitrate_mb(bitrate_str)
+    floor = max(2.0, mb * 0.40)  # at least 2Mbps, otherwise 40% of max
+    return f"{floor:.0f}M"
+
+
+def _double_bitrate(bitrate_str):
+    """Return 2× bitrate for VBV buffer size. E.g. '25M' → '50M'."""
+    mb = _parse_bitrate_mb(bitrate_str)
+    return f"{mb * 2:.0f}M"
 from .hardware import detect_hardware, compute_allocation
 
 
@@ -151,7 +176,7 @@ class VideoPipeline:
                                       style=self.config.get("BGM_STYLE", "ambient"))
                 mixed = os.path.join(output_dir, "mixed.mp3")
                 mix_audio_with_bgm(raw_audio, bgm_src, mixed,
-                                   bgm_volume=self.config.get("BGM_VOLUME", 0.30))
+                                   bgm_volume=self.config.get("BGM_VOLUME", 0.08))
                 final_audio = mixed
             result["audio_path"] = final_audio
             _cb(progress_callback, "timestamp_map", 40)
@@ -278,10 +303,49 @@ class VideoPipeline:
         is_gpu = alloc["is_gpu_encode"]
         enc_threads = alloc["encode_threads"]
 
+        # Pick x264 preset based on quality tier — higher quality = slower encode
+        x264_preset = "fast"  # default for P1-P4
+        audio_bitrate = "192k"
+        if crf:
+            crf_val = int(crf)
+            if crf_val <= 18:      # P7 Maximum
+                x264_preset = "slow"
+                audio_bitrate = "320k"
+            elif crf_val <= 20:    # P6 High Quality
+                x264_preset = "medium"
+                audio_bitrate = "256k"
+            else:                  # P5 YouTube
+                x264_preset = "medium"
+                audio_bitrate = "192k"
+
         def _run(enc, flags, use_lock, threads):
             if crf and enc == "libx264":
-                # CRF mode: guaranteed quality, bitrate is an upper cap
-                quality_flags = ["-crf", str(crf), "-maxrate", bitrate, "-bufsize", bitrate]
+                # CRF + VBV: quality-based encoding with enforced bitrate floor.
+                # PPT-style frames are static → CRF alone compresses to almost 0.
+                # minrate ensures the file is large enough for YouTube/playback quality.
+                # bufsize = 2× maxrate for smooth VBV buffering.
+                # -tune stillimage optimizes for static/near-static content.
+                quality_flags = [
+                    "-crf", str(crf),
+                    "-minrate", _min_bitrate(bitrate),
+                    "-maxrate", bitrate,
+                    "-bufsize", _double_bitrate(bitrate),
+                    "-tune", "stillimage",
+                ]
+                # Override preset — higher quality for CRF modes
+                flags = [f for f in flags if f not in ("-preset",)]
+                # Remove any existing -preset value from flags
+                clean_flags = []
+                skip_next = False
+                for f in flags:
+                    if skip_next:
+                        skip_next = False
+                        continue
+                    if f == "-preset":
+                        skip_next = True
+                        continue
+                    clean_flags.append(f)
+                flags = clean_flags + ["-preset", x264_preset]
             else:
                 # ABR mode for lower presets or GPU encoders
                 quality_flags = ["-b:v", bitrate]
@@ -294,7 +358,7 @@ class VideoPipeline:
                 "-c:v", enc,
             ] + flags + quality_flags + [
                 "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-b:a", "192k",
+                "-c:a", "aac", "-b:a", audio_bitrate,
                 "-threads", threads,
                 "-shortest", "-movflags", "+faststart",
                 "-s", f"{width}x{height}",
@@ -414,7 +478,7 @@ class VideoPipeline:
             if src and src in asset_map:
                 render["src_path"] = asset_map[src]
 
-            # subject_image — fetch from Pixabay if not already cached
+            # subject_image — direct URL first, then search providers
             if target == "subject_image" and not render.get("src_path"):
                 try:
                     from engine.free_media import resolve_media
@@ -425,13 +489,14 @@ class VideoPipeline:
                         subject=render.get("subject", subject),
                         topic_hint=render.get("topic", ""),
                         cache_dir=img_cache,
+                        url=render.get("url", ""),
                     )
                     if path:
                         render["src_path"] = path
                 except Exception:
                     pass
 
-            # video_clip — fetch from Pixabay if src_path missing
+            # video_clip — direct URL first, then search providers
             if target == "video_clip" and not render.get("src_path"):
                 try:
                     from engine.free_media import resolve_media
@@ -442,6 +507,7 @@ class VideoPipeline:
                         subject=render.get("subject", subject),
                         topic_hint=render.get("topic", ""),
                         cache_dir=vid_cache,
+                        url=render.get("url", ""),
                     )
                     if path:
                         render["src_path"] = path

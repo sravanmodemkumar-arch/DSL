@@ -1,1524 +1,2015 @@
-# STEM Video Generator — Complete Project Generation Prompt
+# STEM Video Generator — Ultra-Pro Degree-Level Generation Prompt
 
-> **Purpose**: This file contains everything needed to regenerate the entire project from scratch using an AI coding assistant (Claude, GPT-4, Gemini, etc.). Each section is self-contained and can be generated independently.
-
----
-
-## ═══════════════════════════════════════
-## PART 1 — PROJECT OVERVIEW
-## ═══════════════════════════════════════
-
-Build a **STEM Video Generator** — a Flask web application that converts structured JSON descriptions into fully animated, narrated educational MP4 videos.
-
-### What It Does
-
-1. User uploads a JSON file describing an educational question or topic
-2. System validates the JSON against a strict DSL schema
-3. Each question is queued as a job and processed in the background
-4. Pipeline generates: TTS audio → synchronized timeline → parallel frame rendering → FFmpeg encoding → final MP4
-5. Completed videos appear in a web library; can be uploaded to YouTube via OAuth2
-
-### Core Technical Stack
-
-```
-Language:    Python 3.12
-Web:         Flask 3.1.0 + Jinja2 + HTMX + Tailwind CSS (CDN)
-Database:    SQLite (WAL mode) + SQLAlchemy 2.0.36
-Rendering:   Pillow 11.1.0 (frame-by-frame PNG generation)
-TTS:         edge_tts (primary) + gTTS (fallback)
-Audio:       pydub + wave + FFmpeg
-Video:       FFmpeg H.264 (GPU h264_nvenc → CPU libx264 fallback)
-YouTube:     google-api-python-client 2.159.0 + google-auth-oauthlib
-Export:      openpyxl 3.1.5
-```
-
-### File Structure
-
-```
-DSL/
-├── app.py                    # Flask factory + startup resume logic
-├── config.py                 # Config class, resolution map, quality presets, themes
-├── models.py                 # SQLAlchemy models: Video, JobQueue, Setting
-├── requirements.txt
-│
-├── engine/
-│   ├── __init__.py           # Re-exports
-│   ├── validator.py          # JSON DSL schema validation
-│   ├── audio.py              # TTS + word-level timestamp mapping
-│   ├── sync.py               # Timeline builder + get_active_state()
-│   ├── renderer.py           # FrameRenderer — Pillow-based PPT-style frames
-│   ├── pipeline.py           # VideoPipeline: orchestrates all stages
-│   ├── hardware.py           # CPU/GPU detection + worker allocation
-│   ├── bgmusic.py            # Procedural ambient background music (WAV synthesis)
-│   ├── manim_renderer.py     # 20 Manim animation templates
-│   └── free_media.py         # Auto-fetch stock photos/videos from free APIs
-│
-├── routes/
-│   ├── __init__.py           # Blueprint registration
-│   ├── dashboard.py          # Home page with live stats
-│   ├── upload.py             # JSON upload, validation, queue submission, job runner
-│   ├── videos.py             # Video library with search/filter/pagination
-│   ├── queue_routes.py       # Job queue management (cancel, retry, delete, prioritize)
-│   ├── settings.py           # Configuration UI (50+ settings)
-│   ├── youtube.py            # OAuth2 YouTube upload
-│   ├── export.py             # Excel/CSV data export
-│   └── assets.py             # Custom image/SVG/video asset upload & browser
-│
-├── templates/
-│   ├── base.html             # Master layout with sidebar nav
-│   ├── dashboard.html        # Stats + recent videos + active jobs
-│   ├── upload.html           # JSON upload + live validation + batch submit
-│   ├── library.html          # Video grid with search/filter/pagination
-│   ├── queue.html            # Job queue monitor
-│   ├── settings.html         # Full settings panel
-│   ├── youtube.html          # YouTube auth + upload history
-│   ├── export.html           # Export page
-│   ├── video_detail.html     # Single video metadata + player
-│   ├── assets.html           # Asset tree browser
-│   ├── 404.html, 500.html
-│   └── components/           # HTMX partials
-│       ├── stats_cards.html
-│       ├── queue_list.html
-│       ├── queue_item.html
-│       └── video_grid.html
-│
-├── storage/
-│   ├── videos/{video_id}/    # UUID-named dirs: video.mp4 + thumb.png + temp files
-│   ├── json/                 # Uploaded JSON batches
-│   ├── audio/                # TTS word cache (.word_cache/)
-│   ├── assets/bgm/           # Background music MP3s
-│   ├── assets/images/        # User + fetched images
-│   ├── assets/watermark/     # Watermark image
-│   └── exports/              # Excel/CSV outputs
-│
-└── instance/
-    └── stemvideo.db          # SQLite database
-```
+> **Purpose**: Complete specification to regenerate the entire project from scratch at university/competitive-exam level.
+> Covers architecture, all engine modules, DSL schema, render targets, subject-specific science, and code contracts.
+> Written for AI coding assistants. Generate files in the order listed in Part 24.
 
 ---
 
 ## ═══════════════════════════════════════
-## PART 2 — CONFIGURATION (config.py)
+## PART 1 — VISION & SCOPE
 ## ═══════════════════════════════════════
 
-```python
-import os
-from dotenv import load_dotenv
+Build a **STEM Video Generator** — a Flask web application that converts structured JSON into
+fully animated, narrated, degree-level educational MP4 videos.
 
-load_dotenv()
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+### What It Produces
+- Narrated videos for MCQ, concept explanation, derivation, lab procedure, diagram annotation
+- Subject-aware visuals: LaTeX equations, molecular structures, circuit diagrams, maps, cell diagrams
+- 8 subject themes with distinct color palettes (Math, Physics, Chemistry, Biology, Geography, History, Economics, Polity)
+- Manim-powered mathematical animations (3Blue1Brown quality)
+- Progressive step-by-step derivations with equation morphing
+- Real scientific data via free APIs (PubChem, PDB, World Bank, NCBI, NASA)
+- Word-level synchronized narration (karaoke highlighting)
+- Background music from local asset library
+- Output: H.264 MP4 (360p → 4K), exported to library + optional YouTube upload
 
-def _bool(key, default="false"):
-    return os.environ.get(key, default).lower() in ("true", "1", "yes")
-
-def _int(key, default):
-    try: return int(os.environ.get(key, default))
-    except ValueError: return int(default)
-
-def _float(key, default):
-    try: return float(os.environ.get(key, default))
-    except ValueError: return float(default)
-
-
-class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "stem-video-dev-key")
-    SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'stemvideo.db')}"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "connect_args": {"timeout": 30, "check_same_thread": False},
-    }
-
-    # Storage paths
-    STORAGE_DIR  = os.path.join(BASE_DIR, "storage")
-    VIDEOS_DIR   = os.path.join(BASE_DIR, "storage", "videos")
-    JSON_DIR     = os.path.join(BASE_DIR, "storage", "json")
-    ASSETS_DIR   = os.path.join(BASE_DIR, "storage", "assets")
-    AUDIO_DIR    = os.path.join(BASE_DIR, "storage", "audio")
-    EXPORTS_DIR  = os.path.join(BASE_DIR, "storage", "exports")
-
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024
-    ALLOWED_EXTENSIONS = {"json", "zip"}
-
-    DEFAULT_RESOLUTION     = os.environ.get("DEFAULT_RESOLUTION",     "1080p")
-    DEFAULT_QUALITY_PRESET = os.environ.get("DEFAULT_QUALITY_PRESET", "P7")
-    DEFAULT_THEME          = os.environ.get("DEFAULT_THEME",          "dark")
-    DEFAULT_FPS            = _int("DEFAULT_FPS", "30")
-
-    RESOLUTIONS = {
-        "360p":  (640,  360),
-        "720p":  (1280, 720),
-        "1080p": (1920, 1080),
-        "2K":    (2560, 1440),
-        "4K":    (3840, 2160),
-    }
-
-    # P1-P7 quality presets: P1=preview, P7=maximum (60fps CRF)
-    QUALITY_PRESETS = {
-        "P1": {"bitrate": "1M",  "fps": 24, "antialiasing": False, "label": "Preview"},
-        "P2": {"bitrate": "2M",  "fps": 24, "antialiasing": True,  "label": "Draft"},
-        "P3": {"bitrate": "4M",  "fps": 30, "antialiasing": True,  "label": "Mobile"},
-        "P4": {"bitrate": "6M",  "fps": 30, "antialiasing": True,  "label": "Standard"},
-        "P5": {"bitrate": "10M", "crf": "22", "fps": 30, "antialiasing": True, "label": "YouTube"},
-        "P6": {"bitrate": "15M", "crf": "20", "fps": 60, "antialiasing": True, "label": "High Quality"},
-        "P7": {"bitrate": "25M", "crf": "18", "fps": 60, "antialiasing": True, "label": "Maximum"},
-    }
-
-    # TTS: edge_tts (best, Indian voices) | gtts | pyttsx3
-    TTS_ENGINE = os.environ.get("TTS_ENGINE", "edge_tts")
-    TTS_LANG   = os.environ.get("TTS_LANG",   "en")
-    TTS_TLD    = os.environ.get("TTS_VOICE",  "en-IN-PrabhatNeural")  # voice for edge_tts
-
-    BGM_ENABLED = _bool("BGM_ENABLED", "true")
-    BGM_STYLE   = os.environ.get("BGM_STYLE", "bansuri")
-    BGM_VOLUME  = _float("BGM_VOLUME", "0.30")
-    BGM_FILES   = []  # populate with local MP3 paths if available
-
-    WATERMARK_ENABLED = _bool("WATERMARK_ENABLED", "false")
-    WATERMARK_TEXT    = os.environ.get("WATERMARK_TEXT", "")
-    WATERMARK_IMAGE   = os.path.join(BASE_DIR, "storage", "assets", "watermark", "watermark.png")
-    WATERMARK_OPACITY = _float("WATERMARK_OPACITY", "0.35")
-
-    MAX_WORKERS = _int("MAX_WORKERS", "4")
-    JOB_TIMEOUT = _int("JOB_TIMEOUT", "600")
-
-    YOUTUBE_CLIENT_SECRETS = os.path.join(BASE_DIR, "client_secrets.json")
-    YOUTUBE_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-
-
-THEMES = {
-    "dark": {
-        "bg": "#0f0f23", "card_bg": "#1a1a2e", "text": "#ffffff",
-        "text_secondary": "#a0a0b8", "accent": "#00d4ff",
-        "success": "#00ff88", "warning": "#ffaa00", "error": "#ff4444",
-        "formula_bg": "#2a2a4a", "highlight": "#00d4ff", "border": "#2a2a4a",
-    },
-    "light": {
-        "bg": "#f5f5f5", "card_bg": "#ffffff", "text": "#1a1a1a",
-        "text_secondary": "#666666", "accent": "#0066cc",
-        "success": "#00aa55", "warning": "#cc8800", "error": "#cc3333",
-        "formula_bg": "#e8e8f0", "highlight": "#0066cc", "border": "#dddddd",
-    },
-}
-```
+### User Flow
+1. Upload JSON file describing questions/topics
+2. System validates against DSL schema
+3. Each question → background job → pipeline:
+   - TTS audio generation (edge_tts with word timestamps)
+   - Timeline sync (audio segments ↔ render events)
+   - Parallel frame rendering (ProcessPoolExecutor)
+   - FFmpeg encoding (GPU h264_nvenc → CPU libx264 fallback)
+4. Completed videos shown in web library
+5. Optional YouTube OAuth2 upload
 
 ---
 
 ## ═══════════════════════════════════════
-## PART 3 — DATABASE MODELS (models.py)
+## PART 2 — TECHNOLOGY STACK
 ## ═══════════════════════════════════════
 
-Three models: `Video`, `JobQueue`, `Setting`.
-
-### Video
-
-Stores one record per video being generated or already completed.
-
+### Core
 ```
-video_id        VARCHAR(100) UNIQUE INDEX    # matches question "id" from JSON
-title           VARCHAR(500)
-subject         VARCHAR(100) INDEX
-chapter         VARCHAR(200)
-topic           VARCHAR(200) INDEX
-subtopic        VARCHAR(200)
-difficulty      VARCHAR(20)                  # easy|medium|hard
-exam_tags       TEXT                         # comma-separated
-purpose_tags    TEXT
-grade_tags      TEXT
-resolution      VARCHAR(10)                  # 360p|720p|1080p|2K|4K
-quality_preset  VARCHAR(5)                   # P1-P7
-duration_seconds FLOAT
-fps             INTEGER
-theme           VARCHAR(10)                  # dark|light
-json_path       VARCHAR(500)                 # source JSON file
-output_dir      VARCHAR(500)                 # per-video directory containing all output files
-video_path      VARCHAR(500)                 # final MP4
-audio_path      VARCHAR(500)                 # final mixed audio
-thumbnail_path  VARCHAR(500)
-youtube_url     VARCHAR(500)
-youtube_video_id VARCHAR(50)
-youtube_status  VARCHAR(20)                  # not_uploaded|uploading|published|failed
-status          VARCHAR(20)                  # pending|processing|completed|failed
-error_message   TEXT
-progress        INTEGER (0-100)
-created_at      DATETIME
-updated_at      DATETIME
-completed_at    DATETIME
+Python         3.12
+Flask          3.1.0
+SQLAlchemy     2.0.36
+SQLite         WAL mode (concurrent reads + writes)
+Pillow         11.x       Frame rendering (PPT-style PNG frames)
+FFmpeg         system     H.264 encoding, audio mux, concat
+edge_tts                  Word-level TTS (Microsoft Neural voices)
+pydub                     Audio processing
 ```
 
-### JobQueue
-
-One record per processing job, linked to Video via `video_id`.
-
+### Scientific Visualization
 ```
-video_id        FK -> videos.video_id
-priority        INTEGER (1=urgent, 2=high, 3=normal, 4=low)
-status          VARCHAR(20)    # queued|processing|completed|failed|cancelled
-stage           VARCHAR(30)    # audio_gen|timestamp_map|rendering|encoding
-progress        INTEGER (0-100)
-error_message   TEXT
-retry_count     INTEGER
-max_retries     INTEGER (default 1)
-created_at, started_at, completed_at  DATETIME
+matplotlib     3.x        LaTeX mathtext rendering, charts, plots
+numpy          2.x        Array math, signal processing
+scipy          1.x        Curve fitting, transforms, numerical methods
+sympy          1.x        Symbolic math → LaTeX string generation
+manim-community           Mathematical animation engine (3Blue1Brown)
+plotly         5.x        Interactive charts → static PNG via kaleido
+kaleido                   Plotly static export
+networkx       3.x        Graph/network diagrams (food webs, phylogenetics)
+schemdraw                 Electric circuit diagrams
 ```
 
-### Setting
-
-Key-value store for runtime configuration, persisted to DB.
-
-```python
-@staticmethod
-def get(key, default="") -> str
-@staticmethod
-def set(key, value) -> None   # upsert + db.session.commit()
+### Subject Science Packages
+```
+rdkit                     Molecule structure 2D rendering
+pubchempy                 PubChem REST API wrapper
+biopython                 DNA/protein sequences, phylogenetics
+geopandas                 Choropleth maps, India/world maps
+cartopy                   Geospatial projections
+shapely                   Geometry for maps
 ```
 
-### Startup (app.py)
-
-- Enable SQLite WAL mode: `PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=30000`
-- On startup: reset any "processing" jobs to "queued" (crashed mid-run)
-- Resume all queued jobs via `_start_processing(app)`
-
----
-
-## ═══════════════════════════════════════
-## PART 4 — JSON DSL SPECIFICATION
-## ═══════════════════════════════════════
-
-The JSON input is an **array** of question/topic objects.
-
-### Top-Level Fields
-
-```json
-{
-  "id": "q-math-percentage-15pct-240",   // REQUIRED. Unique slug. Used as video_id.
-  "mode": "mcq",                          // REQUIRED. See modes below.
-
-  "meta": {                               // REQUIRED.
-    "subject": "Mathematics",
-    "topic": "Percentage",
-    "subtopic": "Finding percentage of a number",
-    "chapter": "Chapter 8",
-    "difficulty": "easy",                 // easy|medium|hard
-    "exam": "SSC / UPSC / Banking",
-    "grade": "6-7"
-  },
-
-  "thumbnail": {                          // Optional. Drives thumb.png text.
-    "title": "Percentage",
-    "subtitle": "Find 15% of 240",
-    "badge": "Quick Trick",
-    "bg_color": "#1A237E",
-    "accent_color": "#EF6C00"
-  },
-
-  "youtube": {                            // Optional. Auto-filled on YouTube upload.
-    "title": "What is 15% of 240? | SSC Math | Percentage Trick",
-    "description": "...",
-    "tags": ["math", "percentage", "SSC"],
-    "privacy": "public",
-    "category_id": "27"
-  },
-
-  "question": { ... },                    // Mode-specific (see below)
-  "topic_header": { ... },               // topic/match/sequence modes
-  "scenes": [ ... ]                      // REQUIRED. Array of scene objects.
-}
+### Web & Export
+```
+openpyxl                  Excel export
+google-api-python-client  YouTube OAuth2 upload
+google-auth-oauthlib
+HTMX                      Partial page updates (CDN)
+Tailwind CSS              Styling (CDN)
 ```
 
-### Video Modes (8 total)
-
-| Mode | Question Block | Options | Correct | topic_header |
-|------|---------------|---------|---------|--------------|
-| `mcq` | text | 4 options {key,value} | key | – |
-| `true_false` | text | 2 options (True/False) | key | – |
-| `fill_blank` | text with `___` | – | – | – |
-| `numerical` | text | – | – | – |
-| `assertion` | text + assertion + reason | 4 options | key | – |
-| `topic` | – | – | – | {title, subtitle} |
-| `match` | – | – | – | {title, subtitle} |
-| `sequence` | – | – | – | {title, subtitle} |
-
-### Scene Types
-
+### requirements.txt (complete)
 ```
-question     — Shows the question_block header
-options      — Reveals the options_grid
-concept      — Multi-step explanation (requires "steps" array)
-solution     — Multi-step worked solution (requires "steps")
-intro        — Multi-step intro for topic mode (requires "steps")
-visual_intro — Timed visual without audio (auto-duration)
-answer       — Final answer reveal
-```
-
-### Scene Structure
-
-**Simple scene** (question, options, answer, visual_intro):
-```json
-{
-  "type": "question",
-  "text": "What is 15% of 240?",
-  "audio": "What is fifteen percent of two forty?",
-  "render": {
-    "action": "show",
-    "target": "question_block"
-  }
-}
-```
-
-**Stepped scene** (concept, solution, intro):
-```json
-{
-  "type": "concept",
-  "steps": [
-    {
-      "text": "Step label (shown as step heading)",
-      "audio": "TTS narration text — what students hear",
-      "render": {
-        "action": "show",
-        "target": "equation",
-        "value": "15% = 15/100"
-      }
-    }
-  ]
-}
-```
-
-### Render Actions
-
-```
-show           — Display element
-hide           — Remove element
-highlight      — Highlight existing element
-update         — Update value of existing element
-animate        — Trigger CSS/JS animation
-show_result    — Show with result styling
-draw_arrow     — Draw connecting arrow
-zoom           — Zoom element
-replace        — Replace element content
-sequence       — Trigger step sequence
-clear          — Remove element from screen
-highlight_option — Highlight specific option key in header
-```
-
-### Render Targets (35+)
-
-**Header (always visible):**
-- `question_block` — Shows question text in header
-- `options_grid` — Reveals A/B/C/D options
-- `final_answer` — Locks correct answer highlight
-
-**Body elements (accumulate on screen):**
-
-| Target | Data Fields | Description |
-|--------|-------------|-------------|
-| `equation` | `value` | Math equation, gray card |
-| `formula_block` | `value` | Formula with blue accent bar |
-| `digit_boxes` | `data: []`, `highlighted_indices: []` | Blue PPT digit boxes |
-| `running_sum` | `value` | Orange bold sum text |
-| `sum_box` | `value` | Gray sum result box |
-| `result_box` | `value` | Gray result card |
-| `fraction` | `numerator`, `denominator`, `result` | Math fraction display |
-| `concept_text` | `heading`, `text`, `items: []` | Blue concept card |
-| `highlight_box` | `text`, `color` | Full-width colored rule box |
-| `key_facts` | `heading`, `facts: [{key,value}]` | Key:Value table |
-| `process_steps` | `heading`, `steps: []` | Numbered step list |
-| `two_col_text` | `heading`, `left:{title,items}`, `right:{title,items}` | Comparison card |
-| `shortcut_columns` | `left:{title,rows:[]}`, `right:{title,rows:[]}` | Bordered two-column |
-| `instruction_text` | `text` | Orange banner — CLEARS all prior body elements |
-| `step_label` | `text` | Blue step heading label |
-| `table` | `headers:[]`, `rows:[[]]` | Blue-header table |
-| `timeline` | `heading`, `items:[{year,event}]` | Chronological timeline |
-| `chem_equation` | `reactants:[]`, `products:[]`, `conditions` | Chemical equation |
-| `flow_chart` | `steps:[{label,note}]` | Process flowchart |
-| `t_account` | `title`, `debit:[]`, `credit:[]` | T-account (accounting) |
-| `memory_trick` | `text`, `breakdown:[]`, `mnemonic` | Mnemonic/memory card |
-| `analogy` | `a`, `b`, `c`, `d` | A:B::C:D analogy display |
-| `number_line` | `min`, `max`, `marks:[]`, `highlight:[]` | Number line diagram |
-| `blank_reveal` | `blank_text`, `answer` | Fill-blank reveal |
-| `match_columns` | `left:[]`, `right:[]`, `pairs:{}` | Match-the-following |
-| `sequence_list` | `items:[]`, `revealed: bool` | Ordered sequence |
-| `numerical_answer` | `value`, `unit` | Answer for numerical mode |
-| `title_card` | `title`, `subtitle` | Full-screen intro title |
-| `section_header` | `title` | Section divider |
-| `image` | `src`, `caption` | Image from assets dict |
-| `svg` | `src` | SVG from assets dict |
-| `builtin_visual` | `name` | One of 74 built-in Pillow illustrations |
-| `subject_image` | `query`, `alt` | Auto-fetch stock photo |
-| `video_clip` | `query`, `alt` | Auto-fetch stock video |
-| `matplotlib_plot` | `plot_type`, `data:{x,y,labels}`, `title` | Generated chart |
-| `manim_scene` | `scene_name`, `params:{}` | Pre-rendered Manim animation |
-
-### Built-in Visuals (74 names)
-
-```
-cell, animal_cell, plant_cell, mitosis, meiosis, dna_double_helix, photosynthesis,
-chloroplast, neuron, heart, lungs, digestive_system, eye, ear, skeleton,
-atom, electron_shell, periodic_table_cell, molecule_h2o, molecule_co2,
-circuit_battery, circuit_resistor, circuit_diagram, magnet_field, wave_diagram,
-lens_diagram, prism_refraction, mirror_reflection, pendulum, projectile_path,
-acid_base_reaction, test_tube, flask, bunsen_burner, crystal_structure,
-map_india, map_world, compass_rose, river_delta, mountain_cross_section,
-number_line_simple, fraction_bar, coordinate_axes, triangle_labeled,
-circle_labeled, pie_chart_simple, bar_chart_simple, venn_diagram,
-budget_circle, gdp_bar, supply_demand, flowchart_simple, org_chart,
-parliament_seating, court_structure, election_booth,
-music_staff, art_palette, sports_podium, book_open, graduation_cap,
-trophy, calculator, clock_face, thermometer, ruler_scale, weighing_balance,
-solar_system, moon_phases, water_cycle, carbon_cycle, food_chain,
-nitrogen_cycle
-```
-
-### Manim Scene Templates (20 names)
-
-```
-function_plot, multi_function, derivative, integral,
-vector_addition, matrix_transform, pythagorean, circle_theorem,
-number_line_walk, trig_circle, equation_transform,
-wave, projectile, pendulum, electric_field, lens_ray,
-energy_diagram, text_reveal, bar_chart_anim, graph_network
-```
-
-### Assets Dict (optional)
-
-```json
-"assets": {
-  "images": {"my_diagram": "images/my_diagram.png"},
-  "svgs":   {"my_icon": "svg/my_icon.svg"},
-  "audio_clips": {"intro_sting": "audio/sting.mp3"}
-}
-```
-
-Reference in render: `"src": "my_diagram"` (uses asset key lookup, not path).
-
----
-
-## ═══════════════════════════════════════
-## PART 5 — ENGINE: validator.py
-## ═══════════════════════════════════════
-
-### Purpose
-Validates a list of question dicts before rendering. Returns `(is_valid: bool, errors: list[ValidationError])`.
-
-### Rules
-- Root must be a JSON array
-- No duplicate `id` values
-- `mode` must be in: `mcq, topic, true_false, fill_blank, numerical, match, assertion, sequence`
-- `meta.subject` and `meta.topic` are required
-- `meta.difficulty` must be `easy|medium|hard` (warning if missing/wrong)
-- `mcq, true_false, assertion` require `question.text`, `question.options`, `question.correct`
-- `topic, match, sequence` need `topic_header` (warning if missing)
-- `assertion` requires `question.assertion` + `question.reason`
-- All `scenes` must have valid `type`
-- `concept, solution, intro` scenes require `steps` array
-- Each `render` must have `action` (from VALID_ACTIONS) and `target`
-- `render.position` and `render.size` validated as warnings
-- `_DOC` objects are silently skipped
-
-### ValidationError class
-```python
-class ValidationError:
-    path: str           # e.g. "[0].question.text"
-    message: str
-    severity: str       # "error" (fatal) | "warning" (non-fatal)
-
-    def to_dict(self) -> dict
-    def __repr__(self) -> str   # "[ERROR] path: message"
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 6 — ENGINE: audio.py
-## ═══════════════════════════════════════
-
-### Purpose
-Generate TTS audio for every `audio` field in the JSON. Return segments with word-level timestamps.
-
-### Key Functions
-
-```python
-def generate_audio_for_question(question_data, audio_dir,
-                                 tts_engine="edge_tts",
-                                 lang="en", tld="en-IN-PrabhatNeural"):
-    """
-    Walk all scenes and steps, generate one MP3 per audio field.
-    Returns: list of segment dicts:
-      {
-        scene_index: int,
-        step_index: int | None | "verdict",
-        file: str,            # path to MP3
-        start: float,         # cumulative start seconds
-        end: float,           # cumulative end seconds
-        word_timestamps: [    # per-word timing within segment
-          {"word": str, "start": float, "end": float}
-        ]
-      }
-    """
-
-def concatenate_audio(segments, output_path):
-    """
-    Merge all segment MP3s into one master audio file using pydub.
-    Returns: (audio_timeline, total_duration)
-      audio_timeline — same segment list but with absolute start/end times
-    """
-
-def _generate_edge_tts(text, output_path, voice="en-IN-PrabhatNeural"):
-    """
-    Generate TTS using edge_tts asyncio library.
-    Falls back to asyncio.run() in non-main threads.
-    Returns: list of word timestamps (may be empty if not available)
-    """
-
-def _compute_word_timestamps(words, segment_start, segment_end, cache_dir, tts_engine, lang, tld):
-    """
-    Measure individual word TTS durations (cached in .word_cache/).
-    Scale proportionally to actual segment duration.
-    Returns: list of {"word": str, "start": float, "end": float}
-    """
-```
-
-### Word Cache
-- Directory: `storage/audio/.word_cache/`
-- Key: `MD5("{word}|{engine}|{lang}|{tld}")[:12]`
-- Files: `{key}.dur` (float seconds), `{key}.mp3` (audio)
-- Avoids regenerating common words like "the", "is", "a"
-
-### TTS Engine Priority
-1. `edge_tts` — Best quality, free, Indian voices, word-level timestamps built-in
-2. `gtts` — Google Translate TTS, good quality, no timestamps
-3. `pyttsx3` — Offline fallback, robotic quality
-
----
-
-## ═══════════════════════════════════════
-## PART 7 — ENGINE: sync.py
-## ═══════════════════════════════════════
-
-### Purpose
-Map audio segments to render instructions. Compute visual state at any time `t`.
-
-### build_timeline(question_data, audio_segments, buffer_ms=300)
-
-**Algorithm:**
-1. Build lookup: `{(scene_idx, step_idx): segment}` — prevents sync drift
-2. Walk scenes:
-   - Simple scene with `audio` + `render` → look up segment by (scene_idx, None) → add entry
-   - Steps scene → for each step, look up (scene_idx, step_idx)
-   - No-audio scene with `render` → auto-duration: look ahead to next audio segment, cap at 3s
-   - Steps without audio → 1.5s default duration
-3. Each entry: `{start, end, scene_index, scene_type, step_index, render, text, audio_text, word_timestamps}`
-
-### get_active_state(timeline, current_time, question_data)
-
-**Algorithm:**
-1. Walk timeline entries where `entry["start"] <= current_time`
-2. Maintain accumulation dict `work_elements = {}` (target → data)
-3. Same target key replaces previous; different targets coexist
-4. Return state dict containing:
-   - `mode`, `question_text`, `options_data`, `correct_option`
-   - `question_shown`, `options_shown`, `highlighted_option`, `show_correct`
-   - `work_elements` dict
-   - `step_text`, `narration` (word timestamps for current segment)
-   - `topic_header`, `topic_shown`, `current_time`
-
-**Special dispatch rules:**
-- `target == "question_block"` → `question_shown = True`
-- `target == "options_grid"` → `options_shown = True`
-- `target == "final_answer"` → `show_correct = True` (permanent)
-- `target == "instruction_text"` → clears all `work_elements` (section break)
-- `action == "highlight"` on any element → sets `element["highlighted"] = True`
-- `action == "update"` → updates `value` field of existing element
-- `target == "shortcut_columns"` → removes `concept_text` (mutually exclusive)
-
----
-
-## ═══════════════════════════════════════
-## PART 8 — ENGINE: renderer.py
-## ═══════════════════════════════════════
-
-### FrameRenderer class
-
-```python
-class FrameRenderer:
-    def __init__(self, width=1920, height=1080, theme=None, watermark=None):
-        # PPT color palette — always used regardless of theme parameter
-        self.C = PPT_COLORS  # see below
-        self.scale = height / 1080   # everything scaled relative to 1080p
-        self.margin_x = int(width * 0.025)
-        self.content_x = int(width * 0.04)
-        self.usable_w = width - 2 * self.margin_x
-        self.content_w = width - 2 * self.content_x
-        self.header_h = int(height * 0.20)
-        self.stripe_h = int(5 * self.scale)   # orange accent stripe
-
-    def render_frame(self, state) -> PIL.Image:
-        """
-        state = {
-            "mode": str,
-            "question_text": str,
-            "options_data": [{"key": str, "value": str}],
-            "correct_option": str,
-            "highlighted_option": str,
-            "show_correct": bool,
-            "question_shown": bool,
-            "options_shown": bool,
-            "work_elements": {target: element_dict},
-            "step_text": str,
-            "narration": {"audio_text": str, "word_timestamps": [...]},
-            "current_time": float,
-            "topic_header": {"title": str, "subtitle": str} | None,
-            "topic_shown": bool,
-        }
-        Returns: PIL.Image (RGB, width x height)
-        """
-```
-
-### PPT Color Palette
-
-```python
-PPT_COLORS = {
-    "bg": "#FFFFFF",                    # White body
-    "header_bg": "#1A237E",             # Dark navy header
-    "accent_stripe": "#EF6C00",         # Orange stripe under header
-    "question_label": "#F9A825",        # Gold "Q:" label
-    "header_text": "#FFFFFF",
-    "body_text": "#212121",
-    "body_secondary": "#757575",
-    "note_text": "#1A237E",
-    "blue": "#1565C0",
-    "green": "#2E7D32",
-    "orange": "#EF6C00",
-    "red": "#C62828",
-    "card_bg": "#F5F5F5",
-    "concept_blue_bg": "#E3F2FD",
-    "concept_orange_bg": "#FFF3E0",
-    "digit_bg": "#FFFFFF",
-    "digit_border": "#1565C0",
-    "digit_text": "#1565C0",
-    "success": "#2E7D32",
-    "fail": "#C62828",
-    "result_bg": "#F5F5F5",
-    "narration_bg": "#1A237E",          # Karaoke bar background
-    "narration_spoken": "#FFFFFF",      # Already-spoken words
-    "narration_active": "#F9A825",      # Currently spoken word (gold highlight)
-    "narration_pending": "#5C6BC0",     # Upcoming words
-    "progress": "#EF6C00",
-}
-
-OPTION_BAR_COLORS = {  # Left accent bar per option
-    "a": "#1565C0", "b": "#2E7D32", "c": "#EF6C00", "d": "#C62828",
-}
-```
-
-### Layout System
-
-Each mode uses a different header method (all return `body_top` y-coordinate):
-
-```
-mcq, true_false         → _draw_header()          header_h ≈ 260px at 1080p
-topic                   → _draw_topic_bar()        header_h ≈ 100px
-match, sequence         → _draw_minimal_bar()      header_h ≈ 70px
-numerical               → _draw_numerical_header() header_h ≈ 120px
-assertion               → _draw_assertion_header() header_h ≈ 180px
-```
-
-Body area: from `body_top` to `body_bottom = height - 30*scale - karaoke_h`
-
-Narration bar: always drawn at bottom, ~50px tall, shows word-by-word karaoke
-
-### Fonts
-
-Try bundled Poppins from `storage/assets/fonts/`:
-- `Poppins-Regular.ttf`, `Poppins-Medium.ttf`, `Poppins-SemiBold.ttf`, `Poppins-Bold.ttf`
-- Fallback: system fonts (`/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf`, etc.)
-- Final fallback: `ImageFont.load_default()`
-
-### Body Element Rendering (draw methods)
-
-Each `_draw_*` method signature: `(self, draw, frame, element, y) -> new_y`
-
-```
-_draw_equation(draw, frame, element, y)         # gray card, centered text
-_draw_formula(draw, frame, element, y)          # blue left bar + light bg
-_draw_digit_boxes(draw, frame, element, y)      # PPT digit boxes row
-_draw_highlight_box(draw, frame, element, y)    # full-width colored rule box
-_draw_key_facts(draw, frame, element, y)        # key:value table
-_draw_process_steps(draw, frame, element, y)    # numbered steps
-_draw_two_col_text(draw, frame, element, y)     # two-column comparison
-_draw_shortcut_columns(draw, frame, element, y) # bordered two-col shortcut
-_draw_concept_text(draw, frame, element, y)     # heading + text + bullet list
-_draw_running_sum(draw, frame, element, y)      # orange bold total
-_draw_result_box(draw, frame, element, y)       # gray result card
-_draw_final_answer(draw, frame, element, y)     # green success box
-_draw_fraction(draw, frame, element, y)         # inline math fraction
-_draw_table(draw, frame, element, y)            # blue-header table
-_draw_timeline(draw, frame, element, y)         # chronological timeline
-_draw_chem_equation(draw, frame, element, y)    # chemical equation
-_draw_flow_chart(draw, frame, element, y)       # process flow
-_draw_t_account(draw, frame, element, y)        # T-account
-_draw_memory_trick(draw, frame, element, y)     # mnemonic card
-_draw_analogy(draw, frame, element, y)          # A:B::C:D display
-_draw_number_line(draw, frame, element, y)      # number line
-_draw_title_card(draw, frame, element, y)       # full-screen title
-_draw_concept_text(draw, frame, element, y)     # concept with heading/items
-_draw_blank_reveal(draw, frame, element, y)     # fill-blank answer
-_draw_match_columns(draw, frame, element, y)    # match columns
-_draw_sequence_list(draw, frame, element, y)    # sequence order
-_draw_numerical_answer(draw, frame, element, y) # numerical answer box
-_draw_image(frame, element, y, max_y)           # image from file
-_draw_svg(frame, element, y, max_y)             # SVG from file (CairoSVG)
-```
-
-### Karaoke Narration Bar
-
-Drawn at bottom of every frame:
-1. Dark navy background bar
-2. Split audio_text into words
-3. Words before current time → white
-4. Word active at current time → gold highlight
-5. Words after current time → muted blue
-
-```python
-def _find_active_word(word_timestamps, current_time) -> str:
-    for wt in word_timestamps:
-        if wt["start"] <= current_time <= wt["end"]:
-            return wt["word"]
-    return ""
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 9 — ENGINE: pipeline.py
-## ═══════════════════════════════════════
-
-### VideoPipeline class
-
-```python
-class VideoPipeline:
-    def __init__(self, config: dict):
-        # config keys used: RESOLUTIONS, QUALITY_PRESETS, TTS_ENGINE, TTS_LANG,
-        # TTS_TLD, BGM_ENABLED, BGM_FILES, BGM_STYLE, BGM_VOLUME,
-        # THEMES, WATERMARK_ENABLED, WATERMARK_TEXT, WATERMARK_IMAGE, WATERMARK_OPACITY
-
-    def process_question(self, question_data, output_dir, resolution="1080p",
-                          quality_preset="P7", theme="dark",
-                          progress_callback=None, frame_workers=None) -> dict:
-        """
-        Full pipeline. Returns:
-        {
-          "video_id": str,
-          "video_path": str,
-          "audio_path": str,
-          "thumbnail_path": str,
-          "duration": float,
-          "frame_count": int,
-          "resolution": str,
-          "quality_preset": str,
-        }
-        Raises on failure (caller handles InterruptedError separately for cancel).
-        """
-```
-
-### Pipeline Stages
-
-```
-Stage 1: TTS audio generation
-  → engine/audio.generate_audio_for_question()
-  → progress: 10% → 30%
-
-Stage 2: Concatenate audio + build timeline
-  → engine/audio.concatenate_audio()
-  → engine/sync.build_timeline()
-  → progress: 35%
-
-Stage 2b: BGM mixing (optional)
-  → engine/bgmusic.generate_bg_music() if no BGM files available
-  → engine/bgmusic.mix_audio_with_bgm()
-  → progress: 40%
-
-Stage 3: Asset resolution
-  → engine/free_media for subject_image / video_clip targets
-  → progress: 43%
-
-Stage 3b: Manim pre-rendering
-  → engine/manim_renderer.prerender_manim_scenes()
-  → progress: 44%
-
-Stage 4: Parallel frame rendering
-  → ProcessPoolExecutor with frame_workers workers
-  → Each chunk: range(start, end) of frame numbers
-  → worker calls: renderer.render_frame(get_active_state(timeline, t))
-  → progress: 45% → 84%
-
-Stage 5: FFmpeg video encoding
-  → Try GPU: h264_nvenc (NVIDIA) / h264_amf (AMD) / h264_qsv (Intel)
-  → Fallback CPU: libx264
-  → CRF for P5-P7, ABR for P1-P4
-  → progress: 85% → 95%
-
-Stage 6: Thumbnail generation
-  → Render one frame at t=2.0s
-  → Save as thumb.png
-
-Stage 7: Cleanup
-  → Delete frames/ and audio/ subdirs on success
-```
-
-### Progress Callback Signature
-
-```python
-def progress_callback(stage: str, percent: int) -> None:
-    # Called throughout pipeline
-    # stage: "audio_gen" | "timestamp_map" | "rendering" | "encoding" | "failed"
-    # percent: 0-100
-    # Raise InterruptedError("Job cancelled by user") to stop pipeline mid-run
-```
-
-### CPU Throttling
-
-```python
-def _throttle_current_process():
-    """Limit worker process: nice +10 (Unix) + affinity to 70% of cores."""
-    import psutil
-    p = psutil.Process()
-    p.nice(10)
-    all_cpus = list(range(os.cpu_count()))
-    limit = max(1, int(len(all_cpus) * 0.70))
-    p.cpu_affinity(all_cpus[:limit])
-```
-
-### GPU Encode Lock
-
-```python
-_GPU_ENCODE_LOCK = threading.Lock()
-# GPU encodes are serialized (shared resource)
-# CPU encodes run fully in parallel (no lock)
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 10 — ENGINE: hardware.py
-## ═══════════════════════════════════════
-
-### Purpose
-Detect hardware and compute optimal worker allocation.
-
-```python
-def detect_hardware() -> dict:
-    return {
-        "cpu_name": str,
-        "physical_cores": int,
-        "logical_cores": int,
-        "cpu_mhz": float,
-        "ram_gb": float,
-        "ram_available_gb": float,
-        "gpu_vendor": str,          # "NVIDIA" | "AMD" | "Intel" | "None"
-        "gpu_name": str,
-        "gpu_vram_mb": int,
-        "gpu_encoder": str,         # "h264_nvenc" | "h264_amf" | "h264_qsv" | "libx264"
-        "gpu_decode": bool,
-    }
-
-def compute_allocation(hw: dict, target_util=0.70, active_videos=1) -> dict:
-    return {
-        "frame_workers": int,    # cores assigned per video
-        "encode_threads": int,
-        "gpu_encode": bool,
-        "chunk_strategy": str,   # "large" | "small"
-    }
-
-def print_hardware_summary(hw, alloc):
-    """Print formatted hardware profile on startup."""
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 11 — ENGINE: bgmusic.py
-## ═══════════════════════════════════════
-
-### Purpose
-Generate procedural ambient background music as WAV, then mix with voice audio.
-
-```python
-BGM_STYLES = [
-    "calm_waves", "zen_garden", "morning_dew", "deep_focus", "soft_piano",
-    "crystal_bowl", "forest_stream", "twilight", "lotus", "silent_mind", "bansuri"
-]
-
-def generate_bg_music(duration_sec: float, output_path: str,
-                       volume=1.0, style="ambient") -> None:
-    """
-    Pure synthesis (no external files). Uses wave module.
-    Generates: sustained sine/triangle tones + light percussion + chord progressions.
-    Loopable: repeats to fill total_duration.
-    """
-
-def mix_audio_with_bgm(voice_path: str, bgm_path: str,
-                        output_path: str, bgm_volume=0.30) -> None:
-    """
-    Mix voice audio (1.0) + background music (bgm_volume) using pydub.
-    Output: MP3 stereo.
-    """
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 12 — FLASK APP FACTORY (app.py)
-## ═══════════════════════════════════════
-
-```python
-def create_app():
-    app = Flask(__name__)
-    app.config.from_object(Config)
-    app.config["RESOLUTIONS"] = Config.RESOLUTIONS
-    app.config["QUALITY_PRESETS"] = Config.QUALITY_PRESETS
-
-    # Create storage dirs
-    for d in [Config.STORAGE_DIR, Config.VIDEOS_DIR, Config.JSON_DIR,
-              Config.ASSETS_DIR, Config.AUDIO_DIR, Config.EXPORTS_DIR,
-              os.path.join(Config.ASSETS_DIR, "images"), ...]:
-        os.makedirs(d, exist_ok=True)
-
-    # Init DB with WAL mode
-    db.init_app(app)
-    with app.app_context():
-        with db.engine.connect() as conn:
-            conn.execute(text("PRAGMA journal_mode=WAL"))
-            conn.execute(text("PRAGMA synchronous=NORMAL"))
-            conn.execute(text("PRAGMA busy_timeout=30000"))
-            conn.commit()
-        db.create_all()
-
-    # Logging (rotate at 2MB, only WARNING+)
-    log_handler = RotatingFileHandler("server.log", maxBytes=2*1024*1024, backupCount=0)
-    log_handler.setLevel(logging.WARNING)
-    app.logger.addHandler(log_handler)
-    logging.getLogger("werkzeug").setLevel(logging.ERROR)
-
-    register_blueprints(app)
-
-    # Static file serving
-    @app.route("/storage/<path:filename>")
-    def serve_storage(filename):
-        return send_from_directory(Config.STORAGE_DIR, filename)
-
-    return app
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 13 — ROUTE: upload.py
-## ═══════════════════════════════════════
-
-### Endpoints
-
-```
-GET  /upload/                  → upload.html
-POST /upload/validate          → HTMX: validate JSON, return HTML result
-POST /upload/process           → validate + create DB records + queue jobs + start worker
-GET  /upload/download/reference-schema  → REFERENCE_SCHEMA.json
-GET  /upload/download/prompt            → PROMPT_JSON_GENERATOR.md
-```
-
-### /upload/process logic
-
-1. Parse JSON from form field `json_content` OR uploaded file (supports .zip with multiple .json)
-2. Validate via `validate_json(data)`
-3. For each question:
-   - Create `Video` record (title from meta fields, video_id = question["id"])
-   - Create `JobQueue` record (status="queued")
-   - Save JSON to `storage/json/{uuid}.json`
-4. Call `_start_processing(app)`
-5. Return HTMX response with job count
-
-### Queue Worker (_start_processing, _check_and_start_queued)
-
-```python
-_active_jobs = {}      # {job_id: threading.Thread}
-_active_lock = threading.Lock()
-_cancelled_jobs = set()  # job_ids requested to cancel
-
-def _start_processing(app):
-    """Trigger: check for queued jobs and launch workers if capacity available."""
-    with app.app_context():
-        _check_and_start_queued(app)
-
-def _check_and_start_queued(app):
-    """
-    Auto-scales workers based on hardware:
-    - max_concurrent = hardware allocation
-    - slots_free = max_concurrent - len(active_jobs)
-    - Take next `slots_free` queued jobs, start threads
-    - Distribute cores: total_workers / total_active_videos
-    """
-
-def _process_single_job(app, job_id, config_dict, frame_workers):
-    """
-    Run in daemon thread. Critical implementation notes:
-    1. Extract video_id as plain string BEFORE try block (avoids SQLAlchemy stale object crash)
-    2. Re-query Video and Job objects inside progress_cb instead of using closed-over references
-    3. Wrap all db.session.commit() in try/except with rollback fallback
-    4. On InterruptedError: mark job cancelled, delete video record + files
-    5. On other exceptions: mark job failed, keep video record with error_message
-    """
-    video_id = job.video_id  # extract early!
-
-    def progress_cb(stage, percent):
-        if _is_cancelled(job_id):
-            raise InterruptedError("Job cancelled by user")
-        try:
-            j = db.session.get(JobQueue, job_id)
-            v = Video.query.filter_by(video_id=video_id).first()
-            if j: j.stage = stage; j.progress = percent
-            if v: v.progress = percent
-            db.session.commit()
-        except Exception:
-            try: db.session.rollback()
-            except Exception: pass
-```
-
-### Cancel / Mark Cancelled
-
-```python
-def _mark_cancelled(job_id: int): _cancelled_jobs.add(job_id)
-def _is_cancelled(job_id: int) -> bool: return job_id in _cancelled_jobs
-def _clear_cancelled(job_id: int): _cancelled_jobs.discard(job_id)
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 14 — ROUTE: queue_routes.py
-## ═══════════════════════════════════════
-
-### Endpoints
-
-```
-GET  /queue/                         → queue.html (stats + full list)
-GET  /queue/list                     → HTMX partial: job list
-POST /queue/<job_id>/cancel          → cancel + delete video + restart queue
-POST /queue/<job_id>/retry           → reset to queued + restart queue
-POST /queue/<job_id>/delete          → delete job + video + files
-POST /queue/<job_id>/priority        → update priority (1-4)
-POST /queue/clear-completed          → delete all completed jobs
-POST /queue/clear-cancelled          → delete all cancelled/failed jobs + files
-```
-
-### File Cleanup (_cleanup_video_files)
-
-```python
-def _cleanup_video_files(video):
-    """Delete output_dir entirely if set (new path).
-    Fallback: delete individual files (legacy path).
-    Walk up and remove empty parent directories."""
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 15 — ROUTE: settings.py
-## ═══════════════════════════════════════
-
-### Endpoints
-
-```
-GET  /settings/                    → settings.html with all current values
-POST /settings/save                → save all form fields at once
-POST /settings/save-field          → auto-save single field (HTMX)
-POST /settings/reset               → reset all to defaults
-GET  /settings/tts-preview         → serve voice sample MP3
-POST /settings/tts-generate-samples → pre-generate all voice samples
-POST /settings/watermark/upload    → upload watermark image
-POST /settings/watermark/delete    → remove watermark
-GET  /settings/watermark/status    → HTMX: show current watermark filename
-POST /settings/youtube/save-oauth-keys → build client_secrets.json
-POST /settings/youtube/upload-secrets → upload client_secrets.json file
-GET  /settings/youtube/secrets-status → HTMX: connection status
-POST /settings/youtube/remove-secrets → delete oauth files
-```
-
-### Settings Keys (50+)
-
-```python
-DEFAULTS = {
-    "default_resolution": "1080p",
-    "default_quality_preset": "P7",
-    "default_duration_minutes": "8",
-    "default_theme": "dark",
-    "default_fps": "30",
-    "tts_engine": "edge_tts",
-    "tts_lang": "en",
-    "tts_tld": "en-IN-PrabhatNeural",
-    "max_workers": "4",
-    "job_timeout": "600",
-    "bgm_enabled": "true",
-    "bgm_style": "bansuri",
-    "bgm_volume": "0.30",
-    "watermark_enabled": "false",
-    "watermark_text": "",
-    "watermark_opacity": "0.35",
-    "auto_youtube_upload": "false",
-    "youtube_default_privacy": "public",
-    "youtube_default_category": "27",
-    "youtube_language": "en",
-    "copyright_owner": "",
-    "copyright_year": "",
-    "content_license": "all-rights-reserved",
-    # ... + youtube OAuth fields, storage path, ffmpeg path
-}
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 16 — ROUTE: videos.py
-## ═══════════════════════════════════════
-
-### Endpoints
-
-```
-GET  /videos/                → library.html with filters
-GET  /videos/list            → HTMX partial: filtered video grid
-GET  /videos/<video_id>      → video_detail.html
-GET  /videos/<video_id>/stream → serve video file
-POST /videos/<video_id>/delete → delete video + files + job
-POST /videos/<video_id>/update-meta → update title/tags/etc
-```
-
-### Filters
-
-```
-?subject=  &topic=  &difficulty=  &status=  &q=  &sort=  &page=
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 17 — ROUTE: youtube.py
-## ═══════════════════════════════════════
-
-### Endpoints
-
-```
-GET  /youtube/                         → youtube.html
-GET  /youtube/auth                     → redirect to Google OAuth
-GET  /youtube/oauth-callback           → handle code + store token
-POST /youtube/<video_id>/upload        → upload to YouTube
-GET  /youtube/<video_id>/status        → check upload status (HTMX)
-POST /youtube/<video_id>/set-metadata  → update title/desc/tags
-```
-
-### OAuth Flow
-
-1. `client_secrets.json` stored at project root (Web app credentials from Google Cloud Console)
-2. Scopes: `https://www.googleapis.com/auth/youtube.upload`
-3. Token cached in `youtube_token.json`
-4. Upload uses `googleapiclient.discovery.build("youtube", "v3", credentials=creds)`
-5. Resumable upload for large files
-
----
-
-## ═══════════════════════════════════════
-## PART 18 — ROUTE: dashboard.py
-## ═══════════════════════════════════════
-
-```
-GET  /              → dashboard.html
-GET  /stats         → HTMX partial: stats cards (auto-refresh every 5s)
-```
-
-Stats shown:
-- Total videos, completed, processing, failed, queued
-- Subjects breakdown
-- Recent 6 videos
-- Active job progress bars
-
----
-
-## ═══════════════════════════════════════
-## PART 19 — TEMPLATES
-## ═══════════════════════════════════════
-
-### base.html structure
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <!-- Tailwind CSS CDN -->
-  <!-- HTMX CDN -->
-  <title>{% block title %}{% endblock %} | STEM Video Generator</title>
-</head>
-<body class="bg-gray-950 text-white min-h-screen flex">
-  <!-- Sidebar navigation -->
-  <aside class="w-64 bg-gray-900 border-r border-gray-800">
-    <nav>
-      <a href="/">Dashboard</a>
-      <a href="/upload">Upload</a>
-      <a href="/videos">Library</a>
-      <a href="/queue">Queue</a>
-      <a href="/youtube">YouTube</a>
-      <a href="/export">Export</a>
-      <a href="/assets">Assets</a>
-      <a href="/settings">Settings</a>
-    </nav>
-  </aside>
-
-  <!-- Main content -->
-  <main class="flex-1 p-8">
-    {% block content %}{% endblock %}
-  </main>
-</body>
-</html>
-```
-
-### HTMX Patterns Used
-
-```html
-<!-- Auto-refresh stats every 5 seconds -->
-<div hx-get="/stats" hx-trigger="every 5s" hx-swap="outerHTML">
-
-<!-- Live JSON validation as user types -->
-<textarea name="json_content"
-          hx-post="/upload/validate"
-          hx-trigger="input delay:500ms"
-          hx-target="#validation-result">
-
-<!-- Cancel job (removes card on success) -->
-<button hx-post="/queue/42/cancel" hx-swap="delete" hx-target="closest .job-card">
-
-<!-- Auto-save single setting field -->
-<input name="bgm_volume"
-       hx-post="/settings/save-field"
-       hx-trigger="change"
-       hx-vals='{"key": "bgm_volume"}'>
-
-<!-- Progress polling for active job -->
-<div hx-get="/queue/42/progress"
-     hx-trigger="every 2s [document.querySelector('.job-active')]"
-     hx-swap="outerHTML">
-```
-
----
-
-## ═══════════════════════════════════════
-## PART 20 — REQUIREMENTS.txt
-## ═══════════════════════════════════════
-
-```
-Flask==3.1.0
+flask==3.1.0
+flask-sqlalchemy==3.1.1
+flask-wtf==1.2.2
 python-dotenv==1.0.1
-Flask-SQLAlchemy==3.1.1
-SQLAlchemy==2.0.36
-Pillow==11.1.0
-gTTS==2.5.4
-edge-tts
+pillow==11.1.0
+edge-tts==6.1.12
 pydub==0.25.1
-moviepy==2.1.2
-CairoSVG==2.7.1
 openpyxl==3.1.5
 google-api-python-client==2.159.0
 google-auth-oauthlib==1.2.1
-jsonschema==4.23.0
-Werkzeug==3.1.3
-psutil
-imageio-ffmpeg
-geopandas
-geodatasets
+requests==2.32.3
+numpy>=1.26.0
+scipy>=1.12.0
+matplotlib>=3.8.0
+sympy>=1.12
+plotly>=5.18.0
+kaleido==0.2.1
+networkx>=3.2
+schemdraw>=0.18
+manim>=0.18.0
+rdkit>=2023.9.1
+pubchempy>=1.0.4
+biopython>=1.83
+geopandas>=0.14.0
+cartopy>=0.22.0
+shapely>=2.0.0
 ```
 
 ---
 
 ## ═══════════════════════════════════════
-## PART 21 — CRITICAL IMPLEMENTATION NOTES
+## PART 3 — FILE STRUCTURE (COMPLETE)
 ## ═══════════════════════════════════════
 
-### 1. SQLAlchemy Thread Safety (MOST IMPORTANT)
+```
+DSL/
+├── app.py                          # Flask factory + WAL mode + startup resume
+├── config.py                       # Config class with subject themes, all settings
+├── models.py                       # Video, JobQueue, Setting models
+├── requirements.txt
+│
+├── engine/
+│   ├── __init__.py                 # Re-exports
+│   ├── validator.py                # JSON DSL schema validation
+│   ├── audio.py                    # edge_tts + word-level timestamps
+│   ├── sync.py                     # build_timeline() + get_active_state()
+│   ├── renderer.py                 # FrameRenderer (main compositor, subject themes)
+│   ├── compositor.py               # NEW: Multi-layer Pillow compositing
+│   ├── latex_renderer.py           # NEW: LaTeX → PNG via matplotlib.mathtext + sympy
+│   ├── animator.py                 # NEW: 8 animation types with easing
+│   ├── pipeline.py                 # VideoPipeline orchestrator (7 stages)
+│   ├── hardware.py                 # CPU/GPU detection + worker allocation
+│   ├── bgmusic.py                  # Procedural ambient background music
+│   ├── manim_renderer.py           # 30+ Manim animation templates (incl. 3D)
+│   ├── free_media.py               # Stock photo/video auto-fetch
+│   ├── data_fetcher.py             # NEW: PubChem, PDB, World Bank, NCBI, NASA APIs
+│   └── subjects/
+│       ├── __init__.py
+│       ├── math_renderer.py        # Manim math, 3D graphs, function plots, geometry
+│       ├── physics_renderer.py     # Circuit diagrams, Bohr model, ray diagrams, waves
+│       ├── chemistry_renderer.py   # RDKit molecules, periodic table, energy diagrams
+│       ├── biology_renderer.py     # Cell diagrams, Punnett squares, food chains, DNA
+│       └── geography_renderer.py   # GeoPandas choropleth, India/world maps
+│
+├── routes/
+│   ├── __init__.py
+│   ├── dashboard.py
+│   ├── upload.py                   # Upload + validate + queue + run pipeline
+│   ├── videos.py                   # Library with search/filter/pagination
+│   ├── queue_routes.py             # Cancel, retry, delete, prioritize
+│   ├── settings.py                 # 50+ settings UI
+│   ├── youtube.py                  # OAuth2 YouTube upload
+│   ├── export.py                   # Excel/CSV export
+│   └── assets.py                   # Asset browser + upload
+│
+├── templates/
+│   ├── base.html
+│   ├── dashboard.html
+│   ├── upload.html
+│   ├── library.html
+│   ├── queue.html
+│   ├── settings.html
+│   ├── youtube.html
+│   ├── video_detail.html
+│   ├── assets.html
+│   └── components/
+│       ├── stats_cards.html
+│       ├── job_row.html
+│       ├── video_card.html
+│       └── progress_bar.html
+│
+├── static/
+│   ├── css/main.css
+│   └── js/
+│       ├── upload.js               # Live JSON validation UI
+│       └── queue.js                # SSE progress updates
+│
+├── storage/
+│   ├── videos/
+│   ├── json/
+│   ├── audio/
+│   ├── exports/
+│   └── assets/
+│       ├── bgm/
+│       ├── fonts/                  # Noto Sans + Noto Sans Math + Noto Serif
+│       ├── watermark/
+│       ├── cache/                  # API response cache
+│       └── images/
+│
+└── tests/
+    ├── conftest.py
+    ├── unit/
+    │   ├── test_validator.py
+    │   ├── test_sync.py
+    │   └── test_renderer.py
+    ├── integration/
+    │   └── test_pipeline.py
+    └── api/
+        └── test_routes.py
+```
 
-The background thread (`_process_single_job`) runs inside `with app.app_context()`. SQLAlchemy ORM objects become stale after `db.session.commit()`.
+---
 
-**Problem**: Capturing `video` object in `progress_cb` closure → if user deletes Video from UI mid-render → any `db.session.commit()` triggers `ObjectDeletedError` → session corrupted → all subsequent commits fail with `PendingRollbackError`.
+## ═══════════════════════════════════════
+## PART 4 — config.py
+## ═══════════════════════════════════════
 
-**Solution**:
+### Subject Color Palettes (CRITICAL — used by renderer.py)
 ```python
-# Extract plain string BEFORE the try block
-video_id = job.video_id   # plain str, not ORM object attribute
+SUBJECT_THEMES = {
+    "math": {
+        "header_bg":   "#0D1B2A",   # deep navy
+        "accent":      "#F4631E",   # orange-red
+        "accent2":     "#FFB347",   # amber
+        "text":        "#FFFFFF",
+        "body_bg":     "#F0F4FF",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#FFE066",
+        "correct":     "#2ECC71",
+        "wrong":       "#E74C3C",
+        "border":      "#B0BEC5",
+    },
+    "physics": {
+        "header_bg":   "#0A0A23",   # electric dark blue
+        "accent":      "#00CFFF",
+        "accent2":     "#7F00FF",
+        "text":        "#FFFFFF",
+        "body_bg":     "#EFF6FF",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#00CFFF",
+        "correct":     "#00E676",
+        "wrong":       "#FF5252",
+        "border":      "#90CAF9",
+    },
+    "chemistry": {
+        "header_bg":   "#1A0533",   # deep purple
+        "accent":      "#BB86FC",
+        "accent2":     "#CF6679",
+        "text":        "#FFFFFF",
+        "body_bg":     "#F5F0FF",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#BB86FC",
+        "correct":     "#69F0AE",
+        "wrong":       "#FF6E40",
+        "border":      "#CE93D8",
+    },
+    "biology": {
+        "header_bg":   "#0D3320",   # forest green
+        "accent":      "#56C596",
+        "accent2":     "#A8E063",
+        "text":        "#FFFFFF",
+        "body_bg":     "#F0FFF4",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#B2FFB2",
+        "correct":     "#00C853",
+        "wrong":       "#FF6D00",
+        "border":      "#A5D6A7",
+    },
+    "geography": {
+        "header_bg":   "#003D4D",   # deep teal
+        "accent":      "#26C6DA",
+        "accent2":     "#80DEEA",
+        "text":        "#FFFFFF",
+        "body_bg":     "#E0F7FA",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#B2EBF2",
+        "correct":     "#00E5FF",
+        "wrong":       "#FF7043",
+        "border":      "#80CBC4",
+    },
+    "history": {
+        "header_bg":   "#3E1C00",   # dark brown
+        "accent":      "#FF8A65",
+        "accent2":     "#FFD54F",
+        "text":        "#FFFFFF",
+        "body_bg":     "#FFF8F0",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#FFE0B2",
+        "correct":     "#66BB6A",
+        "wrong":       "#EF5350",
+        "border":      "#FFCC80",
+    },
+    "economics": {
+        "header_bg":   "#002B36",   # dark teal
+        "accent":      "#2AA198",
+        "accent2":     "#268BD2",
+        "text":        "#FFFFFF",
+        "body_bg":     "#F0FFFA",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#B2DFDB",
+        "correct":     "#26A69A",
+        "wrong":       "#EF5350",
+        "border":      "#80CBC4",
+    },
+    "polity": {
+        "header_bg":   "#4A0020",   # maroon
+        "accent":      "#FF4081",
+        "accent2":     "#FF8A65",
+        "text":        "#FFFFFF",
+        "body_bg":     "#FFF0F5",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#FFD6E7",
+        "correct":     "#69F0AE",
+        "wrong":       "#FF5252",
+        "border":      "#F48FB1",
+    },
+    "default": {
+        "header_bg":   "#1A237E",   # indigo (fallback)
+        "accent":      "#EF6C00",
+        "accent2":     "#42A5F5",
+        "text":        "#FFFFFF",
+        "body_bg":     "#F5F5F5",
+        "card_bg":     "#FFFFFF",
+        "highlight":   "#FFF9C4",
+        "correct":     "#2ECC71",
+        "wrong":       "#E74C3C",
+        "border":      "#B0BEC5",
+    },
+}
+```
+
+### Resolution Map
+```python
+RESOLUTIONS = {
+    "360p":  (640,  360),
+    "720p":  (1280, 720),
+    "1080p": (1920, 1080),
+    "2K":    (2560, 1440),
+    "4K":    (3840, 2160),
+}
+```
+
+### Quality Presets
+```python
+QUALITY_PRESETS = {
+    "P1": {"bitrate": "1M",  "fps": 24, "antialiasing": False, "label": "Preview"},
+    "P2": {"bitrate": "2M",  "fps": 24, "antialiasing": True,  "label": "Draft"},
+    "P3": {"bitrate": "4M",  "fps": 30, "antialiasing": True,  "label": "Mobile"},
+    "P4": {"bitrate": "6M",  "fps": 30, "antialiasing": True,  "label": "Standard"},
+    "P5": {"bitrate": "10M", "crf": "22", "fps": 30, "antialiasing": True, "label": "YouTube"},
+    "P6": {"bitrate": "15M", "crf": "20", "fps": 60, "antialiasing": True, "label": "High Quality"},
+    "P7": {"bitrate": "25M", "crf": "18", "fps": 60, "antialiasing": True, "label": "Maximum"},
+}
+```
+
+### TTS Voices (edge_tts)
+```
+en-IN-PrabhatNeural   — Indian male (clear, default)
+en-IN-NeerjaNeural    — Indian female (clear)
+en-IN-AaravNeural     — Indian male (young)
+en-IN-AnanyaNeural    — Indian female (warm)
+hi-IN-SwaraNeural     — Hindi female
+hi-IN-MadhurNeural    — Hindi male
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 5 — models.py
+## ═══════════════════════════════════════
+
+Three SQLAlchemy models: **Video**, **JobQueue**, **Setting**.
+
+### Video model fields
+```
+id, video_id (UUID str, unique, indexed), title
+subject, chapter, topic, subtopic, difficulty
+exam_tags, purpose_tags, grade_tags  (comma-separated Text)
+resolution, quality_preset, duration_seconds, fps, theme
+json_path, output_dir, video_path, audio_path, thumbnail_path
+youtube_url, youtube_video_id
+youtube_status (not_uploaded | uploading | published | failed)
+status (pending | processing | completed | failed)
+error_message (Text), progress (0-100 Integer)
+created_at, updated_at, completed_at
+```
+
+### JobQueue model fields
+```
+id, video_id (FK → videos.video_id)
+priority (1=urgent, 2=high, 3=normal, 4=low)
+status (queued | processing | completed | failed | cancelled)
+stage (audio_gen | timestamp_map | rendering | encoding)
+progress (0-100), error_message (Text)
+retry_count, max_retries (default 1)
+created_at, started_at, completed_at
+```
+
+### Setting model
+- key/value store
+- static `get(key, default="")` and `set(key, value)` class methods
+
+---
+
+## ═══════════════════════════════════════
+## PART 6 — JSON DSL SCHEMA (COMPLETE)
+## ═══════════════════════════════════════
+
+### Root Structure
+The root must be a JSON array. Objects with a `_DOC` key are silently skipped.
+
+```json
+[
+  { "_DOC": "Documentation objects are silently skipped" },
+  {
+    "id":   "unique-slug",
+    "mode": "mcq",
+    "meta": {
+      "subject":    "math",
+      "chapter":    "Algebra",
+      "topic":      "Quadratic Equations",
+      "difficulty": "hard",
+      "exam_tags":  ["JEE", "CBSE-12"],
+      "grade_tags": ["11", "12"]
+    },
+    "question": { ... },
+    "scenes":   [ ... ]
+  }
+]
+```
+
+### 8 Valid Modes
+```
+mcq          Multiple choice question (4 options a/b/c/d)
+topic        Concept explanation (no question block)
+true_false   True/False question
+fill_blank   Fill in the blank
+numerical    Numerical answer (e.g. "42.5")
+match        Match the following (pairs)
+assertion    Assertion-Reason type
+sequence     Arrange items in correct order
+```
+
+### Scene Types
+```
+question       Introductory scene: renders question text
+options        Shows MCQ options grid
+concept        Step-by-step explanation (MUST have non-empty "steps" array)
+visual_intro   Animated intro for the topic
+answer         Reveals correct answer
+```
+
+### Render Object (per scene or step)
+```json
+{
+  "action":   "show",
+  "target":   "equation",
+  "value":    "x^2 + 5x + 6 = 0",
+  "position": "center",
+  "size":     "large",
+  "color":    "accent"
+}
+```
+
+### Valid Actions (VALID_ACTIONS set — exactly 12)
+```
+show             Display element
+hide             Remove element
+highlight        Pulse-highlight an existing element
+update           Replace value of existing element
+animate          Trigger animation sequence
+show_result      Show correct answer overlay
+draw_arrow       Draw annotation arrow to element
+zoom             Zoom into element
+replace          Replace element with new one
+sequence         Show steps as numbered sequence
+clear            Remove all work elements
+highlight_option Highlight an MCQ option (a/b/c/d)
+```
+
+### 65+ Valid Render Targets
+
+#### Text & Equations
+```
+question_block       MCQ question text
+options_grid         MCQ 4-option grid
+concept_text         Heading + paragraph explanation
+equation             Single math equation (LaTeX-rendered)
+formula_block        Multi-line formula (LaTeX)
+derivation_chain     Step-by-step equation derivation (steps array)
+proof_block          QED-style mathematical proof
+latex_equation       Raw LaTeX string rendered via mathtext
+key_facts            Heading + key:value bullet list
+process_steps        Numbered step list
+two_col_text         Two-column comparison
+result_box           Final answer box
+final_answer         Answer reveal overlay
+running_sum          Accumulating total display
+highlight_box        Colored callout box
+title_card           Large title + subtitle card
+```
+
+#### Math & Numbers
+```
+digit_boxes          Individual digit breakdown boxes
+factor_tree          Prime factor tree diagram
+venn_diagram         Two/three-circle Venn diagram
+number_line          Number line with marked points
+coordinate_axes      2D/3D coordinate system
+bar_chart            Animated bar chart (matplotlib)
+pie_chart            Animated pie chart (matplotlib)
+balance_scale        Balance scale (equations)
+```
+
+#### Physics
+```
+circuit_diagram      Electric circuit (schemdraw: resistors, capacitors, etc.)
+bohr_model           Bohr atomic model with electron shells
+free_body_diagram    Arrow-based force diagram
+wave_diagram         Sin/cos wave with labeled parts (crest, trough, λ, A)
+ray_diagram          Optics ray diagram (mirrors/lenses with construction rays)
+velocity_diagram     Velocity/acceleration vectors
+energy_level         Quantum energy level diagram with transitions
+```
+
+#### Chemistry
+```
+molecule_2d          2D molecular structure (RDKit from SMILES)
+periodic_element     Single element tile (symbol, atomic number, mass)
+periodic_table       Full mini periodic table with highlighted groups
+reaction_equation    Balanced chemical equation with state symbols
+energy_diagram       Potential energy / reaction coordinate curve
+orbital_diagram      Electron orbital filling (Aufbau, box notation)
+acid_base_scale      pH scale with indicator bands
+```
+
+#### Biology
+```
+cell_diagram         Animal/plant/bacterial cell with labeled organelles
+punnett_square       Genetics Punnett square (2×2 monohybrid or 4×4 dihybrid)
+food_chain           Food chain / food web with directional arrows
+dna_structure        DNA double helix with base pair labels (A-T, G-C)
+phylogenetic_tree    Cladogram from newick format (biopython)
+human_anatomy        Labeled human body part diagram
+microscope_view      Simulated circular microscope viewport
+```
+
+#### Geography & History
+```
+india_map            India map with highlighted/choropleth states (geopandas)
+world_map            World map with highlighted countries
+climate_map          Köppen climate zone map
+timeline_bar         Historical timeline with events (alternating above/below)
+```
+
+#### Reasoning & Logic
+```
+comparison_table     Multi-column tabular comparison
+hierarchy_tree       Tree hierarchy diagram
+process_cycle        Circular cycle diagram (carbon cycle, water cycle)
+cause_effect         Cause → Effect arrows diagram
+```
+
+#### Spatial / Visual
+```
+direction_map        Compass-rose direction diagram
+seating_layout       Circular/rectangular seating arrangement
+clock_diagram        Clock face with hands
+family_tree          Genealogy tree diagram
+labeled_image        User-provided image with text overlays
+zoom_box             Magnified sub-region box
+overlay_formula      Formula overlaid on top of image
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 7 — engine/validator.py
+## ═══════════════════════════════════════
+
+```python
+"""JSON DSL schema validator."""
+
+VALID_MODES     = {"mcq","topic","true_false","fill_blank","numerical","match","assertion","sequence"}
+VALID_SCENES    = {"question","options","concept","visual_intro","answer"}
+VALID_ACTIONS   = {"show","hide","highlight","update","animate","show_result","draw_arrow",
+                   "zoom","replace","sequence","clear","highlight_option"}
+VALID_TARGETS   = { ... all 65+ targets ... }
+VALID_POSITIONS = {"top","bottom","left","right","center","top_left","top_right",
+                   "bottom_left","bottom_right","work_area","full_screen"}
+VALID_SIZES     = {"small","medium","large","xl","full"}
+VALID_DIFFICULTIES = {"easy","medium","hard","very_hard"}
+
+class ValidationError:
+    def __init__(self, path: str, message: str, severity: str = "error"): ...
+    def __repr__(self) -> str: ...
+    def to_dict(self) -> dict: ...
+
+def validate_json(data) -> tuple[bool, list[ValidationError]]:
+    """
+    Validate a list of question dicts.
+    Returns (is_valid, errors_list).
+
+    Rules:
+    - Root must be a list → fatal if not
+    - Objects with "_DOC" key → silently skipped
+    - Each item: id (str, unique), mode, meta.subject, meta.topic required
+    - concept scenes must have non-empty "steps" list
+    - Each render: action in VALID_ACTIONS, target in VALID_TARGETS
+    - position/size/color invalid → warning (not fatal)
+    - difficulty invalid → warning (not fatal)
+    - topic_header missing in topic mode → warning
+    - Duplicate IDs → error
+    """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 8 — engine/audio.py
+## ═══════════════════════════════════════
+
+### Word-Level TTS Pipeline
+```python
+async def _generate_edge_tts(text: str, voice: str, output_path: str) -> list[dict]:
+    """
+    Returns list of word timestamps:
+    [{"word": "Hello", "start": 0.0, "end": 0.35}, ...]
+
+    Uses edge_tts WordBoundary events for real timestamps.
+    CRITICAL: In Python 3.12 threads use asyncio.run() NOT get_event_loop().
+    Falls back to _generate_gtts() with proportional timestamps on failure.
+    """
+
+def _compute_word_timestamps(text: str, duration: float) -> list[dict]:
+    """Proportional mapping — longer words get proportionally more time."""
+
+def generate_audio_for_scene(scene_dict, scene_idx, step_idx, output_dir, voice) -> dict:
+    """
+    Returns audio segment dict:
+    {
+        "scene_index":     int,
+        "step_index":      int | None,
+        "start":           float,
+        "end":             float,
+        "word_timestamps": list[dict],
+        "audio_path":      str,
+    }
+    """
+```
+
+### CRITICAL: asyncio in threads
+```python
+# CORRECT — works in Python 3.12 thread:
+result = asyncio.run(coro)
+
+# WRONG — raises RuntimeError in thread:
+loop = asyncio.get_event_loop()
+loop.run_until_complete(coro)
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 9 — engine/sync.py
+## ═══════════════════════════════════════
+
+```python
+def build_timeline(question: dict, audio_segments: list[dict]) -> list[dict]:
+    """
+    Maps audio segments onto scenes/steps by (scene_index, step_index) DICT LOOKUP.
+    NOT sequential order — segments may arrive out of order.
+
+    Required keys in each timeline entry:
+    start, end, scene_index, scene_type, step_index, render, text, audio_text, word_timestamps
+
+    Scenes without audio (e.g. "options"):
+        duration = min(len(options) * 0.6, 3.0)   # 0.5s minimum
+
+    Steps without audio:
+        duration = 1.5 seconds
+
+    If no matching segment for an audio step → skip entry (don't crash).
+    """
+
+def get_active_state(timeline: list[dict], current_time: float, question: dict) -> dict:
+    """
+    Accumulation model: replay all events at t <= current_time.
+    Returns full render state dict (see state schema below).
+
+    work_elements accumulation:
+    - "show"    → work_elements[target] = element
+    - "hide"    → del work_elements[target]
+    - "highlight" → work_elements[target]["highlighted"] = True
+    - "update"  → work_elements[target]["value"] = new_value
+    - "clear"   → work_elements.clear()
+    - "show_result" → highlighted_option = correct_option, show_correct = True
+    """
+```
+
+### State Dict Schema
+```python
+{
+    "mode":               str,
+    "question_text":      str,
+    "options_data":       list[{"key": str, "value": str}],
+    "correct_option":     str,
+    "highlighted_option": str,
+    "show_correct":       bool,
+    "question_shown":     bool,
+    "options_shown":      bool,
+    "work_elements":      dict,   # target_name → element_dict
+    "step_text":          str,
+    "narration":          dict | None,
+    "current_time":       float,
+    "topic_header":       dict | None,
+    "topic_shown":        bool,
+    "subject":            str,    # from meta.subject, used to select theme
+}
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 10 — engine/latex_renderer.py (NEW)
+## ═══════════════════════════════════════
+
+```python
+"""
+LaTeX equation → PIL Image renderer.
+Uses matplotlib.mathtext — no TeX installation needed.
+Supports sympy → LaTeX string conversion.
+"""
+import io
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from PIL import Image
+
+def render_latex(latex_str: str, fontsize: int = 32, color: str = "#000000",
+                 bg_color: str = None, dpi: int = 150) -> Image.Image:
+    """
+    Render LaTeX math string to RGBA PIL Image (transparent background).
+
+    latex_str must be wrapped in $...$:
+        "$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$"
+
+    Scaling rule:
+        Base fontsize for 1080p = 42pt
+        For other resolutions: fontsize = round(42 * (frame_width / 1920))
+        DPI stays constant at 150.
+
+    Returns PIL Image (RGBA).
+    Raises LatexRenderError on failure.
+    """
+
+def latex_from_sympy(expr) -> str:
+    """Convert sympy expression to $...$ wrapped LaTeX string."""
+    from sympy import latex
+    return f"${latex(expr)}$"
+
+class LatexRenderError(Exception):
+    pass
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 11 — engine/compositor.py (NEW)
+## ═══════════════════════════════════════
+
+```python
+"""
+Multi-layer Pillow frame compositor.
+
+Layer order (bottom to top):
+  0. Background (solid color or gradient from subject theme)
+  1. Header bar (subject-themed strip)
+  2. Body panels (white/light card areas)
+  3. Subject-specific rendered element (molecule, map, circuit, etc.)
+  4. LaTeX equations (transparent PNG sprites)
+  5. Annotation arrows (callouts pointing to elements)
+  6. Text overlays (narration bar, step label)
+  7. UI chrome (progress dot, watermark)
+"""
+from PIL import Image, ImageDraw
+from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class Layer:
+    image: Image.Image
+    x: int = 0
+    y: int = 0
+    opacity: float = 1.0
+
+class FrameCompositor:
+    def __init__(self, width: int, height: int): ...
+
+    def add_layer(self, img: Image.Image, x: int = 0, y: int = 0,
+                  opacity: float = 1.0) -> None: ...
+
+    def add_latex(self, latex_str: str, x: int, y: int,
+                  fontsize: int, color: str = "#000000") -> None:
+        """Render LaTeX via latex_renderer and composite at (x, y)."""
+
+    def add_annotation_arrow(self, from_xy: tuple, to_xy: tuple,
+                              label: str = "", color: str = "#FF0000") -> None:
+        """Curved callout arrow with optional text label."""
+
+    def flatten(self) -> Image.Image:
+        """Alpha-composite all layers → final RGB Image."""
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 12 — engine/animator.py (NEW)
+## ═══════════════════════════════════════
+
+```python
+"""
+Animation engine — generates interpolated frame sequences.
+Used by pipeline.py when render action is "animate".
+"""
+import math
+from PIL import Image
+
+# Easing functions (t: float 0→1, returns float 0→1)
+def ease_in_out(t): return t * t * (3 - 2 * t)
+def ease_out_elastic(t): ...
+def ease_in_cubic(t): return t * t * t
+
+class AnimationType:
+    FADE_IN   = "fade_in"      # alpha blend from_frame → to_frame
+    SLIDE_IN  = "slide_in"     # translate to_frame from direction (left/right/top/bottom)
+    SCALE_IN  = "scale_in"     # zoom to_frame from center (0 → 1 scale)
+    TYPEWRITER = "typewriter"  # reveal text character by character
+    COUNT_UP  = "count_up"     # animate number from 0 → target
+    DRAW_EQ   = "draw_equation" # progressive LaTeX equation reveal
+    PULSE     = "highlight_pulse" # size/color pulse for highlight action
+    WIPE      = "wipe"         # horizontal wipe reveal
+
+class FrameAnimator:
+    def __init__(self, renderer, fps: int = 30): ...
+
+    def animate(self, from_frame: Image.Image, to_frame: Image.Image,
+                duration: float, animation_type: str,
+                direction: str = "left") -> list[Image.Image]:
+        """
+        Generate floor(duration * fps) transition frames.
+        Returns list of PIL Images.
+        """
+
+    def typewriter_frames(self, renderer, state: dict,
+                          element_key: str, duration: float) -> list[Image.Image]:
+        """Reveal text one character at a time over duration seconds."""
+
+    def count_up_frames(self, renderer, state: dict,
+                        element_key: str, target: float,
+                        duration: float) -> list[Image.Image]:
+        """Animate number counting 0 → target with ease_in_out."""
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 13 — engine/renderer.py (REBUILT)
+## ═══════════════════════════════════════
+
+### FrameRenderer Contract
+```python
+class FrameRenderer:
+    def __init__(self, width: int = 1920, height: int = 1080):
+        self.width  = width
+        self.height = height
+        self.scale  = width / 1920   # ALL measurements multiply by this
+
+    def render_frame(self, state: dict) -> Image.Image:
+        """
+        Dispatch by state["mode"]. Returns complete RGB PIL Image.
+        subject = state.get("subject", "default") → selects from SUBJECT_THEMES.
+        """
+
+    def _get_theme(self, subject: str) -> dict:
+        """Return SUBJECT_THEMES.get(subject, SUBJECT_THEMES["default"])"""
+
+    def _blank_frame(self) -> Image.Image: ...
+    def _draw_header(self, draw, theme, title, subtitle="") -> int:
+        """Draw subject header bar. Returns body_top y-coordinate."""
+```
+
+### Layout Zones (at 1920×1080, all values × scale for other resolutions)
+```
+Header bar:     y = 0   → 120px
+Left panel:     x = 0   → 960px,  y = 120 → 980px  (question + options in MCQ)
+Right panel:    x = 960 → 1920px, y = 120 → 980px  (work area / subject visual)
+Narration bar:  y = 980 → 1080px (full width, word-highlighted audio text)
+
+Topic mode:
+  Header:   y = 0   → 120px
+  Topic card: y = 120 → 320px (full width title/subtitle)
+  Work area:  y = 320 → 980px (full width)
+  Narration:  y = 980 → 1080px
+```
+
+### Element Renderer Dispatch (work_elements dict → method)
+```python
+_ELEMENT_RENDERERS = {
+    "equation":          _draw_equation,
+    "latex_equation":    _draw_latex_equation,      # uses latex_renderer module
+    "derivation_chain":  _draw_derivation_chain,    # LaTeX step-by-step
+    "key_facts":         _draw_key_facts,
+    "concept_text":      _draw_concept_text,
+    "process_steps":     _draw_process_steps,
+    "two_col_text":      _draw_two_col_text,
+    "digit_boxes":       _draw_digit_boxes,
+    "highlight_box":     _draw_highlight_box,
+    "formula_block":     _draw_formula_block,
+    "final_answer":      _draw_final_answer,
+    "running_sum":       _draw_running_sum,
+    "result_box":        _draw_result_box,
+    "title_card":        _draw_title_card,
+    "comparison_table":  _draw_comparison_table,
+    "bar_chart":         _draw_bar_chart,           # matplotlib → PIL
+    "pie_chart":         _draw_pie_chart,
+    "venn_diagram":      _draw_venn_diagram,
+    "number_line":       _draw_number_line,
+    "factor_tree":       _draw_factor_tree,
+    "balance_scale":     _draw_balance_scale,
+    # Physics
+    "circuit_diagram":   _draw_circuit_diagram,     # schemdraw → PIL
+    "bohr_model":        _draw_bohr_model,
+    "free_body_diagram": _draw_free_body_diagram,
+    "wave_diagram":      _draw_wave_diagram,
+    "ray_diagram":       _draw_ray_diagram,
+    "energy_level":      _draw_energy_level,
+    # Chemistry
+    "molecule_2d":       _draw_molecule_2d,         # RDKit → PIL
+    "periodic_element":  _draw_periodic_element,
+    "periodic_table":    _draw_periodic_table,
+    "reaction_equation": _draw_reaction_equation,
+    "energy_diagram":    _draw_energy_diagram,
+    "orbital_diagram":   _draw_orbital_diagram,
+    # Biology
+    "cell_diagram":      _draw_cell_diagram,
+    "punnett_square":    _draw_punnett_square,
+    "food_chain":        _draw_food_chain,
+    "dna_structure":     _draw_dna_structure,
+    "phylogenetic_tree": _draw_phylogenetic_tree,
+    # Geography
+    "india_map":         _draw_india_map,           # geopandas → PIL
+    "world_map":         _draw_world_map,
+    "timeline_bar":      _draw_timeline_bar,
+    # Logic / Misc
+    "hierarchy_tree":    _draw_hierarchy_tree,
+    "process_cycle":     _draw_process_cycle,
+    "cause_effect":      _draw_cause_effect,
+    "direction_map":     _draw_direction_map,
+    "seating_layout":    _draw_seating_layout,
+    "clock_diagram":     _draw_clock_diagram,
+    "family_tree":       _draw_family_tree,
+}
+```
+
+### Font Strategy
+```python
+FONT_PATHS = [
+    "storage/assets/fonts/NotoSansMath-Regular.ttf",
+    "storage/assets/fonts/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+]
+# Try each in order; fall back to ImageFont.load_default()
+# All font sizes = round(base_size * self.scale)
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 14 — engine/pipeline.py (REBUILT)
+## ═══════════════════════════════════════
+
+### 7-Stage Pipeline
+```python
+class VideoPipeline:
+    """
+    Stage 1: audio_gen      — TTS for each scene/step, collect segments
+    Stage 2: timestamp_map  — build_timeline() from segments
+    Stage 3: thumbnail      — render single frame at t=2.0s → JPEG
+    Stage 4: rendering      — parallel frame render (ProcessPoolExecutor)
+    Stage 5: encoding       — FFmpeg concat + audio mix + BGM
+    Stage 6: cleanup        — delete temp frame PNGs
+    Stage 7: complete       — update DB status, return output path
+    """
+
+    def run(self, video_id: str, json_path: str, question_dict: dict,
+            settings: dict, progress_cb) -> str:
+        """Returns final MP4 path."""
+```
+
+### CRITICAL: SQLAlchemy Object Safety (routes/upload.py)
+```python
+# Extract plain strings BEFORE any try block:
+video_id  = job.video_id     # plain str
+json_path = video.json_path  # plain str
+output_dir = video.output_dir
 
 def progress_cb(stage, percent):
-    # Re-query by ID every time — never use closed-over ORM objects
-    j = db.session.get(JobQueue, job_id)
-    v = Video.query.filter_by(video_id=video_id).first()
-    ...
     try:
+        j = db.session.get(JobQueue, job_id)
+        v = Video.query.filter_by(video_id=video_id).first()  # use str not ORM obj
+        if j: j.stage = stage; j.progress = percent
+        if v: v.progress = percent
         db.session.commit()
     except Exception:
         try: db.session.rollback()
         except Exception: pass
 
-# In except blocks — use plain string, not video.video_id
-except Exception as e:
-    print(f"[Video] FAIL  {video_id}: {e}")   # ← video_id string, not video.video_id
-    db.session.expire_all()
-    video_obj = Video.query.filter_by(video_id=video_id).first()
-    ...
+# In ALL except blocks use video_id (str), never video.video_id
 ```
 
-### 2. ProcessPoolExecutor in Threads
-
-Frame rendering uses `ProcessPoolExecutor` inside a daemon thread. Worker functions (`_render_chunk`) must be module-level (not nested) to be picklable.
-
-### 3. edge_tts in Non-Main Threads
-
-`edge_tts` uses asyncio. In Python 3.12, `asyncio.get_event_loop()` raises `RuntimeError` in threads without a running loop. Always use:
+### Parallel Rendering
 ```python
-asyncio.run(_run())   # not asyncio.get_event_loop().run_until_complete()
+def _render_parallel(self, timeline, question, settings, frames_dir, progress_cb):
+    """
+    ProcessPoolExecutor (true multi-core, bypasses GIL).
+    Worker count = min(cpu_count * 0.7, MAX_WORKERS).
+    Batch size 500 frames to avoid OOM.
+    """
+
+def render_frame_worker(args: tuple) -> str:
+    """
+    TOP-LEVEL function (not method) — required for ProcessPoolExecutor pickling.
+    Calls apply_worker_throttle() at start (nice +10, 70% core affinity).
+    args = (frame_idx, time_t, question_dict, settings_dict, frames_dir)
+    Returns PNG file path.
+    """
 ```
 
-### 4. SQLite WAL Mode
-
-Required for concurrent multi-video writes. Must be set with `PRAGMA journal_mode=WAL` at connection time, not just in SQLAlchemy config.
-
-### 5. output_dir Pattern
-
-Every video gets a unique output directory: `storage/videos/{video_id}/`
-- Contains: `video.mp4`, `thumb.png`, `audio.mp3`, `mixed.mp3`, `frames/`, `audio/`
-- On success: `frames/` and `audio/` subdirs are deleted (keeping only final outputs)
-- On cancel/delete: entire `output_dir` is `shutil.rmtree`'d
-
-### 6. Settings Dynamic Apply
-
-`_get_config()` in `upload.py` must read from DB every call (not cache):
+### FFmpeg Encoding
 ```python
-def _get_config():
-    """Build config dict from DB settings — called fresh each time."""
-    from models import Setting
-    return {
-        "TTS_ENGINE": Setting.get("tts_engine", app.config["TTS_ENGINE"]),
-        "BGM_ENABLED": Setting.get("bgm_enabled", "true").lower() == "true",
-        ...
+_GPU_LOCK = threading.Lock()  # module-level, serialize GPU encodes
+
+def _encode_video(self, frames_dir, audio_path, bgm_path, output_path, settings):
+    """
+    1. Try GPU: h264_nvenc (acquire _GPU_LOCK)
+    2. On CalledProcessError fallback: libx264 -crf 18
+    3. Audio mix: TTS at vol=1.0, BGM at vol=BGM_VOLUME (0.3 default)
+    4. Concat method: concat demuxer (file list), NOT complex filtergraph
+    """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 15 — engine/subjects/physics_renderer.py
+## ═══════════════════════════════════════
+
+```python
+class PhysicsRenderer:
+
+    def render_circuit(self, components: list[dict],
+                       topology: str, width: int, height: int, theme: dict) -> Image.Image:
+        """
+        schemdraw circuit diagram.
+        topology: "series" | "parallel"
+        components: [{"type": "resistor", "label": "R₁=10Ω"}, {"type": "battery"}, ...]
+        Supported types: resistor, capacitor, inductor, battery, bulb, switch, ground, wire
+        schemdraw → matplotlib figure → PIL Image
+        """
+
+    def render_bohr_model(self, symbol: str, atomic_number: int,
+                          electrons_per_shell: list[int],
+                          width: int, height: int, theme: dict) -> Image.Image:
+        """
+        Concentric circles = electron shells.
+        Electrons = filled dots on circles.
+        Nucleus labeled with symbol + atomic number.
+        Example: Na (11): electrons_per_shell = [2, 8, 1]
+        """
+
+    def render_free_body_diagram(self, forces: list[dict],
+                                  width: int, height: int, theme: dict) -> Image.Image:
+        """
+        forces: [{"direction": "up", "label": "N = 50N"}, {"direction": "down", "label": "mg"}]
+        Object box at center; arrows radiating out.
+        Directions: "up","down","left","right","diagonal_ur","diagonal_ul","diagonal_dr","diagonal_dl"
+        """
+
+    def render_wave(self, wave_type: str, params: dict,
+                    width: int, height: int, theme: dict) -> Image.Image:
+        """
+        wave_type: "transverse" | "longitudinal" | "standing"
+        params: {"wavelength": 2, "amplitude": 1, "label_parts": True}
+        Labels: crest, trough, λ (wavelength), A (amplitude), node, antinode
+        """
+
+    def render_ray_diagram(self, optic_type: str, params: dict,
+                            width: int, height: int, theme: dict) -> Image.Image:
+        """
+        optic_type: "convex_lens" | "concave_lens" | "concave_mirror" | "convex_mirror"
+        params: {"object_distance": 30, "focal_length": 20, "show_image": True}
+        Draws: principal axis, lens/mirror, object arrow, image arrow, 3 construction rays.
+        """
+
+    def render_energy_level(self, transitions: list[dict], atom: str,
+                             width: int, height: int) -> Image.Image:
+        """
+        Horizontal energy levels (n=1,2,3,4...)
+        Vertical arrows for transitions (emission=downward, absorption=upward)
+        Label each transition energy: ΔE = hf
+        """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 16 — engine/subjects/chemistry_renderer.py
+## ═══════════════════════════════════════
+
+```python
+class ChemistryRenderer:
+
+    def render_molecule_2d(self, smiles: str, name: str,
+                            width: int, height: int, theme: dict) -> Image.Image:
+        """
+        RDKit: Chem.MolFromSmiles(smiles) → Draw.MolToImage()
+        Falls back to text label if RDKit unavailable.
+
+        SMILES examples:
+          Water:     "O"
+          Ethanol:   "CCO"
+          Aspirin:   "CC(=O)Oc1ccccc1C(=O)O"
+          Glucose:   "OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O"
+          Benzene:   "c1ccccc1"
+          NaCl:      "[Na+].[Cl-]"
+        """
+
+    def render_periodic_element(self, symbol: str, atomic_number: int,
+                                  atomic_mass: float, name: str,
+                                  width: int, height: int, theme: dict) -> Image.Image:
+        """Single tile: large symbol, atomic number top-left, mass bottom, name bottom-right."""
+
+    def render_periodic_table(self, highlight_elements: list[str],
+                               highlight_group: str | None,
+                               width: int, height: int, theme: dict) -> Image.Image:
+        """
+        All 118 elements in standard layout.
+        Group highlighting: "alkali_metals","alkaline_earth","transition","halogens","noble_gases"
+        highlight_elements: list of symbols → accent color fill
+        """
+
+    def render_energy_diagram(self, reaction_type: str,
+                               activation_energy: float, delta_h: float,
+                               width: int, height: int, theme: dict) -> Image.Image:
+        """
+        reaction_type: "exothermic" | "endothermic"
+        Plots potential energy curve with:
+          - Reactants level (horizontal line)
+          - Activation energy peak
+          - Products level
+          - ΔH arrow and Ea arrow labeled
+        """
+
+    def render_orbital_filling(self, element: str, configuration: str,
+                                width: int, height: int) -> Image.Image:
+        """
+        Box notation orbital diagram.
+        configuration: "1s² 2s² 2p⁶ 3s² 3p⁴" (Sulfur)
+        Boxes for each orbital; up/down arrows for electrons.
+        """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 17 — engine/subjects/biology_renderer.py
+## ═══════════════════════════════════════
+
+```python
+class BiologyRenderer:
+
+    def render_cell(self, cell_type: str, label_parts: list[str],
+                     width: int, height: int, theme: dict) -> Image.Image:
+        """
+        cell_type: "animal" | "plant" | "bacteria" | "neuron"
+        All drawn with Pillow (ellipses, bezier curves, text callouts).
+        Animal organelles: nucleus, mitochondria, ribosome, ER, Golgi, lysosomes, cell membrane
+        Plant adds: cell wall, chloroplast, large vacuole
+        label_parts: subset of organelles to annotate with callout arrows
+        """
+
+    def render_punnett_square(self, parent1: str, parent2: str,
+                               trait_name: str, width: int, height: int,
+                               theme: dict) -> Image.Image:
+        """
+        2×2 for monohybrid (e.g. Aa × Aa)
+        4×4 for dihybrid (e.g. AaBb × AaBb)
+        Color coding: homozygous dominant = green, heterozygous = yellow, homozygous recessive = red
+        Show phenotype ratio below grid.
+        """
+
+    def render_food_chain(self, organisms: list[str],
+                           width: int, height: int, theme: dict) -> Image.Image:
+        """
+        Linear chain: box per organism, arrows showing energy flow.
+        organisms: ["Producer","Primary Consumer","Secondary Consumer","Tertiary Consumer","Decomposer"]
+        Label trophic level below each box.
+        """
+
+    def render_dna_structure(self, sequence: str,
+                              width: int, height: int, theme: dict) -> Image.Image:
+        """
+        sequence: "ATGC" → shows 4 base-pair rungs of double helix
+        A-T bonds in blue, G-C bonds in green
+        Sugar-phosphate backbone as curved parallel lines
+        Base labels on each rung
+        """
+
+    def render_phylogenetic_tree(self, taxa: list[str], newick: str,
+                                  width: int, height: int) -> Image.Image:
+        """
+        Use biopython Phylo.read() → draw rectangular cladogram.
+        Falls back to simple branching Pillow diagram if biopython unavailable.
+        """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 18 — engine/subjects/geography_renderer.py
+## ═══════════════════════════════════════
+
+```python
+class GeographyRenderer:
+
+    def render_india_map(self, highlight_states: list[str],
+                          choropleth_data: dict | None,
+                          width: int, height: int, theme: dict) -> Image.Image:
+        """
+        Uses geopandas with India shapefile (auto-downloaded from Natural Earth).
+        highlight_states: solid accent color fill.
+        choropleth_data: {"Maharashtra": 95.5} → gradient fill by value.
+        Falls back to blank labeled rectangle if shapefile unavailable.
+        """
+
+    def render_world_map(self, highlight_countries: list[str],
+                          width: int, height: int, theme: dict) -> Image.Image:
+        """Natural Earth 110m dataset. Highlighted countries in accent color."""
+
+    def render_climate_zones(self, width: int, height: int) -> Image.Image:
+        """Köppen climate classification world map, color coded."""
+
+    def render_timeline(self, events: list[dict],
+                         width: int, height: int, theme: dict) -> Image.Image:
+        """
+        events: [{"year": 1947, "event": "Independence"}, ...]
+        Horizontal axis = time; events alternating above/below the line.
+        Dots at event years; vertical stems; text labels.
+        """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 19 — engine/subjects/math_renderer.py
+## ═══════════════════════════════════════
+
+```python
+class MathRenderer:
+
+    def render_function_plot(self, expr_str: str, x_range: tuple,
+                              width: int, height: int, theme: dict) -> Image.Image:
+        """
+        matplotlib plot of y=f(x).
+        expr_str: Python-syntax string e.g. "x**2 - 3*x + 2"
+        Theme colors: body_bg for background, accent for curve, border for axes.
+        Shows x-intercepts, vertex, axis labels.
+        """
+
+    def render_3d_surface(self, expr_str: str, x_range: tuple, y_range: tuple,
+                           width: int, height: int) -> Image.Image:
+        """matplotlib Axes3D surface plot."""
+
+    def render_geometry(self, shape: str, params: dict,
+                         width: int, height: int, theme: dict) -> Image.Image:
+        """
+        shape: "triangle" | "circle" | "polygon" | "angle_arc"
+        Pillow draw with labeled dimensions, angle marks, tick marks for equal sides.
+        """
+
+    def render_venn_diagram(self, sets: list[dict],
+                             width: int, height: int, theme: dict) -> Image.Image:
+        """
+        sets: [{"label": "A", "items": [1,2,3]}, {"label": "B", "items": [2,3,4]}]
+        Show intersection, union regions labeled.
+        """
+
+    def render_number_theory(self, element_type: str, data: dict,
+                               width: int, height: int, theme: dict) -> Image.Image:
+        """
+        element_type: "factor_tree" | "prime_sieve" | "modular_clock"
+        """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 20 — engine/manim_renderer.py (EXPANDED)
+## ═══════════════════════════════════════
+
+```python
+"""
+Manim Community animation templates.
+Each template renders a short MP4 clip (2–8 seconds).
+Used for special "manim_scene" render target.
+All scenes receive params dict from JSON DSL.
+"""
+from manim import *
+
+# Math scenes:
+class QuadraticRootsScene(Scene): ...        # completing-the-square derivation
+class FunctionGraphScene(Scene): ...          # y=f(x) with animated tracing point
+class MatrixMultiplyScene(Scene): ...         # animated matrix multiply
+class LimitVisualizationScene(Scene): ...     # epsilon-delta definition
+class IntegrationScene(Scene): ...            # area under curve
+class VectorScene(Scene): ...                 # vector addition, dot product
+class SetTheoryScene(Scene): ...              # Venn diagrams animated
+class ProbabilityTreeScene(Scene): ...        # branching probability tree
+
+# 3D Physics scenes:
+class VectorFieldScene(ThreeDScene): ...      # 3D electric/magnetic field
+class WaveInterferenceScene(Scene): ...       # constructive/destructive interference
+class ProjectileMotionScene(Scene): ...       # parabolic trajectory
+
+# Chemistry / Biology:
+class MolecularBondingScene(ThreeDScene): ... # 3D molecular orbitals
+class DNAReplicationScene(Scene): ...         # animated DNA unzipping
+
+# Data / ML:
+class NeuralNetworkScene(Scene): ...          # animated forward pass
+class FourierTransformScene(Scene): ...       # sine wave decomposition + epicycles
+
+def render_manim_scene(scene_class_name: str, params: dict,
+                        output_path: str, width: int = 1920,
+                        height: int = 1080, fps: int = 30) -> str:
+    """
+    Render Manim scene to MP4 via subprocess (avoids global state pollution).
+    Returns output_path on success. Raises ManimRenderError on failure.
+    """
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 21 — engine/data_fetcher.py (NEW)
+## ═══════════════════════════════════════
+
+```python
+"""
+Free scientific data APIs — no API keys required (DEMO_KEY for NASA).
+All results cached in storage/assets/cache/ with 24h TTL.
+"""
+import requests, json, os, hashlib, time
+
+CACHE_DIR = "storage/assets/cache"
+
+class DataFetcher:
+
+    def get_compound(self, name: str) -> dict:
+        """
+        PubChem REST: https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{name}/JSON
+        Returns: {molecular_formula, molecular_weight, iupac_name, smiles, inchi, cid}
+        """
+
+    def get_molecule_image(self, cid: int, width: int = 300) -> bytes:
+        """PubChem PNG: /compound/cid/{cid}/PNG — returns PNG bytes."""
+
+    def get_protein_info(self, pdb_id: str) -> dict:
+        """RCSB PDB: https://data.rcsb.org/rest/v1/core/entry/{pdb_id}"""
+
+    def get_gene_info(self, gene_symbol: str, organism: str = "human") -> dict:
+        """NCBI Entrez eutils (no key, max 3 req/s)."""
+
+    def get_country_stat(self, country_code: str, indicator: str) -> list[dict]:
+        """
+        World Bank API: https://api.worldbank.org/v2/country/{code}/indicator/{indicator}?format=json
+        indicator: "SP.POP.TOTL" | "NY.GDP.MKTP.CD" | "SE.ADT.LITR.ZS"
+        Returns: [{"year": int, "value": float}, ...]
+        """
+
+    def get_nasa_apod(self) -> dict:
+        """NASA APOD: https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY"""
+
+    def _cache_key(self, *args) -> str:
+        return hashlib.md5(str(args).encode()).hexdigest()
+
+    def _cache_get(self, key: str) -> dict | None: ...
+    def _cache_set(self, key: str, data, ttl_hours: int = 24): ...
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 22 — SAMPLE JSON DSL EXAMPLES
+## ═══════════════════════════════════════
+
+### Example 1: Math — Quadratic Equation with LaTeX Derivation
+```json
+[{
+  "id": "math-quadratic-001",
+  "mode": "mcq",
+  "meta": {
+    "subject": "math", "chapter": "Algebra",
+    "topic": "Quadratic Equations", "difficulty": "hard",
+    "exam_tags": ["JEE", "CBSE-12"]
+  },
+  "question": {
+    "text": "If x² - 5x + 6 = 0, which of the following is a root?",
+    "options": [
+      {"key": "a", "value": "1"}, {"key": "b", "value": "2"},
+      {"key": "c", "value": "4"}, {"key": "d", "value": "5"}
+    ],
+    "correct": "b"
+  },
+  "scenes": [
+    {
+      "type": "question",
+      "audio": "If x squared minus 5x plus 6 equals zero, which is a root?",
+      "render": {"action": "show", "target": "question_block"}
+    },
+    {"type": "options", "render": {"action": "show", "target": "options_grid"}},
+    {
+      "type": "concept",
+      "steps": [
+        {
+          "text": "Write the equation",
+          "audio": "We have x squared minus 5x plus 6 equals zero.",
+          "render": {"action": "show", "target": "latex_equation", "value": "$x^2 - 5x + 6 = 0$"}
+        },
+        {
+          "text": "Factor",
+          "audio": "Factoring: x minus 2 times x minus 3.",
+          "render": {
+            "action": "show", "target": "derivation_chain",
+            "steps": ["$x^2 - 5x + 6 = 0$", "$(x-2)(x-3) = 0$", "$x = 2 \\quad\\text{or}\\quad x = 3$"]
+          }
+        },
+        {
+          "text": "Answer",
+          "audio": "Therefore x equals 2. Option B is correct.",
+          "render": {"action": "highlight_option", "target": "b"}
+        }
+      ]
     }
+  ]
+}]
 ```
 
-### 7. Video ID Slugging
+### Example 2: Biology — Cell Structure
+```json
+[{
+  "id": "bio-cell-001",
+  "mode": "topic",
+  "meta": {"subject": "biology", "topic": "Animal Cell Structure", "difficulty": "medium"},
+  "topic_header": {"title": "Animal Cell", "subtitle": "Structure and Organelles"},
+  "scenes": [
+    {
+      "type": "visual_intro",
+      "audio": "Let us explore the animal cell structure.",
+      "render": {"action": "show", "target": "title_card",
+                 "title": "Animal Cell", "subtitle": "The Basic Unit of Life"}
+    },
+    {
+      "type": "concept",
+      "steps": [
+        {
+          "text": "Cell diagram",
+          "audio": "Here is an animal cell with labeled organelles.",
+          "render": {
+            "action": "show", "target": "cell_diagram",
+            "cell_type": "animal",
+            "label_parts": ["nucleus", "mitochondria", "golgi_body", "endoplasmic_reticulum"]
+          }
+        },
+        {
+          "text": "Nucleus",
+          "audio": "The nucleus controls all cellular activities and stores DNA.",
+          "render": {
+            "action": "show", "target": "key_facts", "heading": "Nucleus",
+            "facts": [
+              {"key": "Function", "value": "Controls cell activities"},
+              {"key": "Contains", "value": "DNA (genetic material)"},
+              {"key": "Bounded by", "value": "Double nuclear membrane"}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}]
+```
 
-The `id` field from JSON becomes `video_id` in the database and the `output_dir` folder name. It must be a valid filesystem path component. Validate with:
+### Example 3: Physics — Circuit + Bohr Model
+```json
+[{
+  "id": "phy-circuit-001",
+  "mode": "mcq",
+  "meta": {"subject": "physics", "topic": "Electric Circuits", "difficulty": "medium"},
+  "question": {
+    "text": "In a series circuit with R₁=10Ω and R₂=20Ω, what is total resistance?",
+    "options": [
+      {"key": "a", "value": "10 Ω"}, {"key": "b", "value": "30 Ω"},
+      {"key": "c", "value": "6.67 Ω"}, {"key": "d", "value": "200 Ω"}
+    ],
+    "correct": "b"
+  },
+  "scenes": [
+    {
+      "type": "question",
+      "audio": "In a series circuit with R1 equals 10 ohms and R2 equals 20 ohms, find total resistance.",
+      "render": {"action": "show", "target": "question_block"}
+    },
+    {"type": "options", "render": {"action": "show", "target": "options_grid"}},
+    {
+      "type": "concept",
+      "steps": [
+        {
+          "text": "Circuit diagram",
+          "audio": "Here is the series circuit.",
+          "render": {
+            "action": "show", "target": "circuit_diagram",
+            "components": [
+              {"type": "battery", "label": "V"},
+              {"type": "resistor", "label": "R₁=10Ω"},
+              {"type": "resistor", "label": "R₂=20Ω"}
+            ],
+            "topology": "series"
+          }
+        },
+        {
+          "text": "Formula",
+          "audio": "For series: R total equals R1 plus R2 equals 30 ohms.",
+          "render": {
+            "action": "show", "target": "latex_equation",
+            "value": "$R_{total} = R_1 + R_2 = 10 + 20 = 30\\ \\Omega$"
+          }
+        }
+      ]
+    }
+  ]
+}]
+```
+
+### Example 4: Chemistry — Molecule + Energy Diagram
+```json
+[{
+  "id": "chem-aspirin-001",
+  "mode": "topic",
+  "meta": {"subject": "chemistry", "topic": "Organic Chemistry", "difficulty": "hard",
+           "exam_tags": ["NEET", "JEE"]},
+  "topic_header": {"title": "Aspirin", "subtitle": "Structure and Synthesis"},
+  "scenes": [
+    {
+      "type": "concept",
+      "steps": [
+        {
+          "text": "Molecule",
+          "audio": "Aspirin, or acetylsalicylic acid, has this 2D structure.",
+          "render": {
+            "action": "show", "target": "molecule_2d",
+            "smiles": "CC(=O)Oc1ccccc1C(=O)O",
+            "name": "Aspirin (Acetylsalicylic Acid)"
+          }
+        },
+        {
+          "text": "Reaction energy",
+          "audio": "Synthesis is exothermic with moderate activation energy.",
+          "render": {
+            "action": "show", "target": "energy_diagram",
+            "reaction_type": "exothermic",
+            "activation_energy": 80,
+            "delta_h": -120
+          }
+        }
+      ]
+    }
+  ]
+}]
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 23 — routes/upload.py CRITICAL FIXES
+## ═══════════════════════════════════════
+
+### Why This Matters
+When user deletes a Video row from the UI while the pipeline thread is running,
+the ORM `video` object in the `progress_cb` closure becomes stale.
+Any attribute access raises `ObjectDeletedError`.
+This corrupts the SQLAlchemy session → `PendingRollbackError` on all subsequent commits.
+The thread dies without marking the job failed → blank/missing output files.
+
+### The Fix
 ```python
-import re
-assert re.match(r'^[a-z0-9][a-z0-9\-_]{2,98}$', video_id)
+def run_pipeline_job(job_id: int):
+    with app.app_context():
+        job = db.session.get(JobQueue, job_id)
+        if not job: return
+
+        # ── Extract PLAIN STRINGS before ANY try block ─────────────────────
+        video_id   = job.video_id        # str, safe in all exception paths
+        video      = Video.query.filter_by(video_id=video_id).first()
+        if not video:
+            job.status = "failed"; db.session.commit(); return
+
+        json_path  = video.json_path     # str copy
+        output_dir = video.output_dir    # str copy
+        # ───────────────────────────────────────────────────────────────────
+
+        def _is_cancelled(jid):
+            try:
+                j = db.session.get(JobQueue, jid)
+                db.session.expire(j)
+                return j and j.status == "cancelled"
+            except Exception:
+                try: db.session.rollback()
+                except Exception: pass
+                return False
+
+        def progress_cb(stage, percent):
+            if _is_cancelled(job_id):
+                raise InterruptedError("Cancelled")
+            try:
+                j = db.session.get(JobQueue, job_id)
+                v = Video.query.filter_by(video_id=video_id).first()  # str lookup
+                if j: j.stage = stage; j.progress = percent
+                if v: v.progress = percent
+                db.session.commit()
+            except Exception:
+                try: db.session.rollback()
+                except Exception: pass
+
+        try:
+            job.status = "processing"
+            job.started_at = datetime.now(timezone.utc)
+            db.session.commit()
+
+            pipeline = VideoPipeline()
+            output_path = pipeline.run(video_id, json_path, question, settings, progress_cb)
+
+            j = db.session.get(JobQueue, job_id)
+            v = Video.query.filter_by(video_id=video_id).first()
+            if j: j.status = "completed"; j.progress = 100
+            if v: v.status = "completed"; v.video_path = output_path; v.progress = 100
+            db.session.commit()
+
+        except InterruptedError:
+            j = db.session.get(JobQueue, job_id)
+            v = Video.query.filter_by(video_id=video_id).first()
+            if j: j.status = "cancelled"
+            if v: v.status = "cancelled"
+            try: db.session.commit()
+            except Exception: db.session.rollback()
+
+        except Exception as e:
+            print(f"[Pipeline] FAIL {video_id}: {e}")  # str not ORM
+            j = db.session.get(JobQueue, job_id)
+            v = Video.query.filter_by(video_id=video_id).first()
+            if j: j.status = "failed"; j.error_message = str(e)
+            if v: v.status = "failed"; v.error_message = str(e)
+            try: db.session.commit()
+            except Exception: db.session.rollback()
 ```
 
-### 8. Startup Job Resume
-
-On Flask startup (only in main process, not reloader):
-1. Find all jobs with `status="processing"` → reset to `status="queued"` (they crashed mid-run)
-2. Find all jobs with `status="queued"` → call `_start_processing(app)` to resume
-
+### WAL Mode (app.py)
 ```python
-if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
-    # only in actual server process, not werkzeug reloader
-    _resume_on_startup(app)
+from sqlalchemy import event
+
+@event.listens_for(db.engine, "connect")
+def set_wal_mode(dbapi_conn, conn_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=10000")
+    cursor.close()
 ```
 
 ---
 
 ## ═══════════════════════════════════════
-## PART 22 — SETUP INSTRUCTIONS
+## PART 24 — GENERATION ORDER (for AI)
 ## ═══════════════════════════════════════
 
-```bash
-# 1. Clone / create project directory
-mkdir DSL && cd DSL
-python3 -m venv venv
-source venv/bin/activate
+Generate files in this exact order (each depends on prior):
 
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Install FFmpeg (required for video encoding)
-sudo apt install ffmpeg      # Ubuntu/Debian
-# OR: brew install ffmpeg    # macOS
-
-# 4. Download Poppins fonts (optional but recommended)
-mkdir -p storage/assets/fonts
-# Download from Google Fonts: Poppins Regular, Medium, SemiBold, Bold
-# Place in storage/assets/fonts/
-
-# 5. Run
-python app.py
-# Open http://localhost:5000
-
-# 6. Optional: set environment variables
-export TTS_ENGINE=edge_tts
-export BGM_ENABLED=true
-export DEFAULT_RESOLUTION=1080p
-export DEFAULT_QUALITY_PRESET=P5
+```
+01  requirements.txt
+02  config.py                      ← SUBJECT_THEMES, RESOLUTIONS, QUALITY_PRESETS, TTS voices
+03  models.py                      ← Video, JobQueue, Setting
+04  engine/__init__.py
+05  engine/validator.py            ← VALID_MODES, VALID_ACTIONS, VALID_TARGETS (65+), ValidationError
+06  engine/latex_renderer.py       ← NEW: matplotlib.mathtext LaTeX → PIL Image
+07  engine/compositor.py           ← NEW: multi-layer compositor, annotation arrows
+08  engine/animator.py             ← NEW: FadeIn/SlideIn/TypeWriter/CountUp/Wipe with easing
+09  engine/audio.py                ← edge_tts + proportional timestamps + asyncio.run() fix
+10  engine/sync.py                 ← build_timeline (index-based lookup) + get_active_state
+11  engine/subjects/__init__.py
+12  engine/subjects/math_renderer.py        ← function plots, geometry, 3D surfaces
+13  engine/subjects/physics_renderer.py     ← schemdraw circuits, Bohr, ray diagram, waves
+14  engine/subjects/chemistry_renderer.py   ← RDKit molecules, periodic table, energy diagram
+15  engine/subjects/biology_renderer.py     ← cell diagrams, Punnett, food chain, DNA
+16  engine/subjects/geography_renderer.py   ← geopandas India/world maps, timeline
+17  engine/renderer.py             ← REBUILT: compositor + latex + subjects dispatch (65+ targets)
+18  engine/manim_renderer.py       ← 30+ Manim templates including 3D scenes
+19  engine/data_fetcher.py         ← NEW: PubChem, RCSB PDB, World Bank, NCBI, NASA
+20  engine/hardware.py             ← CPU/GPU detection, worker count, cpu_affinity throttle
+21  engine/bgmusic.py              ← procedural WAV BGM synthesis
+22  engine/free_media.py           ← Unsplash/Pexels free stock fetch
+23  engine/pipeline.py             ← REBUILT: animation-aware, 7-stage, ProcessPoolExecutor
+24  routes/__init__.py
+25  routes/upload.py               ← CRITICAL SQLAlchemy plain-string pattern (Part 23)
+26  routes/videos.py
+27  routes/queue_routes.py
+28  routes/settings.py
+29  routes/youtube.py
+30  routes/export.py
+31  routes/assets.py
+32  app.py                         ← factory + WAL mode + directory bootstrap + startup resume
+33  templates/base.html
+34  templates/dashboard.html
+35  templates/upload.html
+36  templates/library.html
+37  templates/queue.html
+38  templates/settings.html
+39  templates/video_detail.html
+40  templates/youtube.html
+41  templates/assets.html
+42  templates/components/stats_cards.html
+43  templates/components/job_row.html
+44  templates/components/video_card.html
+45  static/css/main.css
+46  static/js/upload.js
+47  static/js/queue.js
+48  tests/conftest.py
+49  tests/unit/test_validator.py
+50  tests/unit/test_sync.py
+51  tests/unit/test_renderer.py
+52  tests/integration/test_pipeline.py
 ```
 
 ---
 
 ## ═══════════════════════════════════════
-## PART 23 — GENERATION ORDER FOR AI
+## PART 25 — DEGREE-LEVEL VISUAL CONCEPTS
 ## ═══════════════════════════════════════
 
-When regenerating this project with an AI assistant, generate files in this order:
+### Mathematics (JEE / University Level)
+- LaTeX-rendered equations (matplotlib.mathtext — no TeX installation)
+- Progressive derivation: each step appears one at a time with typewriter effect
+- Geometric proofs: labeled diagrams (angle marks, tick marks for equal sides)
+- 3D surface plots (matplotlib Axes3D)
+- Animated function graphs, area under curve (Manim)
+- Number theory: factor trees, modular arithmetic clock diagrams
+- Vectors: magnitude+direction arrows, dot/cross product visualization
+- Matrices: animated multiplication with colored element highlighting
+- Integration: shaded area with Riemann sum animation
 
-```
-1.  requirements.txt
-2.  config.py
-3.  models.py
-4.  engine/__init__.py
-5.  engine/validator.py
-6.  engine/audio.py
-7.  engine/sync.py
-8.  engine/renderer.py          ← largest file, ~2500 lines
-9.  engine/bgmusic.py
-10. engine/hardware.py
-11. engine/free_media.py
-12. engine/manim_renderer.py
-13. engine/pipeline.py          ← orchestrates all engine modules
-14. routes/__init__.py
-15. routes/upload.py            ← most complex route (queue logic)
-16. routes/queue_routes.py
-17. routes/settings.py
-18. routes/videos.py
-19. routes/dashboard.py
-20. routes/youtube.py
-21. routes/export.py
-22. routes/assets.py
-23. app.py
-24. templates/base.html
-25. templates/dashboard.html
-26. templates/upload.html
-27. templates/queue.html
-28. templates/library.html
-29. templates/settings.html
-30. templates/youtube.html
-31. templates/export.html
-32. templates/video_detail.html
-33. templates/assets.html
-34. templates/components/stats_cards.html
-35. templates/components/queue_list.html
-36. templates/components/queue_item.html
-37. templates/components/video_grid.html
-38. templates/404.html
-39. templates/500.html
-```
+### Physics (NEET / JEE / B.Sc Level)
+- Circuit diagrams (schemdraw): actual component symbols (not text descriptions)
+- Bohr atomic model: concentric electron shells with electron count
+- Free body diagrams: labeled force vectors from center object
+- Wave diagrams: crest/trough/wavelength/amplitude labels
+- Ray diagrams: optics construction rays for mirrors/lenses
+- Energy level diagrams: quantum transitions, spectral line colors
+- 3D electric/magnetic field lines (Manim ThreeDScene)
 
-### Key Prompts Per File
+### Chemistry (NEET / B.Sc Level)
+- 2D molecular structure images from SMILES (RDKit)
+- Periodic table element tiles (symbol, atomic number, mass, config)
+- Potential energy diagrams: exothermic/endothermic curves with Ea and ΔH
+- Orbital filling box notation (Aufbau, Hund's rule)
+- Balanced equations with physical state symbols: (s), (l), (g), (aq)
+- pH scale with indicator color bands
+- Lewis dot structures
 
-**For engine/renderer.py**: "Generate a Pillow-based video frame renderer that creates 1920x1080 educational video frames matching a PPT style: dark navy header (#1A237E) with question and options, orange accent stripe (#EF6C00), white body. Scale everything by `height/1080`. Implement mode-aware headers and 30+ body element draw methods each returning new_y."
+### Biology (NEET / B.Sc Level)
+- Labeled cell diagrams (Pillow-drawn, callout arrows, organelle shapes)
+- Punnett squares (2×2 and 4×4) with phenotype ratios
+- DNA double helix with A-T/G-C base pair labels
+- Food chains with directional energy-flow arrows
+- Phylogenetic trees (biopython + Pillow cladogram)
+- Microscopy viewport (circular mask, specimen detail)
 
-**For engine/pipeline.py**: "Generate a VideoPipeline class that orchestrates: TTS audio → timeline sync → asset resolution → parallel frame rendering (ProcessPoolExecutor) → FFmpeg encoding (GPU h264_nvenc → CPU libx264 fallback) → thumbnail. Include CPU throttling (nice +10 + 70% affinity) and a GPU encode lock for concurrent video safety."
+### Geography (UPSC / B.A. Level)
+- India state map with choropleth shading (geopandas)
+- World map with highlighted countries
+- Historical timelines (horizontal axis, alternating labels)
+- Climate/river/mountain labeled overlays on maps
 
-**For routes/upload.py**: "Generate a Flask blueprint with queue processing. Use daemon threads to run jobs. CRITICAL: extract video_id as plain string before try block; re-query ORM objects by ID in progress_cb; wrap all db.session.commit() in try/except + rollback fallback; use plain string video_id in except blocks, never access video.video_id after possible deletion."
+### Economics (UPSC / B.A. Level)
+- Supply-demand curve intersections (matplotlib)
+- GDP/population time series (animated plotly → kaleido PNG)
+- Production possibility curve (PPF)
+- IS-LM model diagram
 
-**For engine/sync.py**: "Build a timeline using (scene_idx, step_idx) dict lookup — never sequential iteration. Implement accumulation-based get_active_state() where same target replaces, different targets coexist. Special: instruction_text clears all body elements; final_answer sets show_correct permanently."
+### History / Polity (UPSC Level)
+- Constitutional hierarchy trees (Parliament → Ministries → Departments)
+- Timeline: chronological events with year markers
+- Comparison tables (multi-column tabular)
+- Map overlays showing empire extents
 
 ---
 
-*End of PROJECT_GENERATION_PROMPT.md*
+## ═══════════════════════════════════════
+## PART 26 — ANIMATION SYSTEM
+## ═══════════════════════════════════════
+
+### Frame Generation Strategy
+```
+For each timeline entry (duration D seconds at fps F):
+  total_frames = int(D * F)
+  render single frame → duplicate total_frames times (static)
+
+Transition between entries (default 0.3s):
+  transition_frames = int(0.3 * fps)
+  FrameAnimator.animate(from_frame, to_frame, 0.3, FADE_IN)
+
+For "animate" action elements:
+  Use FrameAnimator with specified animation_type
+```
+
+### TypeWriter Effect
+```python
+# For concept_text, equation:
+# At frame i of N total: show first floor(i/N * len(text)) characters
+# Rest replaced with spaces or empty string
+```
+
+### CountUp Effect
+```python
+# For result_box, running_sum:
+# At frame i: display round(ease_in_out(i/N) * target, 2)
+```
+
+### Derivation Chain (sequential reveal)
+```
+Phase 1 (0 → 1/n): TypeWriter reveal of step 1
+Phase 2 (1/n → 2/n): FadeIn step 2 below step 1, all steps visible
+...
+Phase n (n-1)/n → 1): FadeIn final step, highlight with pulse
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 27 — HARDWARE & PERFORMANCE
+## ═══════════════════════════════════════
+
+### Worker Throttling (engine/hardware.py)
+```python
+import psutil, os
+
+def get_worker_count(target_utilization: float = 0.70) -> int:
+    total = psutil.cpu_count(logical=False) or 4
+    return max(1, int(total * target_utilization))
+
+def apply_worker_throttle():
+    """Call at start of each ProcessPoolExecutor worker process."""
+    os.nice(10)   # BELOW_NORMAL priority on Unix
+    n = get_worker_count(0.70)
+    all_cores = list(range(psutil.cpu_count()))
+    try:
+        psutil.Process().cpu_affinity(all_cores[:n])
+    except (AttributeError, NotImplementedError):
+        pass   # not supported on all platforms
+```
+
+### GPU Encode Lock (engine/pipeline.py)
+```python
+_GPU_LOCK = threading.Lock()   # module-level singleton
+
+def _encode_with_gpu(self, cmd):
+    with _GPU_LOCK:
+        result = subprocess.run(cmd, capture_output=True, timeout=300)
+        return result.returncode == 0
+```
+
+### Memory-Safe Batch Rendering
+```python
+BATCH_SIZE = 500
+for batch_start in range(0, total_frames, BATCH_SIZE):
+    batch = range(batch_start, min(batch_start + BATCH_SIZE, total_frames))
+    futures = [executor.submit(render_frame_worker, (i, ...)) for i in batch]
+    for f in as_completed(futures):
+        f.result()   # raises on error
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 28 — TEST SUITE SPECIFICATION
+## ═══════════════════════════════════════
+
+### tests/conftest.py
+```python
+MINIMAL_MCQ_JSON = {
+    "id": "test-mcq-001",
+    "mode": "mcq",
+    "meta": {"subject": "math", "topic": "Arithmetic", "difficulty": "easy"},
+    "question": {
+        "text": "What is 2 + 2?",
+        "options": [
+            {"key": "a", "value": "3"}, {"key": "b", "value": "4"},
+            {"key": "c", "value": "5"}, {"key": "d", "value": "6"}
+        ],
+        "correct": "b"
+    },
+    "scenes": [
+        {"type": "question", "audio": "What is two plus two?",
+         "render": {"action": "show", "target": "question_block"}},
+        {"type": "options", "render": {"action": "show", "target": "options_grid"}},
+        {"type": "concept", "steps": [
+            {"text": "Answer", "audio": "The answer is four.",
+             "render": {"action": "show", "target": "result_box", "value": "4"}}
+        ]}
+    ]
+}
+
+# Fixtures: app (temp SQLite), client, db_session (rollback teardown),
+#           sample_mcq (deepcopy), sample_topic (deepcopy),
+#           mock_tts (patches engine.audio._generate_edge_tts → no network),
+#           renderer (FrameRenderer(640, 360))
+```
+
+### Key Test Invariants
+```
+validator:
+  - VALID_ACTIONS has exactly 12 entries
+  - duplicate IDs → error
+  - invalid difficulty → warning (not fatal)
+  - missing topic_header in topic mode → warning (not fatal)
+
+sync:
+  - build_timeline uses dict lookup by (scene_idx, step_idx), NOT sequential
+  - options scene gets auto-duration 0.5–3.0s
+  - step without audio → 1.5s duration
+  - work_elements accumulate (different targets coexist)
+  - second "show" on same target replaces first
+
+renderer:
+  - all 65+ targets render without exception at 640×360
+  - MCQ frame: >= 10% non-white pixels
+  - topic frame: >= 10% non-white pixels
+  - frame.size == (renderer.width, renderer.height) always
+```
+
+---
+
+## ═══════════════════════════════════════
+## PART 29 — DEPLOYMENT & ENVIRONMENT
+## ═══════════════════════════════════════
+
+### .env Variables
+```
+SECRET_KEY=change-me-in-production
+DEFAULT_RESOLUTION=1080p
+DEFAULT_QUALITY_PRESET=P7
+DEFAULT_THEME=dark
+DEFAULT_FPS=30
+TTS_ENGINE=edge_tts
+TTS_VOICE=en-IN-PrabhatNeural
+BGM_ENABLED=true
+BGM_STYLE=lotus
+BGM_VOLUME=0.30
+MAX_WORKERS=4
+JOB_TIMEOUT=600
+WATERMARK_ENABLED=false
+```
+
+### Directory Bootstrap (app.py create_app)
+```python
+DIRS = [
+    Config.STORAGE_DIR, Config.VIDEOS_DIR, Config.JSON_DIR,
+    Config.ASSETS_DIR, Config.AUDIO_DIR, Config.EXPORTS_DIR,
+    os.path.join(Config.ASSETS_DIR, "bgm"),
+    os.path.join(Config.ASSETS_DIR, "fonts"),
+    os.path.join(Config.ASSETS_DIR, "cache"),
+    os.path.join(Config.ASSETS_DIR, "images"),
+    os.path.join(Config.ASSETS_DIR, "watermark"),
+]
+for d in DIRS:
+    os.makedirs(d, exist_ok=True)
+```
+
+### Startup Resume (app.py)
+```python
+def _resume_interrupted_jobs(app):
+    """On restart: reset any 'processing' jobs to 'queued'."""
+    with app.app_context():
+        stuck = JobQueue.query.filter_by(status="processing").all()
+        for j in stuck:
+            j.status = "queued"
+            v = Video.query.filter_by(video_id=j.video_id).first()
+            if v: v.status = "pending"; v.progress = 0
+        if stuck:
+            db.session.commit()
+            print(f"[Startup] Resumed {len(stuck)} interrupted jobs")
+```
+
+---
+
+*End of PROJECT_GENERATION_PROMPT.md — 29 parts, complete degree-level specification.*
+*To regenerate: provide this file to an AI and say "Generate all files in the order listed in Part 24."*
