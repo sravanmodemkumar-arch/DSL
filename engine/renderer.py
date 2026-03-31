@@ -299,17 +299,12 @@ class FrameRenderer:
 
             body_bottom = self.height - int(30 * self.scale) - karaoke_h - karaoke_gap
 
-            # Evenly distribute ALL available space — (n+1) slots so there's
-            # equal padding above first element, between elements, and below last.
-            heights = [self._estimate_height(el, draw) for el in work_elems]
-            total_h = sum(heights)
-            avail_h = body_bottom - body_top
-            n = len(work_elems)
-            slots = n + 1
-            gap = int((avail_h - total_h) / slots) if avail_h > total_h else int(20 * self.scale)
-            gap = max(gap, int(20 * self.scale))
-
-            y_work = body_top + gap
+            # ── Top-aligned layout — elements start right below header ──
+            # Small top margin, small gaps between elements.
+            # Elements expand to fill available space via body_bottom param.
+            top_pad = int(20 * self.scale)
+            gap = int(16 * self.scale)
+            y_work = body_top + top_pad
 
             for el in work_elems:
                 if y_work > body_bottom:
@@ -604,6 +599,111 @@ class FrameRenderer:
             return self._draw_clock_diagram(draw, frame, el, y)
         elif etype == "reaction_equation":
             return self._draw_reaction_equation(draw, frame, el, y)
+        # ── New ultra-pro render targets ──
+        elif etype == "option_analysis":
+            return self._draw_option_analysis(draw, frame, el, y,
+                                              body_bottom=body_bottom)
+        elif etype == "bullet_list":
+            return self._draw_bullet_list(draw, frame, el, y)
+        elif etype == "definition_card":
+            return self._draw_definition_card(draw, frame, el, y)
+        elif etype == "quote_block":
+            return self._draw_quote_block(draw, frame, el, y)
+        elif etype == "code_block":
+            return self._draw_code_block(draw, frame, el, y)
+        elif etype == "matrix":
+            return self._draw_matrix(draw, frame, el, y)
+        elif etype == "proof_steps":
+            return self._draw_proof_steps(draw, frame, el, y)
+        elif etype == "conversion_chain":
+            return self._draw_conversion_chain(draw, frame, el, y)
+        elif etype == "dice_visual":
+            return self._draw_dice_visual(draw, frame, el, y)
+        elif etype == "calendar_visual":
+            return self._draw_calendar_visual(draw, frame, el, y)
+        elif etype == "seating_arrangement":
+            return self._draw_seating_arrangement(draw, frame, el, y)
+        elif etype == "coding_decoding":
+            return self._draw_coding_decoding(draw, frame, el, y)
+        elif etype == "syllogism":
+            return self._draw_syllogism(draw, frame, el, y)
+        elif etype == "blood_relation_tree":
+            return self._draw_blood_relation_tree(draw, frame, el, y)
+        elif etype == "direction_diagram":
+            return self._draw_direction_diagram(draw, frame, el, y)
+        elif etype == "ranking_order":
+            return self._draw_ranking_order(draw, frame, el, y)
+        elif etype == "series_pattern":
+            return self._draw_series_pattern(draw, frame, el, y)
+        elif etype == "amendment_card":
+            return self._draw_amendment_card(draw, frame, el, y)
+        elif etype == "person_card":
+            return self._draw_person_card(draw, frame, el, y)
+        elif etype == "stat_card":
+            return self._draw_stat_card(draw, frame, el, y)
+        elif etype == "split_screen":
+            return self._draw_split_screen(draw, frame, el, y)
+        elif etype == "grid_check":
+            return self._draw_grid_check(draw, frame, el, y)
+        elif etype == "equation_steps":
+            return self._draw_equation_steps(draw, frame, el, y)
+        elif etype == "web_image":
+            return self._draw_web_image(draw, frame, el, y)
+        elif etype == "web_gif":
+            return self._draw_web_gif(draw, frame, el, y)
+        elif etype == "web_video":
+            return self._draw_web_video(draw, frame, el, y)
+        elif etype == "google_image":
+            return self._draw_google_image(draw, frame, el, y)
+        # ── Batch 2 ultra-pro targets ──
+        elif etype == "truth_table":
+            return self._draw_truth_table(draw, frame, el, y)
+        elif etype == "law_card":
+            return self._draw_law_card(draw, frame, el, y)
+        elif etype == "tip_box":
+            return self._draw_tip_box(draw, frame, el, y)
+        elif etype == "warning_box":
+            return self._draw_warning_box(draw, frame, el, y)
+        elif etype == "event_card":
+            return self._draw_event_card(draw, frame, el, y)
+        elif etype == "word_breakdown":
+            return self._draw_word_breakdown(draw, frame, el, y)
+        elif etype == "fill_blank_sentence":
+            return self._draw_fill_blank_sentence(draw, frame, el, y)
+        elif etype == "venn_operations":
+            return self._draw_venn_operations(draw, frame, el, y)
+        elif etype == "mirror_image":
+            return self._draw_mirror_image(draw, frame, el, y)
+        elif etype == "clock_angle":
+            return self._draw_clock_angle(draw, frame, el, y)
+        elif etype == "input_output":
+            return self._draw_input_output(draw, frame, el, y)
+        elif etype == "cube_visual":
+            return self._draw_cube_visual(draw, frame, el, y)
+        elif etype == "place_value":
+            return self._draw_place_value(draw, frame, el, y)
+        elif etype == "spectrum_band":
+            return self._draw_spectrum_band(draw, frame, el, y)
+        elif etype == "ratio_bar":
+            return self._draw_ratio_bar(draw, frame, el, y)
+        elif etype == "percentage_bar":
+            return self._draw_percentage_bar(draw, frame, el, y)
+        elif etype == "odd_one_out":
+            return self._draw_odd_one_out(draw, frame, el, y)
+        elif etype == "flashcard":
+            return self._draw_flashcard(draw, frame, el, y)
+        # ── Aliases for common AI-generated target names ──
+        elif etype == "instruction_lines":
+            # AI sometimes generates this instead of bullet_list/concept_text
+            items = el.get("data", el.get("items", el.get("lines", [])))
+            if isinstance(items, str):
+                items = [items]
+            return self._draw_bullet_list(draw, frame, {
+                "heading": el.get("heading", ""),
+                "items": items,
+                "icon": "arrow",
+                "color": "blue",
+            }, y)
         return y   # unknown type — skip silently
 
     # ------------------------------------------------------------------
@@ -1279,6 +1379,112 @@ class FrameRenderer:
             return int(self.height * 0.44)
         elif etype == "geometry_3d":
             return int(self.height * 0.42)
+        # ── New ultra-pro targets ──
+        elif etype == "option_analysis":
+            checks = element.get("checks", [])
+            return int((100 + len(checks) * 160 + 80 + 64) * s)
+        elif etype == "bullet_list":
+            items = element.get("items", [])
+            return int((56 + 50 + len(items) * 76) * s)
+        elif etype == "definition_card":
+            return int(260 * s)
+        elif etype == "quote_block":
+            return int(220 * s)
+        elif etype == "code_block":
+            code = element.get("code", element.get("value", ""))
+            lines = code.split("\\n") if "\\n" in code else code.split("\n")
+            return int((48 + len(lines) * 52) * s)
+        elif etype == "matrix":
+            rows = element.get("rows", [])
+            return int(len(rows) * 60 * s + 30 * s)
+        elif etype == "proof_steps":
+            steps = element.get("steps", [])
+            return int((66 + len(steps) * 72 + 56) * s)
+        elif etype == "conversion_chain":
+            return int(120 * s)
+        elif etype == "dice_visual":
+            return int(160 * s)
+        elif etype == "calendar_visual":
+            return int(360 * s)
+        elif etype == "seating_arrangement":
+            layout = element.get("layout", "circular")
+            return int(380 * s) if layout == "circular" else int(160 * s)
+        elif etype == "coding_decoding":
+            mapping = element.get("mapping", {})
+            cols = min(len(mapping), 13)
+            rows_n = (len(mapping) + cols - 1) // cols if cols else 1
+            return int((50 + rows_n * 120) * s)
+        elif etype == "syllogism":
+            premises = element.get("premises", [])
+            return int((40 + len(premises) * 72 + 120) * s)
+        elif etype == "blood_relation_tree":
+            members = element.get("members", [])
+            levels = set(m.get("level", 0) for m in members)
+            return int((20 + len(levels) * 140) * s)
+        elif etype == "direction_diagram":
+            return int(380 * s)
+        elif etype == "ranking_order":
+            return int(120 * s)
+        elif etype == "series_pattern":
+            return int(130 * s)
+        elif etype == "amendment_card":
+            return int(280 * s)
+        elif etype == "person_card":
+            facts = element.get("facts", {})
+            return int((140 + len(facts) * 42) * s)
+        elif etype == "stat_card":
+            return int(150 * s)
+        elif etype == "split_screen":
+            return int(320 * s)
+        elif etype == "grid_check":
+            options = element.get("options", [])
+            return int((50 + (len(options) + 1) * 56 + 12) * s)
+        elif etype == "equation_steps":
+            steps = element.get("steps", [])
+            return int((66 + len(steps) * 84 + 56) * s)
+        elif etype in ("web_image", "web_gif", "google_image"):
+            size = element.get("size", "medium")
+            return int(self.height * {"small": 0.25, "medium": 0.35, "large": 0.50}.get(size, 0.35))
+        elif etype == "web_video":
+            return int(self.height * 0.35)
+        # ── Batch 2 targets ──
+        elif etype == "truth_table":
+            rows = element.get("rows", [])
+            return int((48 + 48 + len(rows) * 50 + 12) * s)
+        elif etype == "law_card":
+            return int(300 * s)
+        elif etype in ("tip_box", "warning_box"):
+            return int(180 * s)
+        elif etype == "event_card":
+            return int(280 * s)
+        elif etype == "word_breakdown":
+            return int(200 * s)
+        elif etype == "fill_blank_sentence":
+            return int(120 * s)
+        elif etype == "venn_operations":
+            return int(340 * s)
+        elif etype == "mirror_image":
+            return int(200 * s)
+        elif etype == "clock_angle":
+            return int(360 * s)
+        elif etype == "input_output":
+            steps = element.get("steps", [])
+            return int((48 + len(steps) * 48 + 12) * s)
+        elif etype == "cube_visual":
+            return int(260 * s)
+        elif etype == "place_value":
+            return int(140 * s)
+        elif etype == "spectrum_band":
+            return int(140 * s)
+        elif etype == "ratio_bar":
+            items = element.get("items", [])
+            return int((48 + len(items) * 68) * s)
+        elif etype == "percentage_bar":
+            return int(170 * s)
+        elif etype == "odd_one_out":
+            return int(140 * s)
+        elif etype == "flashcard":
+            return int(250 * s)
         return int(80 * s)
 
     # ------------------------------------------------------------------
@@ -1375,19 +1581,35 @@ class FrameRenderer:
 
         highlighted_indices = element.get("highlighted_indices", [])
         s = self.scale
-        font = _get_font(int(64 * s), bold=True)
-        op_font = font  # operators same height as digits
+        n = len(digits)
 
+        # Base sizes
+        font_size = int(64 * s)
         box_w = int(105 * s)
         box_h = int(115 * s)
+        op_pad = int(18 * s)
+
+        # Scale down if too many digits to fit within content width
+        max_w = self.content_w
+        font = _get_font(font_size, bold=True)
+        op_w = int(draw.textlength("+", font=font))
+        op_gap = op_w + op_pad
+        total_w = n * box_w + max(0, n - 1) * op_gap
+
+        if total_w > max_w and n > 1:
+            ratio = max_w / total_w
+            box_w = int(box_w * ratio)
+            box_h = int(box_h * ratio)
+            font_size = max(int(font_size * ratio), int(24 * s))
+            font = _get_font(font_size, bold=True)
+            op_w = int(draw.textlength("+", font=font))
+            op_pad = int(op_pad * ratio)
+            op_gap = op_w + op_pad
+            total_w = n * box_w + max(0, n - 1) * op_gap
+
+        op_font = font
         top_bar_h = int(6 * s)
 
-        # Operator width — small breathing room around operator
-        op_w = int(draw.textlength("+", font=op_font))
-        op_gap = op_w + int(18 * s)  # operator + comfortable padding
-
-        # Total width: boxes + tight operators between them
-        total_w = len(digits) * box_w + max(0, len(digits) - 1) * op_gap
         start_x = (self.width - total_w) / 2
 
         for i, digit in enumerate(digits):
@@ -1422,18 +1644,23 @@ class FrameRenderer:
                 fill=self._rgb("digit_border"),
             )
 
-            # Digit text centered
+            # Digit text centered — use bbox for accurate vertical centering
             dtext = str(digit)
             tw = draw.textlength(dtext, font=font)
+            bbox = font.getbbox(dtext)
+            text_h = bbox[3] - bbox[1]
+            text_y = y + top_bar_h + (box_h - top_bar_h - text_h) / 2 - bbox[1]
             draw.text(
-                (x + (box_w - tw) / 2, y + top_bar_h + (box_h - top_bar_h - font.size) / 2),
+                (x + (box_w - tw) / 2, text_y),
                 dtext, fill=text_color, font=font,
             )
 
             # Operator tight between boxes — centered vertically on box
             if i < len(digits) - 1:
                 op_x = x + box_w + int(2 * s)
-                op_y = y + (box_h - op_font.size) / 2
+                op_bbox = op_font.getbbox("+")
+                op_text_h = op_bbox[3] - op_bbox[1]
+                op_y = y + (box_h - op_text_h) / 2 - op_bbox[1]
                 draw.text((op_x, op_y), "+", fill=self._rgb("blue"), font=op_font)
 
         return y + box_h
@@ -1544,10 +1771,18 @@ class FrameRenderer:
                 hl_set = set()
 
                 def _digit_block(cy, _parts=d_parts, _pidx=d_part_idx, _hl=hl_set, _bc=bc):
+                    usable = col_w - 2 * pad
                     sep_w   = draw.textlength("   ", font=digit_font)
                     part_ws = [draw.textlength(p, font=digit_font) for p in _parts]
                     total_w = sum(part_ws) + sep_w * (len(_parts) - 1)
-                    x = cx + (col_w - total_w) / 2
+                    # Shrink separator if content overflows column
+                    if total_w > usable and len(_parts) > 1:
+                        parts_only = sum(part_ws)
+                        avail_sep = usable - parts_only
+                        sep_w = max(int(4 * s), int(avail_sep / (len(_parts) - 1)))
+                        total_w = parts_only + sep_w * (len(_parts) - 1)
+                    # Clamp x so content never goes left of column + pad
+                    x = cx + max(pad, (col_w - total_w) / 2)
                     for i, (part, pw) in enumerate(zip(_parts, part_ws)):
                         di = _pidx[i]
                         is_hl = (di is not None) and (di in _hl)
@@ -1578,7 +1813,7 @@ class FrameRenderer:
                 frac_h = frac_font.size * 2 + line_h + int(24 * s)
                 def _frac_block(cy, _num=num, _den=den, _nw=nw, _dw=dw, _fw=fw,
                                 _eq=eq_str, _tfrac_w=total_frac_w):
-                    fx = cx + (col_w - _tfrac_w) / 2
+                    fx = cx + max(pad, (col_w - _tfrac_w) / 2)
                     ly = cy + frac_font.size + int(8 * s)
                     draw.text((fx + (_fw - _nw) / 2, cy), _num, fill=bc, font=frac_font)
                     draw.rectangle([fx, ly, fx + _fw, ly + line_h], fill=bc)
@@ -1590,10 +1825,16 @@ class FrameRenderer:
             # Sum expression block (Rule 11)
             elif col_data.get("sum_text"):
                 stext = col_data["sum_text"]
-                def _sum_block(cy, _st=stext):
-                    stw = draw.textlength(_st, font=eq_font)
-                    draw.text((cx + (col_w - stw) / 2, cy), _st, fill=bc, font=eq_font)
-                blocks.append((_sum_block, eq_font.size))
+                usable_sum = col_w - 2 * pad
+                sum_font = eq_font
+                stw_check = draw.textlength(stext, font=sum_font)
+                if stw_check > usable_sum:
+                    smaller_size = max(int(28 * s), int(54 * s * usable_sum / stw_check))
+                    sum_font = _get_math_font(smaller_size)
+                def _sum_block(cy, _st=stext, _sf=sum_font):
+                    stw = draw.textlength(_st, font=_sf)
+                    draw.text((cx + max(pad, (col_w - stw) / 2), cy), _st, fill=bc, font=_sf)
+                blocks.append((_sum_block, sum_font.size))
 
             # Verdict block
             verdict  = col_data.get("verdict", "")
@@ -6600,6 +6841,2836 @@ class FrameRenderer:
             "conditions": element.get("conditions", ""),
             "reversible": element.get("reversible", False),
         }, y)
+
+    # ------------------------------------------------------------------
+    # NEW ULTRA-PRO RENDER TARGETS
+    # ------------------------------------------------------------------
+
+    def _draw_option_analysis(self, draw, frame, element, y,
+                              body_bottom=None, **_kw):
+        """Full-body option check — big header, rule cards, verdict.
+
+        JSON: { "target": "option_analysis",
+                "option_key": "a", "option_value": "277218",
+                "checks": [
+                    {"rule": "Rule of 9", "working": "2+7+7+2+1+8 = 27", "result": "27 ÷ 9 = 3", "pass": true},
+                    {"rule": "Rule of 11", "working": "+2−7+7−2+1−8 = −7", "result": "−7 ≠ 0 or ÷11", "pass": false}
+                ],
+                "verdict": "fail"  }
+        """
+        opt_key   = element.get("option_key", "?").upper()
+        opt_value = str(element.get("option_value", ""))
+        checks    = element.get("checks", [])
+        verdict   = element.get("verdict", "").lower()
+        s = self.scale
+
+        bar_color_hex = OPTION_BAR_COLORS.get(opt_key.lower(), "#1565C0")
+        bar_color = self._rgb(bar_color_hex)
+        cx = self.content_x
+        cw = self.content_w
+        pad_x = int(40 * s)
+        bb = body_bottom or (self.height - int(120 * s))
+        avail_h = bb - y
+
+        # ── Fonts — scale up to fill space ──
+        opt_font   = _get_font(int(56 * s), bold=True)
+        val_font   = _get_font(int(72 * s), bold=True)
+        rule_font  = _get_font(int(44 * s), bold=True)
+        work_font  = _get_math_font(int(48 * s))
+        res_font   = _get_font(int(44 * s), bold=True)
+        sym_font   = _get_symbol_font(int(56 * s))
+        verd_font  = _get_font(int(42 * s), bold=True)
+
+        n_checks = max(len(checks), 1)
+        # Dynamic sizing: header band + rule cards + verdict fill the body
+        header_h  = int(100 * s)
+        verdict_h = int(64 * s)
+        gap       = int(16 * s)
+        rule_area = avail_h - header_h - verdict_h - gap * (n_checks + 2)
+        rule_h    = max(int(140 * s), rule_area // n_checks)
+
+        # ── Option header band (colored) ──
+        draw.rounded_rectangle(
+            [cx, y, cx + cw, y + header_h],
+            radius=int(14 * s), fill=bar_color,
+        )
+        # "Option A" small label
+        draw.text((cx + pad_x, y + int(12 * s)),
+                  f"Option {opt_key}", fill=(255, 255, 255, 200), font=opt_font)
+        # Big value centered
+        vw = draw.textlength(opt_value, font=val_font)
+        draw.text(((self.width - vw) / 2, y + int(16 * s)),
+                  opt_value, fill=(255, 255, 255), font=val_font)
+        hy = y + header_h + gap
+
+        # ── Rule check cards ──
+        for ck in checks:
+            passed = ck.get("pass", False)
+            rule   = ck.get("rule", "")
+            work   = ck.get("working", "")
+            result = ck.get("result", "")
+
+            # Card colors
+            if passed:
+                card_bg    = (232, 245, 233)
+                accent     = self._rgb("success")
+                border_col = self._rgb("success")
+            else:
+                card_bg    = (255, 235, 238)
+                accent     = self._rgb("fail")
+                border_col = self._rgb("fail")
+
+            # Full-width rule card
+            draw.rounded_rectangle(
+                [cx, hy, cx + cw, hy + rule_h],
+                radius=int(12 * s), fill=card_bg,
+                outline=border_col, width=int(2 * s),
+            )
+            # Left accent bar
+            draw.rectangle([cx, hy, cx + int(8 * s), hy + rule_h], fill=accent)
+
+            # ── Rule heading bar at top of card ──
+            rule_hdr_h = int(48 * s)
+            draw.rounded_rectangle(
+                [cx + int(8 * s), hy, cx + cw, hy + rule_hdr_h],
+                radius=int(12 * s), fill=accent,
+            )
+            draw.rectangle([cx + int(8 * s), hy + int(24 * s),
+                            cx + cw, hy + rule_hdr_h], fill=accent)
+            # Rule name in white on accent band
+            draw.text((cx + pad_x + int(8 * s), hy + int(6 * s)),
+                      rule, fill=(255, 255, 255), font=rule_font)
+            # Pass/fail badge right side of heading
+            sym = "✔ PASS" if passed else "✘ FAIL"
+            sw = draw.textlength(sym, font=rule_font)
+            draw.text((cx + cw - pad_x - sw, hy + int(6 * s)),
+                      sym, fill=(255, 255, 255), font=rule_font)
+
+            # ── Working line (large, centered in card) ──
+            work_y = hy + rule_hdr_h + int((rule_h - rule_hdr_h) * 0.2)
+            draw.text((cx + pad_x + int(16 * s), work_y),
+                      work, fill=self._rgb("body_text"), font=work_font)
+
+            # ── Result line (below working, right-aligned) ──
+            res_y = work_y + int(work_font.size * 1.6)
+            if result:
+                # Result text
+                draw.text((cx + pad_x + int(16 * s), res_y),
+                          result, fill=accent, font=res_font)
+                # Big symbol at right
+                draw.text((cx + cw - pad_x - int(60 * s),
+                           hy + rule_hdr_h + int((rule_h - rule_hdr_h - sym_font.size) / 2)),
+                          "✔" if passed else "✘", fill=accent, font=sym_font)
+
+            hy += rule_h + gap
+
+        # ── Verdict bar (full width) ──
+        if "pass" in verdict or "both" in verdict.lower():
+            vtext  = "✔  PASSES ALL RULES"
+            vcolor = (255, 255, 255)
+            vbg    = self._rgb("success")
+        else:
+            vtext  = "✘  DOES NOT PASS"
+            vcolor = (255, 255, 255)
+            vbg    = self._rgb("fail")
+
+        draw.rounded_rectangle(
+            [cx, hy, cx + cw, hy + verdict_h],
+            radius=int(10 * s), fill=vbg,
+        )
+        vw = draw.textlength(vtext, font=verd_font)
+        draw.text(((self.width - vw) / 2, hy + (verdict_h - verd_font.size) / 2),
+                  vtext, fill=vcolor, font=verd_font)
+
+        return hy + verdict_h
+
+    def _draw_bullet_list(self, draw, frame, element, y):
+        """Bullet point list with optional title and icons.
+
+        JSON: { "target": "bullet_list",
+                "heading": "Key Points",
+                "items": ["First point", "Second point", ...],
+                "icon": "bullet|check|arrow|star",
+                "color": "blue" }
+        """
+        heading = element.get("heading", "")
+        items   = element.get("items", [])
+        icon    = element.get("icon", "bullet")
+        color   = element.get("color", "blue")
+        s = self.scale
+
+        icons = {"bullet": "\u2022", "check": "\u2713", "arrow": "\u25B6", "star": "\u2605"}
+        icon_char = icons.get(icon, "\u2022")
+        accent = self._rgb(color if color in self.C else "blue")
+
+        head_font = _get_font(int(46 * s), bold=True)
+        body_font = _get_font(int(42 * s))
+        icon_font = _get_symbol_font(int(38 * s))
+        pad_x = int(52 * s)
+        pad_y = int(28 * s)
+        line_h = int(body_font.size * 1.8)
+        head_h = int(head_font.size * 1.5) if heading else 0
+
+        # Measure lines
+        total_lines = 0
+        max_w = self.content_w - pad_x * 2 - int(50 * s)
+        for item in items:
+            total_lines += max(1, len(self._wrap_text(item, body_font, max_w)))
+        card_h = head_h + total_lines * line_h + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(10 * s), fill=(245, 248, 255),
+        )
+        draw.rectangle([cx, y, cx + int(5 * s), y + card_h], fill=accent)
+
+        cy = y + pad_y
+        if heading:
+            draw.text((cx + pad_x, cy), heading, fill=accent, font=head_font)
+            cy += head_h
+
+        for item in items:
+            draw.text((cx + pad_x, cy + int(2 * s)), icon_char,
+                      fill=accent, font=icon_font)
+            wrapped = self._wrap_text(item, body_font, max_w)
+            for li, line in enumerate(wrapped):
+                draw.text((cx + pad_x + int(42 * s), cy + li * int(body_font.size * 1.3)),
+                          line, fill=self._rgb("body_text"), font=body_font)
+            cy += max(1, len(wrapped)) * line_h
+        return y + card_h
+
+    def _draw_definition_card(self, draw, frame, element, y):
+        """Term + definition card — GK, vocabulary, science terms.
+
+        JSON: { "target": "definition_card",
+                "term": "Osmosis",
+                "definition": "Movement of water molecules through a semipermeable membrane...",
+                "category": "Biology",
+                "color": "green" }
+        """
+        term       = element.get("term", "")
+        definition = element.get("definition", "")
+        category   = element.get("category", "")
+        color      = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        term_font = _get_font(int(52 * s), bold=True)
+        def_font  = _get_font(int(40 * s))
+        cat_font  = _get_font(int(28 * s), bold=True)
+        pad_x = int(52 * s)
+        pad_y = int(32 * s)
+
+        max_w = self.content_w - 2 * pad_x
+        def_lines = self._wrap_text(definition, def_font, max_w)
+        line_h = int(def_font.size * 1.5)
+        cat_h = int(40 * s) if category else 0
+        term_h = int(term_font.size * 1.5)
+        card_h = cat_h + term_h + len(def_lines) * line_h + 2 * pad_y + int(16 * s)
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(14 * s), fill=(255, 255, 255),
+        )
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(14 * s), outline=accent, width=int(3 * s),
+        )
+        draw.rectangle([cx, y, cx + int(8 * s), y + card_h], fill=accent)
+
+        cy = y + pad_y
+        if category:
+            # Category badge
+            cw = draw.textlength(category.upper(), font=cat_font) + int(24 * s)
+            draw.rounded_rectangle(
+                [cx + pad_x, cy, cx + pad_x + cw, cy + int(32 * s)],
+                radius=int(4 * s), fill=accent,
+            )
+            draw.text((cx + pad_x + int(12 * s), cy + int(4 * s)),
+                      category.upper(), fill=(255, 255, 255), font=cat_font)
+            cy += cat_h
+
+        draw.text((cx + pad_x, cy), term, fill=accent, font=term_font)
+        cy += term_h
+        # Divider line
+        draw.line([cx + pad_x, cy, cx + self.content_w - pad_x, cy],
+                  fill=(*accent, 80) if len(accent) == 3 else accent, width=int(2 * s))
+        cy += int(16 * s)
+        for line in def_lines:
+            draw.text((cx + pad_x, cy), line,
+                      fill=self._rgb("body_text"), font=def_font)
+            cy += line_h
+        return y + card_h
+
+    def _draw_quote_block(self, draw, frame, element, y):
+        """Quote block — articles, provisions, famous quotes.
+
+        JSON: { "target": "quote_block",
+                "text": "We the people of India...",
+                "source": "Preamble, Constitution of India",
+                "color": "blue" }
+        """
+        text   = element.get("text", element.get("value", ""))
+        source = element.get("source", element.get("attribution", ""))
+        color  = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        quote_font = _get_font(int(44 * s))
+        src_font   = _get_font(int(32 * s), bold=True)
+        big_quote  = _get_font(int(80 * s), bold=True)
+        pad_x = int(80 * s)
+        pad_y = int(36 * s)
+
+        max_w = self.content_w - 2 * pad_x
+        lines = self._wrap_text(text, quote_font, max_w)
+        line_h = int(quote_font.size * 1.6)
+        src_h = int(48 * s) if source else 0
+        card_h = len(lines) * line_h + src_h + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(12 * s), fill=(245, 248, 255),
+        )
+        draw.rectangle([cx, y, cx + int(6 * s), y + card_h], fill=accent)
+
+        # Big opening quote mark
+        draw.text((cx + int(24 * s), y + pad_y - int(20 * s)),
+                  "\u201C", fill=(*accent[:3],) if isinstance(accent, tuple) else accent,
+                  font=big_quote)
+
+        cy = y + pad_y
+        for line in lines:
+            draw.text((cx + pad_x, cy), line,
+                      fill=self._rgb("body_text"), font=quote_font)
+            cy += line_h
+        if source:
+            cy += int(8 * s)
+            draw.text((cx + pad_x, cy), f"\u2014 {source}",
+                      fill=accent, font=src_font)
+        return y + card_h
+
+    def _draw_code_block(self, draw, frame, element, y):
+        """Syntax-highlighted code block — CS questions.
+
+        JSON: { "target": "code_block",
+                "code": "def hello():\\n    print('Hello')",
+                "language": "python",
+                "highlight_lines": [2] }
+        """
+        code = element.get("code", element.get("value", ""))
+        highlight_lines = element.get("highlight_lines", [])
+        s = self.scale
+
+        mono_font = _get_font(int(32 * s))  # monospace-ish
+        line_num_font = _get_font(int(26 * s))
+        pad_x = int(48 * s)
+        pad_y = int(24 * s)
+        line_h = int(mono_font.size * 1.6)
+
+        code_lines = code.split("\\n") if "\\n" in code else code.split("\n")
+        card_h = len(code_lines) * line_h + 2 * pad_y
+        cx = self.content_x
+        gutter_w = int(60 * s)
+
+        # Dark code background
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(10 * s), fill=(30, 30, 46),
+        )
+        # Gutter
+        draw.rectangle([cx, y, cx + gutter_w, y + card_h], fill=(22, 22, 36))
+
+        cy = y + pad_y
+        for i, line in enumerate(code_lines):
+            lnum = i + 1
+            # Highlight line background
+            if lnum in highlight_lines:
+                draw.rectangle(
+                    [cx + gutter_w, cy - int(2 * s),
+                     cx + self.content_w, cy + line_h - int(2 * s)],
+                    fill=(60, 60, 90),
+                )
+            # Line number
+            nw = draw.textlength(str(lnum), font=line_num_font)
+            draw.text((cx + gutter_w - nw - int(12 * s), cy + int(4 * s)),
+                      str(lnum), fill=(100, 100, 140), font=line_num_font)
+            # Code text — basic keyword coloring
+            self._draw_code_line(draw, cx + gutter_w + int(16 * s), cy,
+                                 line, mono_font, s)
+            cy += line_h
+        return y + card_h
+
+    def _draw_code_line(self, draw, x, y, line, font, s):
+        """Simple keyword-colored code line."""
+        keywords = {"def", "class", "if", "else", "elif", "for", "while", "return",
+                    "import", "from", "in", "not", "and", "or", "True", "False", "None",
+                    "int", "float", "str", "print", "len", "range", "void", "main",
+                    "public", "static", "private", "#include", "using", "namespace"}
+        tokens = line.split(" ")
+        cx = x
+        for tok in tokens:
+            clean = tok.strip("():,;{}")
+            if clean in keywords:
+                color = (198, 120, 221)  # purple for keywords
+            elif tok.startswith(("'", '"')) or tok.endswith(("'", '"')):
+                color = (152, 195, 121)  # green for strings
+            elif tok.replace(".", "").replace("-", "").isdigit():
+                color = (209, 154, 102)  # orange for numbers
+            elif tok.startswith("#") or tok.startswith("//"):
+                color = (92, 99, 112)    # gray for comments
+                draw.text((cx, y), " ".join(tokens[tokens.index(tok):]),
+                          fill=color, font=font)
+                return
+            else:
+                color = (171, 178, 191)  # light gray default
+            draw.text((cx, y), tok + " ", fill=color, font=font)
+            cx += draw.textlength(tok + " ", font=font)
+
+    def _draw_matrix(self, draw, frame, element, y):
+        """Mathematical matrix with brackets.
+
+        JSON: { "target": "matrix",
+                "label": "A",
+                "rows": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+                "highlight_cells": [[0,1], [1,2]] }
+        """
+        label = element.get("label", "")
+        rows  = element.get("rows", [])
+        highlights = element.get("highlight_cells", [])
+        s = self.scale
+        if not rows:
+            return y
+
+        num_font = _get_math_font(int(44 * s))
+        lbl_font = _get_font(int(40 * s), bold=True)
+        cell_w = int(80 * s)
+        cell_h = int(60 * s)
+        pad = int(20 * s)
+        bracket_w = int(12 * s)
+
+        n_rows = len(rows)
+        n_cols = max(len(r) for r in rows) if rows else 0
+        mat_w = n_cols * cell_w
+        mat_h = n_rows * cell_h
+
+        total_w = mat_w + 2 * bracket_w + 2 * pad
+        lbl_w = draw.textlength(f"{label} = ", font=lbl_font) if label else 0
+        start_x = self.content_x + (self.content_w - total_w - lbl_w) // 2
+
+        # Label
+        if label:
+            draw.text((start_x, y + mat_h // 2 - int(20 * s)),
+                      f"{label} = ", fill=self._rgb("blue"), font=lbl_font)
+            start_x += lbl_w
+
+        bx = start_x
+        # Left bracket
+        draw.line([bx + bracket_w, y, bx, y], fill=self._rgb("body_text"), width=int(3 * s))
+        draw.line([bx, y, bx, y + mat_h], fill=self._rgb("body_text"), width=int(3 * s))
+        draw.line([bx, y + mat_h, bx + bracket_w, y + mat_h],
+                  fill=self._rgb("body_text"), width=int(3 * s))
+        # Right bracket
+        rx = bx + bracket_w + mat_w + pad
+        draw.line([rx - bracket_w, y, rx, y], fill=self._rgb("body_text"), width=int(3 * s))
+        draw.line([rx, y, rx, y + mat_h], fill=self._rgb("body_text"), width=int(3 * s))
+        draw.line([rx, y + mat_h, rx - bracket_w, y + mat_h],
+                  fill=self._rgb("body_text"), width=int(3 * s))
+
+        # Cells
+        for ri, row in enumerate(rows):
+            for ci, val in enumerate(row):
+                cx = bx + bracket_w + pad // 2 + ci * cell_w
+                cy = y + ri * cell_h
+                if [ri, ci] in highlights:
+                    draw.rounded_rectangle(
+                        [cx, cy, cx + cell_w - int(4 * s), cy + cell_h - int(4 * s)],
+                        radius=int(4 * s), fill=(255, 243, 224),
+                    )
+                vstr = str(val)
+                vw = draw.textlength(vstr, font=num_font)
+                draw.text((cx + (cell_w - vw) / 2, cy + (cell_h - num_font.size) / 2),
+                          vstr, fill=self._rgb("body_text"), font=num_font)
+        return y + mat_h + int(30 * s)
+
+    def _draw_proof_steps(self, draw, frame, element, y):
+        """Formal proof with numbered statements + reasons.
+
+        JSON: { "target": "proof_steps",
+                "heading": "Proof",
+                "steps": [
+                    {"statement": "AB = CD", "reason": "Given"},
+                    {"statement": "∠A = ∠C", "reason": "Alternate angles"}
+                ] }
+        """
+        heading = element.get("heading", "Proof")
+        steps   = element.get("steps", [])
+        s = self.scale
+
+        head_font = _get_font(int(44 * s), bold=True)
+        stmt_font = _get_math_font(int(38 * s))
+        reas_font = _get_font(int(32 * s))
+        pad_x = int(48 * s)
+        pad_y = int(28 * s)
+        row_h = int(72 * s)
+        head_h = int(head_font.size * 1.5)
+        card_h = head_h + len(steps) * row_h + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(10 * s), fill=(248, 248, 255),
+        )
+        draw.rectangle([cx, y, cx + int(5 * s), y + card_h], fill=self._rgb("blue"))
+
+        cy = y + pad_y
+        draw.text((cx + pad_x, cy), heading, fill=self._rgb("blue"), font=head_font)
+        cy += head_h
+
+        num_font = _get_font(int(30 * s), bold=True)
+        half_w = (self.content_w - 2 * pad_x) // 2
+
+        for i, step in enumerate(steps):
+            stmt = step.get("statement", "") if isinstance(step, dict) else str(step)
+            reason = step.get("reason", "") if isinstance(step, dict) else ""
+
+            # Number
+            nstr = str(i + 1) + "."
+            draw.text((cx + pad_x, cy + int(4 * s)), nstr,
+                      fill=self._rgb("blue"), font=num_font)
+            # Statement
+            draw.text((cx + pad_x + int(40 * s), cy),
+                      stmt, fill=self._rgb("body_text"), font=stmt_font)
+            # Reason (right-aligned, italic-ish)
+            if reason:
+                rtxt = f"[{reason}]"
+                rw = draw.textlength(rtxt, font=reas_font)
+                draw.text((cx + self.content_w - pad_x - rw, cy + int(8 * s)),
+                          rtxt, fill=self._rgb("body_secondary"), font=reas_font)
+            cy += row_h
+        return y + card_h
+
+    def _draw_conversion_chain(self, draw, frame, element, y):
+        """Unit conversion chain: km → m → cm with multipliers.
+
+        JSON: { "target": "conversion_chain",
+                "steps": [
+                    {"value": "5 km", "operation": "× 1000"},
+                    {"value": "5000 m", "operation": "× 100"},
+                    {"value": "500000 cm"}
+                ] }
+        """
+        steps = element.get("steps", [])
+        s = self.scale
+        if not steps:
+            return y
+
+        val_font = _get_font(int(44 * s), bold=True)
+        op_font  = _get_font(int(32 * s), bold=True)
+        arrow_font = _get_symbol_font(int(36 * s))
+        pad_y = int(24 * s)
+        box_h = int(64 * s)
+        arrow_w = int(100 * s)
+
+        n = len(steps)
+        box_w = min(int(220 * s), (self.content_w - (n - 1) * arrow_w) // n)
+        total_w = n * box_w + (n - 1) * arrow_w
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        for i, step in enumerate(steps):
+            bx = start_x + i * (box_w + arrow_w)
+            val = step.get("value", "")
+            op  = step.get("operation", "")
+
+            # Value box
+            draw.rounded_rectangle(
+                [bx, y + pad_y, bx + box_w, y + pad_y + box_h],
+                radius=int(8 * s), fill=self._rgb("concept_blue_bg"),
+                outline=self._rgb("blue"), width=int(2 * s),
+            )
+            vw = draw.textlength(val, font=val_font)
+            draw.text((bx + (box_w - vw) / 2, y + pad_y + (box_h - val_font.size) / 2),
+                      val, fill=self._rgb("blue"), font=val_font)
+
+            # Arrow + operation label
+            if i < n - 1 and op:
+                ax = bx + box_w
+                ay = y + pad_y + box_h // 2
+                draw.text((ax + int(10 * s), ay - int(30 * s)),
+                          op, fill=self._rgb("orange"), font=op_font)
+                draw.text((ax + arrow_w // 2 - int(10 * s), ay - int(12 * s)),
+                          "\u2192", fill=self._rgb("orange"), font=arrow_font)
+
+        return y + pad_y + box_h + int(30 * s)
+
+    def _draw_dice_visual(self, draw, frame, element, y):
+        """Dice faces for probability questions.
+
+        JSON: { "target": "dice_visual",
+                "faces": [1, 3, 6],
+                "highlight": [6],
+                "label": "Favorable outcomes" }
+        """
+        faces     = element.get("faces", [1, 2, 3, 4, 5, 6])
+        highlight = element.get("highlight", [])
+        label     = element.get("label", "")
+        s = self.scale
+
+        die_size = int(80 * s)
+        gap = int(20 * s)
+        dot_r = int(8 * s)
+        lbl_font = _get_font(int(36 * s), bold=True)
+
+        n = len(faces)
+        total_w = n * die_size + (n - 1) * gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        if label:
+            lw = draw.textlength(label, font=lbl_font)
+            draw.text(((self.width - lw) / 2, y), label,
+                      fill=self._rgb("note_text"), font=lbl_font)
+            y += int(48 * s)
+
+        # Dot positions for each face value (relative to die center)
+        _dot_pos = {
+            1: [(0, 0)],
+            2: [(-1, -1), (1, 1)],
+            3: [(-1, -1), (0, 0), (1, 1)],
+            4: [(-1, -1), (1, -1), (-1, 1), (1, 1)],
+            5: [(-1, -1), (1, -1), (0, 0), (-1, 1), (1, 1)],
+            6: [(-1, -1), (1, -1), (-1, 0), (1, 0), (-1, 1), (1, 1)],
+        }
+
+        for i, face in enumerate(faces):
+            dx = start_x + i * (die_size + gap)
+            dy = y
+            is_hl = face in highlight
+            bg = (255, 243, 224) if is_hl else (255, 255, 255)
+            outline = self._rgb("orange") if is_hl else (180, 180, 200)
+
+            draw.rounded_rectangle(
+                [dx, dy, dx + die_size, dy + die_size],
+                radius=int(8 * s), fill=bg, outline=outline, width=int(2 * s),
+            )
+            cx_d = dx + die_size // 2
+            cy_d = dy + die_size // 2
+            offset = int(22 * s)
+            for (px, py) in _dot_pos.get(face, []):
+                ex = cx_d + px * offset
+                ey = cy_d + py * offset
+                draw.ellipse([ex - dot_r, ey - dot_r, ex + dot_r, ey + dot_r],
+                             fill=(30, 30, 60))
+        return y + die_size + int(20 * s)
+
+    def _draw_calendar_visual(self, draw, frame, element, y):
+        """Calendar month grid with highlighted dates.
+
+        JSON: { "target": "calendar_visual",
+                "month": "March", "year": 2026,
+                "highlight_dates": [5, 15, 25],
+                "start_day": 0 }
+        """
+        month_name = element.get("month", "")
+        year       = element.get("year", "")
+        highlights = element.get("highlight_dates", [])
+        start_day  = element.get("start_day", 0)  # 0=Mon
+        days_in_month = element.get("days", 31)
+        s = self.scale
+
+        head_font = _get_font(int(36 * s), bold=True)
+        day_font  = _get_font(int(28 * s))
+        num_font  = _get_font(int(26 * s))
+        cell_w = int(90 * s)
+        cell_h = int(52 * s)
+        hdr_h  = int(48 * s)
+
+        total_w = 7 * cell_w
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        # Month/Year header
+        title = f"{month_name} {year}" if month_name else str(year)
+        tw = draw.textlength(title, font=head_font)
+        draw.text(((self.width - tw) / 2, y), title,
+                  fill=self._rgb("note_text"), font=head_font)
+        y += hdr_h
+
+        # Day headers
+        days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        for i, d in enumerate(days):
+            dw = draw.textlength(d, font=day_font)
+            draw.text((start_x + i * cell_w + (cell_w - dw) / 2, y),
+                      d, fill=self._rgb("body_secondary"), font=day_font)
+        y += int(36 * s)
+
+        # Date grid
+        row_y = y
+        col = start_day
+        for day in range(1, days_in_month + 1):
+            cx = start_x + col * cell_w
+            is_hl = day in highlights
+            if is_hl:
+                draw.rounded_rectangle(
+                    [cx + int(4 * s), row_y + int(2 * s),
+                     cx + cell_w - int(4 * s), row_y + cell_h - int(2 * s)],
+                    radius=int(6 * s), fill=self._rgb("orange"),
+                )
+                fc = (255, 255, 255)
+            else:
+                fc = self._rgb("body_text")
+            nw = draw.textlength(str(day), font=num_font)
+            draw.text((cx + (cell_w - nw) / 2, row_y + (cell_h - num_font.size) / 2),
+                      str(day), fill=fc, font=num_font)
+            col += 1
+            if col >= 7:
+                col = 0
+                row_y += cell_h
+
+        total_rows = (start_day + days_in_month + 6) // 7
+        return y + total_rows * cell_h + int(16 * s)
+
+    def _draw_seating_arrangement(self, draw, frame, element, y):
+        """Linear or circular seating arrangement — reasoning puzzles.
+
+        JSON: { "target": "seating_arrangement",
+                "layout": "circular|linear",
+                "seats": ["A", "B", "C", "D", "E"],
+                "highlight": ["B", "D"],
+                "facing": "center|outward" }
+        """
+        layout  = element.get("layout", "circular")
+        seats   = element.get("seats", [])
+        highlight = set(element.get("highlight", []))
+        s = self.scale
+        if not seats:
+            return y
+
+        name_font = _get_font(int(28 * s), bold=True)
+        seat_r = int(32 * s)
+        n = len(seats)
+
+        if layout == "linear":
+            gap = int(20 * s)
+            total_w = n * (seat_r * 2 + gap) - gap
+            start_x = self.content_x + (self.content_w - total_w) // 2
+            cy_c = y + int(80 * s)
+
+            # Table bar
+            draw.rounded_rectangle(
+                [start_x - int(20 * s), cy_c + seat_r + int(4 * s),
+                 start_x + total_w + int(20 * s), cy_c + seat_r + int(16 * s)],
+                radius=int(4 * s), fill=(200, 200, 220),
+            )
+
+            for i, name in enumerate(seats):
+                cx = start_x + i * (seat_r * 2 + gap) + seat_r
+                is_hl = name in highlight
+                bg = self._rgb("orange") if is_hl else self._rgb("concept_blue_bg")
+                outline = self._rgb("orange") if is_hl else self._rgb("blue")
+                fc = (255, 255, 255) if is_hl else self._rgb("blue")
+                draw.ellipse([cx - seat_r, cy_c - seat_r, cx + seat_r, cy_c + seat_r],
+                             fill=bg, outline=outline, width=int(2 * s))
+                nw = draw.textlength(name, font=name_font)
+                draw.text((cx - nw / 2, cy_c - name_font.size / 2),
+                          name, fill=fc, font=name_font)
+            return cy_c + seat_r + int(40 * s)
+        else:  # circular
+            radius = min(int(150 * s), (self.content_w - 4 * seat_r) // 2)
+            cx_c = self.content_x + self.content_w // 2
+            cy_c = y + radius + seat_r + int(20 * s)
+
+            # Center table
+            table_r = radius - seat_r - int(15 * s)
+            if table_r > int(30 * s):
+                draw.ellipse([cx_c - table_r, cy_c - table_r,
+                              cx_c + table_r, cy_c + table_r],
+                             fill=(230, 230, 240), outline=(200, 200, 220), width=int(2 * s))
+
+            for i, name in enumerate(seats):
+                angle = 2 * math.pi * i / n - math.pi / 2
+                sx = cx_c + int(radius * math.cos(angle))
+                sy = cy_c + int(radius * math.sin(angle))
+                is_hl = name in highlight
+                bg = self._rgb("orange") if is_hl else (255, 255, 255)
+                outline = self._rgb("orange") if is_hl else self._rgb("blue")
+                fc = (255, 255, 255) if is_hl else self._rgb("blue")
+                draw.ellipse([sx - seat_r, sy - seat_r, sx + seat_r, sy + seat_r],
+                             fill=bg, outline=outline, width=int(2 * s))
+                nw = draw.textlength(name, font=name_font)
+                draw.text((sx - nw / 2, sy - name_font.size / 2),
+                          name, fill=fc, font=name_font)
+            return cy_c + radius + seat_r + int(30 * s)
+
+    def _draw_coding_decoding(self, draw, frame, element, y):
+        """Letter ↔ number / symbol mapping grid — reasoning.
+
+        JSON: { "target": "coding_decoding",
+                "heading": "Code Table",
+                "mapping": {"A": "1", "B": "2", "C": "3", ...},
+                "highlight_keys": ["B", "D"] }
+        """
+        heading = element.get("heading", "")
+        mapping = element.get("mapping", {})
+        highlight_keys = set(element.get("highlight_keys", []))
+        s = self.scale
+        if not mapping:
+            return y
+
+        head_font = _get_font(int(40 * s), bold=True)
+        key_font  = _get_font(int(34 * s), bold=True)
+        val_font  = _get_font(int(32 * s))
+        cell_w = int(72 * s)
+        cell_h = int(56 * s)
+        pad_y = int(24 * s)
+
+        keys = list(mapping.keys())
+        n = len(keys)
+        cols = min(n, 13)
+        rows_needed = (n + cols - 1) // cols
+        total_w = cols * cell_w
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        if heading:
+            hw = draw.textlength(heading, font=head_font)
+            draw.text(((self.width - hw) / 2, y), heading,
+                      fill=self._rgb("note_text"), font=head_font)
+            y += int(50 * s)
+
+        for row_idx in range(rows_needed):
+            for ci in range(cols):
+                idx = row_idx * cols + ci
+                if idx >= n:
+                    break
+                k = keys[idx]
+                v = str(mapping[k])
+                cx = start_x + ci * cell_w
+                ky = y + row_idx * (cell_h * 2 + int(8 * s))
+
+                is_hl = k in highlight_keys
+                bg = (255, 243, 224) if is_hl else self._rgb("concept_blue_bg")
+                border = self._rgb("orange") if is_hl else self._rgb("blue")
+
+                # Key cell (top)
+                draw.rounded_rectangle(
+                    [cx + 2, ky, cx + cell_w - 2, ky + cell_h],
+                    radius=int(4 * s), fill=border,
+                )
+                kw = draw.textlength(k, font=key_font)
+                draw.text((cx + (cell_w - kw) / 2, ky + (cell_h - key_font.size) / 2),
+                          k, fill=(255, 255, 255), font=key_font)
+                # Value cell (bottom)
+                draw.rounded_rectangle(
+                    [cx + 2, ky + cell_h, cx + cell_w - 2, ky + cell_h * 2],
+                    radius=int(4 * s), fill=bg, outline=border, width=int(1 * s),
+                )
+                vw = draw.textlength(v, font=val_font)
+                draw.text((cx + (cell_w - vw) / 2, ky + cell_h + (cell_h - val_font.size) / 2),
+                          v, fill=self._rgb("body_text"), font=val_font)
+
+        total_h = rows_needed * (cell_h * 2 + int(8 * s)) + pad_y
+        return y + total_h
+
+    def _draw_syllogism(self, draw, frame, element, y):
+        """Syllogism with premises and conclusion — Venn visual.
+
+        JSON: { "target": "syllogism",
+                "premises": ["All dogs are animals", "All animals are living beings"],
+                "conclusion": "All dogs are living beings",
+                "valid": true }
+        """
+        premises   = element.get("premises", [])
+        conclusion = element.get("conclusion", "")
+        valid      = element.get("valid", True)
+        s = self.scale
+
+        prem_font = _get_font(int(40 * s))
+        conc_font = _get_font(int(42 * s), bold=True)
+        lbl_font  = _get_font(int(32 * s), bold=True)
+        sym_font  = _get_symbol_font(int(44 * s))
+        pad_x = int(52 * s)
+        pad_y = int(28 * s)
+        line_h = int(prem_font.size * 1.8)
+
+        card_h = len(premises) * line_h + int(80 * s) + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(10 * s), fill=(248, 248, 255),
+        )
+        draw.rectangle([cx, y, cx + int(5 * s), y + card_h], fill=self._rgb("blue"))
+
+        cy = y + pad_y
+        draw.text((cx + pad_x, cy), "Premises:", fill=self._rgb("blue"), font=lbl_font)
+        cy += int(40 * s)
+        for p in premises:
+            draw.text((cx + pad_x + int(20 * s), cy), f"\u2022 {p}",
+                      fill=self._rgb("body_text"), font=prem_font)
+            cy += line_h
+        # Divider
+        cy += int(8 * s)
+        draw.line([cx + pad_x, cy, cx + self.content_w - pad_x, cy],
+                  fill=(200, 200, 220), width=int(2 * s))
+        cy += int(16 * s)
+        # Conclusion
+        sym = "\u2234"  # ∴
+        draw.text((cx + pad_x, cy), sym, fill=self._rgb("blue"), font=sym_font)
+        draw.text((cx + pad_x + int(40 * s), cy), conclusion,
+                  fill=self._rgb("body_text"), font=conc_font)
+        cy += int(conc_font.size * 1.4)
+        # Validity badge
+        if valid:
+            badge_text, badge_color = "\u2713 VALID", self._rgb("success")
+        else:
+            badge_text, badge_color = "\u2717 INVALID", self._rgb("fail")
+        bw = draw.textlength(badge_text, font=lbl_font) + int(20 * s)
+        draw.rounded_rectangle(
+            [cx + self.content_w - pad_x - bw, cy,
+             cx + self.content_w - pad_x, cy + int(36 * s)],
+            radius=int(4 * s), fill=badge_color,
+        )
+        draw.text((cx + self.content_w - pad_x - bw + int(10 * s), cy + int(4 * s)),
+                  badge_text, fill=(255, 255, 255), font=lbl_font)
+        return y + card_h
+
+    def _draw_blood_relation_tree(self, draw, frame, element, y):
+        """Family tree for blood relation problems.
+
+        JSON: { "target": "blood_relation_tree",
+                "members": [
+                    {"name": "Ram", "relation": "Father", "level": 0},
+                    {"name": "Sita", "relation": "Mother", "level": 0},
+                    {"name": "Arjun", "relation": "Son", "level": 1}
+                ],
+                "highlight": ["Arjun"] }
+        """
+        members   = element.get("members", [])
+        highlight = set(element.get("highlight", []))
+        s = self.scale
+        if not members:
+            return y
+
+        name_font = _get_font(int(28 * s), bold=True)
+        rel_font  = _get_font(int(22 * s))
+        box_w = int(120 * s)
+        box_h = int(60 * s)
+        level_gap = int(80 * s)
+        h_gap = int(30 * s)
+
+        levels = {}
+        for m in members:
+            lvl = m.get("level", 0)
+            levels.setdefault(lvl, []).append(m)
+
+        cy = y + int(20 * s)
+        for lvl in sorted(levels.keys()):
+            lvl_members = levels[lvl]
+            n = len(lvl_members)
+            total_w = n * box_w + (n - 1) * h_gap
+            start_x = self.content_x + (self.content_w - total_w) // 2
+
+            for i, m in enumerate(lvl_members):
+                mx = start_x + i * (box_w + h_gap)
+                name = m.get("name", "")
+                rel  = m.get("relation", "")
+                is_hl = name in highlight
+
+                bg = self._rgb("orange") if is_hl else self._rgb("concept_blue_bg")
+                border = self._rgb("orange") if is_hl else self._rgb("blue")
+                fc = (255, 255, 255) if is_hl else self._rgb("blue")
+
+                draw.rounded_rectangle(
+                    [mx, cy, mx + box_w, cy + box_h],
+                    radius=int(8 * s), fill=bg, outline=border, width=int(2 * s),
+                )
+                nw = draw.textlength(name, font=name_font)
+                draw.text((mx + (box_w - nw) / 2, cy + int(6 * s)),
+                          name, fill=fc, font=name_font)
+                if rel:
+                    rw = draw.textlength(rel, font=rel_font)
+                    draw.text((mx + (box_w - rw) / 2, cy + int(34 * s)),
+                              rel, fill=fc if is_hl else self._rgb("body_secondary"),
+                              font=rel_font)
+
+                # Vertical connector to next level
+                if lvl < max(levels.keys()):
+                    draw.line([mx + box_w // 2, cy + box_h,
+                               mx + box_w // 2, cy + box_h + level_gap // 2],
+                              fill=(180, 180, 200), width=int(2 * s))
+            cy += box_h + level_gap
+
+        return cy
+
+    def _draw_direction_diagram(self, draw, frame, element, y):
+        """Direction-based path visualization — reasoning.
+
+        JSON: { "target": "direction_diagram",
+                "moves": [
+                    {"direction": "North", "distance": "5 km"},
+                    {"direction": "East", "distance": "3 km"},
+                    {"direction": "South", "distance": "2 km"}
+                ],
+                "start_label": "Home",
+                "end_label": "Office" }
+        """
+        moves = element.get("moves", [])
+        start_label = element.get("start_label", "Start")
+        end_label = element.get("end_label", "End")
+        s = self.scale
+        if not moves:
+            return y
+
+        font = _get_font(int(24 * s))
+        lbl_font = _get_font(int(28 * s), bold=True)
+        dot_r = int(8 * s)
+        arrow_len = int(80 * s)
+
+        dir_map = {
+            "north": (0, -1), "south": (0, 1),
+            "east": (1, 0), "west": (-1, 0),
+            "ne": (1, -1), "nw": (-1, -1),
+            "se": (1, 1), "sw": (-1, 1),
+            "n": (0, -1), "s": (0, 1), "e": (1, 0), "w": (-1, 0),
+        }
+
+        cx = self.content_x + self.content_w // 2
+        cy = y + int(180 * s)
+
+        # Draw compass rose in corner
+        comp_cx = self.content_x + self.content_w - int(80 * s)
+        comp_cy = y + int(60 * s)
+        comp_r = int(35 * s)
+        comp_font = _get_font(int(18 * s), bold=True)
+        for d, (dx, dy), lbl in [("N", (0, -1), "N"), ("S", (0, 1), "S"),
+                                   ("E", (1, 0), "E"), ("W", (-1, 0), "W")]:
+            ex = comp_cx + dx * comp_r
+            ey = comp_cy + dy * comp_r
+            draw.text((ex - int(6 * s), ey - int(10 * s)), lbl,
+                      fill=self._rgb("body_secondary"), font=comp_font)
+
+        # Start dot
+        draw.ellipse([cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r],
+                     fill=self._rgb("green"))
+        draw.text((cx + int(12 * s), cy - int(14 * s)), start_label,
+                  fill=self._rgb("green"), font=lbl_font)
+
+        # Draw moves
+        px, py = cx, cy
+        for move in moves:
+            d = move.get("direction", "").lower().replace("-", "").replace(" ", "")
+            dist = move.get("distance", "")
+            dx, dy = dir_map.get(d, (0, 0))
+            nx = px + dx * arrow_len
+            ny = py + dy * arrow_len
+
+            draw.line([px, py, nx, ny], fill=self._rgb("blue"), width=int(3 * s))
+            # Arrowhead
+            draw.ellipse([nx - int(4 * s), ny - int(4 * s),
+                          nx + int(4 * s), ny + int(4 * s)],
+                         fill=self._rgb("blue"))
+            # Distance label
+            mid_x = (px + nx) // 2
+            mid_y = (py + ny) // 2
+            draw.text((mid_x + int(8 * s), mid_y - int(16 * s)),
+                      dist, fill=self._rgb("orange"), font=font)
+            px, py = nx, ny
+
+        # End dot
+        draw.ellipse([px - dot_r, py - dot_r, px + dot_r, py + dot_r],
+                     fill=self._rgb("red"))
+        draw.text((px + int(12 * s), py - int(14 * s)), end_label,
+                  fill=self._rgb("red"), font=lbl_font)
+
+        return max(cy + int(200 * s), py + int(40 * s))
+
+    def _draw_ranking_order(self, draw, frame, element, y):
+        """Linear ranking / position visualization.
+
+        JSON: { "target": "ranking_order",
+                "heading": "Height Order (Tallest → Shortest)",
+                "items": ["Ram", "Shyam", "Gita", "Priya", "Hari"],
+                "highlight": ["Gita"],
+                "numbered": true }
+        """
+        heading  = element.get("heading", "")
+        items    = element.get("items", [])
+        highlight = set(element.get("highlight", []))
+        numbered = element.get("numbered", True)
+        s = self.scale
+        if not items:
+            return y
+
+        head_font = _get_font(int(40 * s), bold=True)
+        name_font = _get_font(int(34 * s), bold=True)
+        num_font  = _get_font(int(26 * s), bold=True)
+        pad_y = int(20 * s)
+        chip_h = int(52 * s)
+        chip_gap = int(12 * s)
+
+        if heading:
+            hw = draw.textlength(heading, font=head_font)
+            draw.text(((self.width - hw) / 2, y), heading,
+                      fill=self._rgb("note_text"), font=head_font)
+            y += int(52 * s)
+
+        n = len(items)
+        chip_w = min(int(160 * s), (self.content_w - (n - 1) * chip_gap) // n)
+        total_w = n * chip_w + (n - 1) * chip_gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        # Connecting line
+        line_y = y + chip_h // 2
+        draw.line([start_x, line_y, start_x + total_w, line_y],
+                  fill=(200, 200, 220), width=int(3 * s))
+
+        for i, item in enumerate(items):
+            ix = start_x + i * (chip_w + chip_gap)
+            is_hl = item in highlight
+            bg = self._rgb("orange") if is_hl else self._rgb("concept_blue_bg")
+            fc = (255, 255, 255) if is_hl else self._rgb("blue")
+            border = self._rgb("orange") if is_hl else self._rgb("blue")
+
+            draw.rounded_rectangle(
+                [ix, y, ix + chip_w, y + chip_h],
+                radius=int(8 * s), fill=bg, outline=border, width=int(2 * s),
+            )
+            label = f"{i+1}. {item}" if numbered else item
+            lw = draw.textlength(label, font=name_font)
+            # Truncate if needed
+            if lw > chip_w - int(12 * s):
+                label = item[:6] + ".."
+                lw = draw.textlength(label, font=name_font)
+            draw.text((ix + (chip_w - lw) / 2, y + (chip_h - name_font.size) / 2),
+                      label, fill=fc, font=name_font)
+
+        return y + chip_h + pad_y
+
+    def _draw_series_pattern(self, draw, frame, element, y):
+        """Number/letter series with difference arrows.
+
+        JSON: { "target": "series_pattern",
+                "series": [2, 5, 10, 17, 26],
+                "differences": ["+3", "+5", "+7", "+9"],
+                "next": "?",
+                "next_diff": "+11" }
+        """
+        series = element.get("series", [])
+        diffs  = element.get("differences", [])
+        nxt    = element.get("next", "")
+        nxt_diff = element.get("next_diff", "")
+        s = self.scale
+        if not series:
+            return y
+
+        num_font = _get_font(int(44 * s), bold=True)
+        diff_font = _get_font(int(28 * s), bold=True)
+        box_size = int(72 * s)
+        gap = int(50 * s)
+
+        all_items = [str(v) for v in series]
+        if nxt:
+            all_items.append(str(nxt))
+        all_diffs = list(diffs)
+        if nxt_diff:
+            all_diffs.append(nxt_diff)
+
+        n = len(all_items)
+        total_w = n * box_size + (n - 1) * gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        for i, val in enumerate(all_items):
+            bx = start_x + i * (box_size + gap)
+            is_unknown = (val == "?" or val == str(nxt))
+            bg = (255, 243, 224) if is_unknown else self._rgb("concept_blue_bg")
+            border = self._rgb("orange") if is_unknown else self._rgb("blue")
+
+            draw.rounded_rectangle(
+                [bx, y, bx + box_size, y + box_size],
+                radius=int(8 * s), fill=bg, outline=border, width=int(2 * s),
+            )
+            vw = draw.textlength(val, font=num_font)
+            draw.text((bx + (box_size - vw) / 2, y + (box_size - num_font.size) / 2),
+                      val, fill=self._rgb("orange") if is_unknown else self._rgb("blue"),
+                      font=num_font)
+
+            # Difference arrow above
+            if i < len(all_diffs):
+                ax = bx + box_size
+                ay = y - int(8 * s)
+                # Curved arrow
+                draw.line([ax + int(4 * s), ay, ax + gap - int(4 * s), ay],
+                          fill=self._rgb("orange"), width=int(2 * s))
+                dw = draw.textlength(all_diffs[i], font=diff_font)
+                draw.text((ax + (gap - dw) / 2, ay - int(26 * s)),
+                          all_diffs[i], fill=self._rgb("orange"), font=diff_font)
+
+        return y + box_size + int(24 * s)
+
+    def _draw_amendment_card(self, draw, frame, element, y):
+        """Constitutional amendment / article card — polity.
+
+        JSON: { "target": "amendment_card",
+                "number": "Article 21",
+                "title": "Right to Life",
+                "description": "No person shall be deprived of his life or personal liberty...",
+                "category": "Fundamental Rights",
+                "color": "blue" }
+        """
+        number = element.get("number", "")
+        title  = element.get("title", "")
+        desc   = element.get("description", "")
+        category = element.get("category", "")
+        color  = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        num_font  = _get_font(int(56 * s), bold=True)
+        title_font = _get_font(int(42 * s), bold=True)
+        desc_font  = _get_font(int(36 * s))
+        cat_font   = _get_font(int(26 * s), bold=True)
+        pad_x = int(48 * s)
+        pad_y = int(32 * s)
+
+        max_w = self.content_w - 2 * pad_x
+        desc_lines = self._wrap_text(desc, desc_font, max_w) if desc else []
+        line_h = int(desc_font.size * 1.5)
+        card_h = int(num_font.size * 1.4) + int(title_font.size * 1.4) + \
+                 len(desc_lines) * line_h + 2 * pad_y + int(40 * s)
+        cx = self.content_x
+
+        # Top accent band
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(12 * s), fill=(255, 255, 255),
+        )
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + int(8 * s)],
+            radius=0, fill=accent,
+        )
+        draw.rectangle([cx, y, cx + int(8 * s), y + card_h], fill=accent)
+
+        cy = y + pad_y + int(8 * s)
+        if category:
+            cw = draw.textlength(category.upper(), font=cat_font) + int(20 * s)
+            draw.rounded_rectangle(
+                [cx + self.content_w - pad_x - cw, cy - int(4 * s),
+                 cx + self.content_w - pad_x, cy + int(28 * s)],
+                radius=int(4 * s), fill=accent,
+            )
+            draw.text((cx + self.content_w - pad_x - cw + int(10 * s), cy),
+                      category.upper(), fill=(255, 255, 255), font=cat_font)
+
+        draw.text((cx + pad_x, cy), number, fill=accent, font=num_font)
+        cy += int(num_font.size * 1.4)
+        draw.text((cx + pad_x, cy), title, fill=self._rgb("body_text"), font=title_font)
+        cy += int(title_font.size * 1.4)
+        cy += int(8 * s)
+        for line in desc_lines:
+            draw.text((cx + pad_x, cy), line,
+                      fill=self._rgb("body_secondary"), font=desc_font)
+            cy += line_h
+        return y + card_h
+
+    def _draw_person_card(self, draw, frame, element, y):
+        """Person profile card — historical figures, scientists, leaders.
+
+        JSON: { "target": "person_card",
+                "name": "Mahatma Gandhi",
+                "title": "Father of the Nation",
+                "facts": {"Born": "1869", "Died": "1948", "Known for": "Non-violence"},
+                "image_path": "",
+                "color": "orange" }
+        """
+        name  = element.get("name", "")
+        title = element.get("title", "")
+        facts = element.get("facts", {})
+        img_path = element.get("image_path", element.get("src_path", ""))
+        color = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        name_font  = _get_font(int(48 * s), bold=True)
+        title_font = _get_font(int(34 * s))
+        key_font   = _get_font(int(30 * s), bold=True)
+        val_font   = _get_font(int(30 * s))
+        pad_x = int(48 * s)
+        pad_y = int(32 * s)
+
+        fact_h = len(facts) * int(42 * s)
+        card_h = int(name_font.size * 1.4) + int(title_font.size * 1.4) + fact_h + 2 * pad_y + int(24 * s)
+        cx = self.content_x
+        img_area_w = int(160 * s)
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(12 * s), fill=(255, 255, 255),
+        )
+        draw.rectangle([cx, y, cx + int(8 * s), y + card_h], fill=accent)
+
+        # Avatar placeholder (or image)
+        ax = cx + pad_x
+        ay = y + pad_y
+        avatar_size = int(100 * s)
+
+        if img_path and os.path.exists(img_path):
+            try:
+                img = Image.open(img_path).convert("RGB")
+                img = img.resize((avatar_size, avatar_size), Image.LANCZOS)
+                frame.paste(img, (ax, ay))
+            except Exception:
+                draw.rounded_rectangle(
+                    [ax, ay, ax + avatar_size, ay + avatar_size],
+                    radius=int(50 * s), fill=accent,
+                )
+                init = name[0] if name else "?"
+                iw = draw.textlength(init, font=name_font)
+                draw.text((ax + (avatar_size - iw) / 2, ay + (avatar_size - name_font.size) / 2),
+                          init, fill=(255, 255, 255), font=name_font)
+        else:
+            draw.rounded_rectangle(
+                [ax, ay, ax + avatar_size, ay + avatar_size],
+                radius=int(50 * s), fill=accent,
+            )
+            init = name[0] if name else "?"
+            iw = draw.textlength(init, font=name_font)
+            draw.text((ax + (avatar_size - iw) / 2, ay + (avatar_size - name_font.size) / 2),
+                      init, fill=(255, 255, 255), font=name_font)
+
+        # Text area (right of avatar)
+        tx = ax + avatar_size + int(28 * s)
+        ty = ay
+        draw.text((tx, ty), name, fill=accent, font=name_font)
+        ty += int(name_font.size * 1.4)
+        if title:
+            draw.text((tx, ty), title, fill=self._rgb("body_secondary"), font=title_font)
+        ty += int(title_font.size * 1.4) + int(12 * s)
+
+        # Facts as key: value pairs
+        for k, v in facts.items():
+            draw.text((tx, ty), f"{k}: ", fill=self._rgb("blue"), font=key_font)
+            kw = draw.textlength(f"{k}: ", font=key_font)
+            draw.text((tx + kw, ty), str(v), fill=self._rgb("body_text"), font=val_font)
+            ty += int(42 * s)
+
+        return y + card_h
+
+    def _draw_stat_card(self, draw, frame, element, y):
+        """Big number statistic card — economics, GK, current affairs.
+
+        JSON: { "target": "stat_card",
+                "stats": [
+                    {"label": "GDP Growth", "value": "7.2%", "color": "green"},
+                    {"label": "Inflation", "value": "4.5%", "color": "red"},
+                    {"label": "Fiscal Deficit", "value": "5.9%", "color": "orange"}
+                ] }
+        """
+        stats = element.get("stats", [])
+        s = self.scale
+        if not stats:
+            return y
+
+        big_font = _get_font(int(64 * s), bold=True)
+        lbl_font = _get_font(int(30 * s))
+        pad = int(24 * s)
+        card_h = int(130 * s)
+
+        n = len(stats)
+        col_w = (self.content_w - (n - 1) * int(16 * s)) // n
+
+        for i, stat in enumerate(stats):
+            sx = self.content_x + i * (col_w + int(16 * s))
+            color = stat.get("color", "blue")
+            accent = self._rgb(color if color in self.C else "blue")
+            value = str(stat.get("value", ""))
+            label = stat.get("label", "")
+
+            draw.rounded_rectangle(
+                [sx, y, sx + col_w, y + card_h],
+                radius=int(10 * s), fill=(248, 248, 255),
+            )
+            draw.rectangle([sx, y, sx + int(5 * s), y + card_h], fill=accent)
+
+            # Big value
+            vw = draw.textlength(value, font=big_font)
+            draw.text((sx + (col_w - vw) / 2, y + pad),
+                      value, fill=accent, font=big_font)
+            # Label
+            lw = draw.textlength(label, font=lbl_font)
+            draw.text((sx + (col_w - lw) / 2, y + card_h - pad - lbl_font.size),
+                      label, fill=self._rgb("body_secondary"), font=lbl_font)
+
+        return y + card_h + int(16 * s)
+
+    def _draw_split_screen(self, draw, frame, element, y):
+        """Side-by-side comparison with headers and content.
+
+        JSON: { "target": "split_screen",
+                "left":  {"heading": "Before", "content": "Old method...", "color": "red"},
+                "right": {"heading": "After",  "content": "New method...", "color": "green"} }
+        """
+        left  = element.get("left", {})
+        right = element.get("right", {})
+        s = self.scale
+
+        head_font = _get_font(int(42 * s), bold=True)
+        body_font = _get_font(int(36 * s))
+        pad_x = int(36 * s)
+        pad_y = int(28 * s)
+        col_gap = int(20 * s)
+        col_w = (self.content_w - col_gap) // 2
+        vs_font = _get_font(int(32 * s), bold=True)
+
+        # Measure height
+        max_lines = 0
+        for side in [left, right]:
+            content = side.get("content", "")
+            items = side.get("items", [])
+            if items:
+                max_lines = max(max_lines, len(items))
+            elif content:
+                wrapped = self._wrap_text(content, body_font, col_w - 2 * pad_x)
+                max_lines = max(max_lines, len(wrapped))
+
+        line_h = int(body_font.size * 1.6)
+        head_h = int(head_font.size * 1.5)
+        card_h = head_h + max_lines * line_h + 2 * pad_y
+
+        for ci, (side, default_color) in enumerate([(left, "blue"), (right, "green")]):
+            sx = self.content_x + ci * (col_w + col_gap)
+            color = side.get("color", default_color)
+            accent = self._rgb(color if color in self.C else default_color)
+            heading = side.get("heading", "")
+            content = side.get("content", "")
+            items = side.get("items", [])
+
+            # Card
+            draw.rounded_rectangle(
+                [sx, y, sx + col_w, y + card_h],
+                radius=int(10 * s), fill=(248, 250, 255),
+            )
+            # Header band
+            draw.rounded_rectangle(
+                [sx, y, sx + col_w, y + head_h + pad_y],
+                radius=int(10 * s), fill=accent,
+            )
+            draw.rectangle([sx, y + head_h, sx + col_w, y + head_h + pad_y], fill=accent)
+
+            if heading:
+                hw = draw.textlength(heading, font=head_font)
+                draw.text((sx + (col_w - hw) / 2, y + pad_y // 2),
+                          heading, fill=(255, 255, 255), font=head_font)
+
+            cy = y + head_h + pad_y + int(8 * s)
+            if items:
+                for item in items:
+                    draw.text((sx + pad_x, cy), f"\u2022 {item}",
+                              fill=self._rgb("body_text"), font=body_font)
+                    cy += line_h
+            elif content:
+                for line in self._wrap_text(content, body_font, col_w - 2 * pad_x):
+                    draw.text((sx + pad_x, cy), line,
+                              fill=self._rgb("body_text"), font=body_font)
+                    cy += line_h
+
+        # "VS" circle in center
+        vs_cx = self.content_x + col_w + col_gap // 2
+        vs_cy = y + card_h // 2
+        vs_r = int(24 * s)
+        draw.ellipse([vs_cx - vs_r, vs_cy - vs_r, vs_cx + vs_r, vs_cy + vs_r],
+                     fill=self._rgb("orange"))
+        vw = draw.textlength("VS", font=vs_font)
+        draw.text((vs_cx - vw / 2, vs_cy - vs_font.size / 2),
+                  "VS", fill=(255, 255, 255), font=vs_font)
+
+        return y + card_h
+
+    def _draw_grid_check(self, draw, frame, element, y):
+        """Options × Criteria matrix with ✔/✘ marks.
+
+        JSON: { "target": "grid_check",
+                "criteria": ["Rule of 9", "Rule of 11"],
+                "options": [
+                    {"label": "A: 277218", "checks": [true, false]},
+                    {"label": "B: 10098",  "checks": [true, true]},
+                    {"label": "C: 12345",  "checks": [false, false]},
+                    {"label": "D: 181998", "checks": [true, false]}
+                ],
+                "correct_row": 1 }
+        """
+        criteria = element.get("criteria", [])
+        options  = element.get("options", [])
+        correct_row = element.get("correct_row", -1)
+        s = self.scale
+        if not options or not criteria:
+            return y
+
+        head_font = _get_font(int(32 * s), bold=True)
+        cell_font = _get_font(int(30 * s))
+        sym_font  = _get_symbol_font(int(36 * s))
+        label_font = _get_font(int(32 * s), bold=True)
+
+        n_cols = len(criteria) + 1  # +1 for label column
+        n_rows = len(options) + 1   # +1 for header row
+        label_col_w = int(220 * s)
+        check_col_w = (self.content_w - label_col_w) // max(1, len(criteria))
+        row_h = int(56 * s)
+        hdr_h = int(50 * s)
+
+        cx = self.content_x
+
+        # Header row
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + hdr_h],
+            radius=int(8 * s), fill=self._rgb("header_bg"),
+        )
+        draw.text((cx + int(16 * s), y + int(10 * s)), "Option",
+                  fill=(255, 255, 255), font=head_font)
+        for ci, crit in enumerate(criteria):
+            ccx = cx + label_col_w + ci * check_col_w
+            cw = draw.textlength(crit, font=head_font)
+            draw.text((ccx + (check_col_w - cw) / 2, y + int(10 * s)),
+                      crit, fill=(255, 255, 255), font=head_font)
+
+        # Data rows
+        ry = y + hdr_h
+        for ri, opt in enumerate(options):
+            is_correct = (ri == correct_row)
+            row_bg = (232, 245, 233) if is_correct else \
+                     (248, 248, 255) if ri % 2 == 0 else (255, 255, 255)
+            draw.rectangle([cx, ry, cx + self.content_w, ry + row_h], fill=row_bg)
+
+            # Label
+            draw.text((cx + int(16 * s), ry + int(12 * s)),
+                      opt.get("label", ""), fill=self._rgb("body_text"), font=label_font)
+
+            # Check marks
+            for ci, passed in enumerate(opt.get("checks", [])):
+                ccx = cx + label_col_w + ci * check_col_w
+                sym = "\u2713" if passed else "\u2717"
+                sym_color = self._rgb("success") if passed else self._rgb("fail")
+                sw = draw.textlength(sym, font=sym_font)
+                draw.text((ccx + (check_col_w - sw) / 2, ry + int(8 * s)),
+                          sym, fill=sym_color, font=sym_font)
+            ry += row_h
+
+        # Bottom border
+        draw.line([cx, ry, cx + self.content_w, ry],
+                  fill=(200, 200, 220), width=int(2 * s))
+
+        return ry + int(12 * s)
+
+    def _draw_equation_steps(self, draw, frame, element, y):
+        """Step-by-step equation solving with = alignment.
+
+        JSON: { "target": "equation_steps",
+                "heading": "Solving for x",
+                "steps": [
+                    "2x + 5 = 15",
+                    "2x = 15 − 5",
+                    "2x = 10",
+                    "x = 5"
+                ],
+                "highlight_step": 3 }
+        """
+        heading = element.get("heading", "")
+        steps   = element.get("steps", [])
+        highlight_step = element.get("highlight_step", -1)
+        s = self.scale
+
+        head_font = _get_font(int(42 * s), bold=True)
+        step_font = _get_math_font(int(44 * s))
+        num_font  = _get_font(int(26 * s))
+        pad_x = int(60 * s)
+        pad_y = int(28 * s)
+        line_h = int(step_font.size * 1.9)
+        head_h = int(head_font.size * 1.5) if heading else 0
+        card_h = head_h + len(steps) * line_h + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(10 * s), fill=(248, 248, 255),
+        )
+        draw.rectangle([cx, y, cx + int(5 * s), y + card_h], fill=self._rgb("blue"))
+
+        cy = y + pad_y
+        if heading:
+            draw.text((cx + pad_x, cy), heading, fill=self._rgb("blue"), font=head_font)
+            cy += head_h
+
+        for i, step in enumerate(steps):
+            is_hl = (i == highlight_step)
+            if is_hl:
+                draw.rounded_rectangle(
+                    [cx + pad_x - int(8 * s), cy - int(4 * s),
+                     cx + self.content_w - pad_x, cy + line_h - int(4 * s)],
+                    radius=int(6 * s), fill=(255, 243, 224),
+                )
+            # Step number
+            draw.text((cx + pad_x, cy + int(10 * s)),
+                      f"({i+1})", fill=self._rgb("body_secondary"), font=num_font)
+            # Equation text — try to align on '='
+            eq_x = cx + pad_x + int(50 * s)
+            text_color = self._rgb("orange") if is_hl else self._rgb("body_text")
+            draw.text((eq_x, cy), step, fill=text_color, font=step_font)
+            cy += line_h
+
+        return y + card_h
+
+    def _draw_web_image(self, draw, frame, element, y):
+        """Image loaded from URL — resolved by pipeline.
+
+        JSON: { "target": "web_image",
+                "url": "https://example.com/image.png",
+                "caption": "Diagram",
+                "size": "medium|large|small" }
+        """
+        src_path = element.get("src_path", element.get("_resolved_path", ""))
+        caption  = element.get("caption", "")
+        size     = element.get("size", "medium")
+        s = self.scale
+
+        size_map = {"small": 0.25, "medium": 0.35, "large": 0.50}
+        max_h = int(self.height * size_map.get(size, 0.35))
+        max_w = int(self.content_w * 0.85)
+        cap_font = _get_font(int(28 * s))
+
+        if src_path and os.path.exists(src_path):
+            try:
+                img = Image.open(src_path).convert("RGB")
+                ratio = min(max_w / img.width, max_h / img.height)
+                new_w, new_h = int(img.width * ratio), int(img.height * ratio)
+                img = img.resize((new_w, new_h), Image.LANCZOS)
+                px = self.content_x + (self.content_w - new_w) // 2
+                frame.paste(img, (px, int(y)))
+                y += new_h + int(8 * s)
+                if caption:
+                    cw = draw.textlength(caption, font=cap_font)
+                    draw.text(((self.width - cw) / 2, y), caption,
+                              fill=self._rgb("body_secondary"), font=cap_font)
+                    y += int(36 * s)
+                return y
+            except Exception:
+                pass
+
+        # Fallback: placeholder
+        ph_h = int(120 * s)
+        draw.rounded_rectangle(
+            [self.content_x + int(100 * s), y,
+             self.content_x + self.content_w - int(100 * s), y + ph_h],
+            radius=int(10 * s), fill=(240, 240, 245), outline=(200, 200, 210),
+        )
+        ph_text = caption or "(Image)"
+        pw = draw.textlength(ph_text, font=cap_font)
+        draw.text(((self.width - pw) / 2, y + (ph_h - cap_font.size) / 2),
+                  ph_text, fill=self._rgb("body_secondary"), font=cap_font)
+        return y + ph_h + int(12 * s)
+
+    def _draw_web_gif(self, draw, frame, element, y):
+        """GIF loaded from URL — first frame rendered as still.
+
+        JSON: { "target": "web_gif",
+                "url": "https://example.com/anim.gif",
+                "caption": "Animation" }
+        """
+        # GIFs are resolved to local path by pipeline; render first frame
+        return self._draw_web_image(draw, frame, element, y)
+
+    def _draw_web_video(self, draw, frame, element, y):
+        """Video clip from URL — rendered as still poster with play icon.
+
+        JSON: { "target": "web_video",
+                "url": "https://example.com/clip.mp4",
+                "caption": "Experiment Demo" }
+        """
+        return self._draw_video_clip(draw, frame, element, y)
+
+    def _draw_google_image(self, draw, frame, element, y):
+        """Auto-searched image from Google/providers — resolved by pipeline.
+
+        JSON: { "target": "google_image",
+                "query": "solar system diagram",
+                "caption": "Solar System",
+                "size": "medium" }
+        """
+        return self._draw_web_image(draw, frame, element, y)
+
+    # ------------------------------------------------------------------
+    # BATCH 2 — 18 MORE ULTRA-PRO RENDER TARGETS
+    # ------------------------------------------------------------------
+
+    def _draw_truth_table(self, draw, frame, element, y):
+        """Boolean logic truth table — CS, reasoning, discrete math.
+
+        JSON: { "target": "truth_table",
+                "heading": "AND Gate",
+                "variables": ["p", "q"],
+                "expression": "p ∧ q",
+                "rows": [[true,true,true],[true,false,false],[false,true,false],[false,false,false]],
+                "highlight_row": 0 }
+        """
+        heading = element.get("heading", "")
+        variables = element.get("variables", ["p", "q"])
+        expression = element.get("expression", "")
+        rows = element.get("rows", [])
+        highlight_row = element.get("highlight_row", -1)
+        s = self.scale
+
+        head_font = _get_font(int(36 * s), bold=True)
+        cell_font = _get_font(int(32 * s))
+        sym_font = _get_symbol_font(int(34 * s))
+        pad_x = int(24 * s)
+        row_h = int(50 * s)
+        hdr_h = int(48 * s)
+
+        cols = variables + ([expression] if expression else [])
+        n_cols = len(cols)
+        col_w = min(int(180 * s), self.content_w // max(1, n_cols))
+        total_w = n_cols * col_w
+        cx = self.content_x + (self.content_w - total_w) // 2
+
+        if heading:
+            hw = draw.textlength(heading, font=head_font)
+            draw.text(((self.width - hw) / 2, y), heading,
+                      fill=self._rgb("note_text"), font=head_font)
+            y += int(48 * s)
+
+        # Header row
+        draw.rounded_rectangle(
+            [cx, y, cx + total_w, y + hdr_h],
+            radius=int(6 * s), fill=self._rgb("header_bg"),
+        )
+        for ci, col_name in enumerate(cols):
+            ccx = cx + ci * col_w
+            cw = draw.textlength(col_name, font=head_font)
+            draw.text((ccx + (col_w - cw) / 2, y + int(8 * s)),
+                      col_name, fill=(255, 255, 255), font=head_font)
+
+        # Data rows
+        ry = y + hdr_h
+        for ri, row in enumerate(rows):
+            is_hl = (ri == highlight_row)
+            row_bg = (255, 243, 224) if is_hl else \
+                     (248, 248, 255) if ri % 2 == 0 else (255, 255, 255)
+            draw.rectangle([cx, ry, cx + total_w, ry + row_h], fill=row_bg)
+
+            for ci, val in enumerate(row):
+                ccx = cx + ci * col_w
+                if isinstance(val, bool):
+                    txt = "T" if val else "F"
+                    color = self._rgb("success") if val else self._rgb("fail")
+                else:
+                    txt = str(val)
+                    color = self._rgb("body_text")
+                tw = draw.textlength(txt, font=cell_font)
+                draw.text((ccx + (col_w - tw) / 2, ry + int(10 * s)),
+                          txt, fill=color, font=cell_font)
+            ry += row_h
+
+        draw.line([cx, ry, cx + total_w, ry], fill=(200, 200, 220), width=int(2 * s))
+        return ry + int(12 * s)
+
+    def _draw_law_card(self, draw, frame, element, y):
+        """Named scientific law / theorem card — Physics, Chemistry.
+
+        JSON: { "target": "law_card",
+                "name": "Newton's Second Law",
+                "formula": "F = ma",
+                "statement": "Force equals mass times acceleration.",
+                "units": "F in Newtons, m in kg, a in m/s²",
+                "color": "blue" }
+        """
+        name = element.get("name", "")
+        formula = element.get("formula", "")
+        statement = element.get("statement", "")
+        units = element.get("units", "")
+        color = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        name_font = _get_font(int(44 * s), bold=True)
+        form_font = _get_math_font(int(56 * s))
+        stmt_font = _get_font(int(36 * s))
+        unit_font = _get_font(int(28 * s))
+        pad_x = int(52 * s)
+        pad_y = int(28 * s)
+
+        max_w = self.content_w - 2 * pad_x
+        stmt_lines = self._wrap_text(statement, stmt_font, max_w) if statement else []
+        line_h = int(stmt_font.size * 1.5)
+        form_h = int(form_font.size * 1.6) if formula else 0
+        unit_h = int(40 * s) if units else 0
+        card_h = int(name_font.size * 1.5) + form_h + len(stmt_lines) * line_h + unit_h + 2 * pad_y + int(24 * s)
+        cx = self.content_x
+
+        # Card with gradient-style top band
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(14 * s), fill=(255, 255, 255),
+        )
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + int(60 * s)],
+            radius=int(14 * s), fill=accent,
+        )
+        draw.rectangle([cx, y + int(40 * s), cx + self.content_w, y + int(60 * s)], fill=accent)
+        draw.rectangle([cx, y, cx + int(8 * s), y + card_h], fill=accent)
+
+        cy = y + int(10 * s)
+        # Law name in white on accent band
+        nw = draw.textlength(name, font=name_font)
+        draw.text(((self.width - nw) / 2, cy), name,
+                  fill=(255, 255, 255), font=name_font)
+        cy += int(60 * s) + int(12 * s)
+
+        # Formula centered, large
+        if formula:
+            fw = draw.textlength(formula, font=form_font)
+            draw.text(((self.width - fw) / 2, cy), formula,
+                      fill=accent, font=form_font)
+            cy += form_h
+
+        # Statement
+        for line in stmt_lines:
+            lw = draw.textlength(line, font=stmt_font)
+            draw.text(((self.width - lw) / 2, cy), line,
+                      fill=self._rgb("body_text"), font=stmt_font)
+            cy += line_h
+
+        # Units
+        if units:
+            cy += int(8 * s)
+            uw = draw.textlength(units, font=unit_font)
+            draw.text(((self.width - uw) / 2, cy), units,
+                      fill=self._rgb("body_secondary"), font=unit_font)
+
+        return y + card_h
+
+    def _draw_tip_box(self, draw, frame, element, y):
+        """Exam shortcut / quick tip box — all subjects.
+
+        JSON: { "target": "tip_box",
+                "title": "Quick Tip",
+                "text": "Multiply by 11: write digits, insert sum in middle.",
+                "color": "green" }
+        """
+        title = element.get("title", "Quick Tip")
+        text = element.get("text", element.get("value", ""))
+        color = element.get("color", "green")
+        s = self.scale
+
+        color_map = {
+            "green": ((46, 125, 50), (232, 245, 233), "\u2728"),
+            "blue":  ((21, 101, 192), (227, 242, 253), "\U0001f4a1"),
+            "orange": ((239, 108, 0), (255, 243, 224), "\u26A1"),
+        }
+        fg, bg, icon = color_map.get(color, color_map["green"])
+
+        title_font = _get_font(int(42 * s), bold=True)
+        text_font = _get_font(int(38 * s))
+        icon_font = _get_symbol_font(int(48 * s))
+        pad_x = int(52 * s)
+        pad_y = int(28 * s)
+
+        max_w = self.content_w - 2 * pad_x - int(60 * s)
+        lines = self._wrap_text(text, text_font, max_w)
+        line_h = int(text_font.size * 1.5)
+        title_h = int(title_font.size * 1.5)
+        card_h = title_h + len(lines) * line_h + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(12 * s), fill=bg,
+        )
+        draw.rectangle([cx, y, cx + int(7 * s), y + card_h], fill=fg)
+
+        # Icon + title
+        cy = y + pad_y
+        draw.text((cx + pad_x, cy - int(4 * s)), icon, fill=fg, font=icon_font)
+        draw.text((cx + pad_x + int(52 * s), cy), title, fill=fg, font=title_font)
+        cy += title_h
+
+        for line in lines:
+            draw.text((cx + pad_x + int(52 * s), cy), line,
+                      fill=self._rgb("body_text"), font=text_font)
+            cy += line_h
+        return y + card_h
+
+    def _draw_warning_box(self, draw, frame, element, y):
+        """Common mistake / trap warning — all subjects.
+
+        JSON: { "target": "warning_box",
+                "title": "Common Mistake",
+                "text": "Students forget to check divisibility by 11 after passing rule of 9." }
+        """
+        title = element.get("title", "Common Mistake")
+        text = element.get("text", element.get("value", ""))
+        s = self.scale
+
+        fg = self._rgb("fail")
+        bg = (255, 235, 238)
+
+        title_font = _get_font(int(42 * s), bold=True)
+        text_font = _get_font(int(38 * s))
+        icon_font = _get_symbol_font(int(48 * s))
+        pad_x = int(52 * s)
+        pad_y = int(28 * s)
+
+        max_w = self.content_w - 2 * pad_x - int(60 * s)
+        lines = self._wrap_text(text, text_font, max_w)
+        line_h = int(text_font.size * 1.5)
+        title_h = int(title_font.size * 1.5)
+        card_h = title_h + len(lines) * line_h + 2 * pad_y
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(12 * s), fill=bg,
+        )
+        draw.rectangle([cx, y, cx + int(7 * s), y + card_h], fill=fg)
+
+        cy = y + pad_y
+        draw.text((cx + pad_x, cy - int(4 * s)), "\u26A0", fill=fg, font=icon_font)
+        draw.text((cx + pad_x + int(52 * s), cy), title, fill=fg, font=title_font)
+        cy += title_h
+
+        for line in lines:
+            draw.text((cx + pad_x + int(52 * s), cy), line,
+                      fill=self._rgb("body_text"), font=text_font)
+            cy += line_h
+        return y + card_h
+
+    def _draw_event_card(self, draw, frame, element, y):
+        """Event card — GK / current affairs / history.
+
+        JSON: { "target": "event_card",
+                "date": "15 August 1947",
+                "title": "Indian Independence",
+                "place": "New Delhi",
+                "significance": "India gained freedom from British rule after 200 years.",
+                "color": "orange" }
+        """
+        date = element.get("date", "")
+        title = element.get("title", "")
+        place = element.get("place", "")
+        significance = element.get("significance", "")
+        color = element.get("color", "orange")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "orange")
+        date_font = _get_font(int(52 * s), bold=True)
+        title_font = _get_font(int(42 * s), bold=True)
+        detail_font = _get_font(int(34 * s))
+        pad_x = int(52 * s)
+        pad_y = int(28 * s)
+
+        max_w = self.content_w - 2 * pad_x
+        sig_lines = self._wrap_text(significance, detail_font, max_w) if significance else []
+        line_h = int(detail_font.size * 1.5)
+        card_h = int(date_font.size * 1.4) + int(title_font.size * 1.4) + \
+                 (int(36 * s) if place else 0) + len(sig_lines) * line_h + 2 * pad_y + int(20 * s)
+        cx = self.content_x
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(14 * s), fill=(255, 255, 255),
+        )
+        draw.rectangle([cx, y, cx + int(8 * s), y + card_h], fill=accent)
+
+        cy = y + pad_y
+        # Big date
+        draw.text((cx + pad_x, cy), date, fill=accent, font=date_font)
+        cy += int(date_font.size * 1.4)
+        # Title
+        draw.text((cx + pad_x, cy), title, fill=self._rgb("body_text"), font=title_font)
+        cy += int(title_font.size * 1.4)
+        # Place
+        if place:
+            draw.text((cx + pad_x, cy), f"\U0001F4CD {place}",
+                      fill=self._rgb("body_secondary"), font=detail_font)
+            cy += int(36 * s)
+        # Divider
+        cy += int(4 * s)
+        draw.line([cx + pad_x, cy, cx + self.content_w - pad_x, cy],
+                  fill=(220, 220, 230), width=int(2 * s))
+        cy += int(12 * s)
+        # Significance
+        for line in sig_lines:
+            draw.text((cx + pad_x, cy), line,
+                      fill=self._rgb("body_text"), font=detail_font)
+            cy += line_h
+        return y + card_h
+
+    def _draw_word_breakdown(self, draw, frame, element, y):
+        """Prefix + root + suffix breakdown — English vocabulary.
+
+        JSON: { "target": "word_breakdown",
+                "word": "unhappiness",
+                "parts": [
+                    {"text": "un-", "type": "prefix", "meaning": "not"},
+                    {"text": "happy", "type": "root", "meaning": "feeling joy"},
+                    {"text": "-ness", "type": "suffix", "meaning": "state of"}
+                ] }
+        """
+        word = element.get("word", "")
+        parts = element.get("parts", [])
+        s = self.scale
+
+        word_font = _get_font(int(52 * s), bold=True)
+        part_font = _get_font(int(40 * s), bold=True)
+        type_font = _get_font(int(26 * s), bold=True)
+        mean_font = _get_font(int(30 * s))
+        pad_y = int(28 * s)
+
+        type_colors = {
+            "prefix": self._rgb("blue"),
+            "root": self._rgb("green"),
+            "suffix": self._rgb("orange"),
+        }
+        type_bgs = {
+            "prefix": (227, 242, 253),
+            "root": (232, 245, 233),
+            "suffix": (255, 243, 224),
+        }
+
+        # Word header
+        ww = draw.textlength(word, font=word_font)
+        draw.text(((self.width - ww) / 2, y), word,
+                  fill=self._rgb("note_text"), font=word_font)
+        y += int(word_font.size * 1.6)
+
+        # Parts side by side
+        n = len(parts)
+        gap = int(16 * s)
+        box_w = min(int(280 * s), (self.content_w - (n - 1) * gap) // max(1, n))
+        box_h = int(120 * s)
+        total_w = n * box_w + (n - 1) * gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        # Connecting line
+        if n > 1:
+            draw.line([start_x + box_w // 2, y + box_h // 2,
+                       start_x + total_w - box_w // 2, y + box_h // 2],
+                      fill=(200, 200, 220), width=int(2 * s))
+
+        for i, part in enumerate(parts):
+            px = start_x + i * (box_w + gap)
+            ptype = part.get("type", "root")
+            ptext = part.get("text", "")
+            pmean = part.get("meaning", "")
+            fg = type_colors.get(ptype, self._rgb("blue"))
+            bg = type_bgs.get(ptype, (240, 240, 255))
+
+            draw.rounded_rectangle(
+                [px, y, px + box_w, y + box_h],
+                radius=int(10 * s), fill=bg, outline=fg, width=int(2 * s),
+            )
+            # Type badge at top
+            tw = draw.textlength(ptype.upper(), font=type_font) + int(16 * s)
+            draw.rounded_rectangle(
+                [px + (box_w - tw) // 2, y - int(4 * s),
+                 px + (box_w + tw) // 2, y + int(24 * s)],
+                radius=int(4 * s), fill=fg,
+            )
+            btw = draw.textlength(ptype.upper(), font=type_font)
+            draw.text((px + (box_w - btw) / 2, y), ptype.upper(),
+                      fill=(255, 255, 255), font=type_font)
+
+            # Part text
+            ptw = draw.textlength(ptext, font=part_font)
+            draw.text((px + (box_w - ptw) / 2, y + int(32 * s)),
+                      ptext, fill=fg, font=part_font)
+            # Meaning
+            if pmean:
+                mw = draw.textlength(pmean, font=mean_font)
+                draw.text((px + (box_w - mw) / 2, y + int(76 * s)),
+                          pmean, fill=self._rgb("body_secondary"), font=mean_font)
+
+        return y + box_h + int(20 * s)
+
+    def _draw_fill_blank_sentence(self, draw, frame, element, y):
+        """Sentence with _____ blank + answer reveal — English.
+
+        JSON: { "target": "fill_blank_sentence",
+                "sentence": "The sun _____ in the east.",
+                "answer": "rises",
+                "revealed": true }
+        """
+        sentence = element.get("sentence", "")
+        answer = element.get("answer", "")
+        revealed = element.get("revealed", False)
+        s = self.scale
+
+        sent_font = _get_font(int(44 * s))
+        ans_font = _get_font(int(46 * s), bold=True)
+        pad_x = int(60 * s)
+        pad_y = int(36 * s)
+        cx = self.content_x
+
+        # Split on blank
+        if "_____" in sentence:
+            parts = sentence.split("_____", 1)
+        elif "___" in sentence:
+            parts = sentence.split("___", 1)
+        else:
+            parts = [sentence, ""]
+
+        card_h = int(120 * s)
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(12 * s), fill=(248, 248, 255),
+        )
+        draw.rectangle([cx, y, cx + int(5 * s), y + card_h], fill=self._rgb("blue"))
+
+        # Draw sentence with blank
+        tx = cx + pad_x
+        ty = y + pad_y
+        draw.text((tx, ty), parts[0], fill=self._rgb("body_text"), font=sent_font)
+        tx += draw.textlength(parts[0], font=sent_font)
+
+        if revealed:
+            # Show answer in green
+            draw.text((tx, ty - int(4 * s)), answer,
+                      fill=self._rgb("success"), font=ans_font)
+            # Underline
+            aw = draw.textlength(answer, font=ans_font)
+            draw.line([tx, ty + ans_font.size + int(4 * s),
+                       tx + aw, ty + ans_font.size + int(4 * s)],
+                      fill=self._rgb("success"), width=int(3 * s))
+            tx += aw
+        else:
+            # Show blank line
+            blank_w = int(150 * s)
+            draw.line([tx, ty + sent_font.size + int(4 * s),
+                       tx + blank_w, ty + sent_font.size + int(4 * s)],
+                      fill=self._rgb("body_secondary"), width=int(3 * s))
+            tx += blank_w
+
+        if len(parts) > 1:
+            draw.text((tx, ty), parts[1], fill=self._rgb("body_text"), font=sent_font)
+
+        return y + card_h
+
+    def _draw_venn_operations(self, draw, frame, element, y):
+        """Venn diagram with shaded regions for set operations.
+
+        JSON: { "target": "venn_operations",
+                "set_a": "A", "set_b": "B",
+                "operation": "intersection|union|a_minus_b|b_minus_a|complement",
+                "label": "A ∩ B" }
+        """
+        set_a = element.get("set_a", "A")
+        set_b = element.get("set_b", "B")
+        operation = element.get("operation", "intersection")
+        label = element.get("label", "")
+        s = self.scale
+
+        lbl_font = _get_font(int(40 * s), bold=True)
+        set_font = _get_font(int(32 * s), bold=True)
+        r = int(110 * s)
+        overlap = int(60 * s)
+        cx_center = self.content_x + self.content_w // 2
+        cy_center = y + r + int(50 * s)
+        cx_a = cx_center - overlap // 2
+        cx_b = cx_center + overlap // 2
+
+        # Label
+        if label:
+            lw = draw.textlength(label, font=lbl_font)
+            draw.text(((self.width - lw) / 2, y), label,
+                      fill=self._rgb("note_text"), font=lbl_font)
+
+        # Universal set rectangle
+        rect_pad = int(40 * s)
+        draw.rounded_rectangle(
+            [cx_center - r - overlap - rect_pad, cy_center - r - rect_pad,
+             cx_center + r + overlap + rect_pad, cy_center + r + rect_pad],
+            radius=int(8 * s), outline=(180, 180, 200), width=int(2 * s),
+        )
+
+        # Draw using PIL image compositing for proper shading
+        from PIL import ImageDraw as ID2
+        mask = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+        md = ID2.Draw(mask)
+
+        shade_a = (21, 101, 192, 60)
+        shade_b = (239, 108, 0, 60)
+        shade_both = (128, 0, 128, 80)
+
+        if operation == "union":
+            md.ellipse([cx_a - r, cy_center - r, cx_a + r, cy_center + r], fill=shade_a)
+            md.ellipse([cx_b - r, cy_center - r, cx_b + r, cy_center + r], fill=shade_b)
+        elif operation == "intersection":
+            # Draw both circles lightly, intersection darker via overlap
+            md.ellipse([cx_a - r, cy_center - r, cx_a + r, cy_center + r], fill=shade_a)
+            md.ellipse([cx_b - r, cy_center - r, cx_b + r, cy_center + r], fill=shade_a)
+        elif operation == "a_minus_b":
+            md.ellipse([cx_a - r, cy_center - r, cx_a + r, cy_center + r], fill=shade_a)
+        elif operation == "b_minus_a":
+            md.ellipse([cx_b - r, cy_center - r, cx_b + r, cy_center + r], fill=shade_b)
+        elif operation == "complement":
+            md.rectangle([cx_center - r - overlap - rect_pad, cy_center - r - rect_pad,
+                          cx_center + r + overlap + rect_pad, cy_center + r + rect_pad],
+                         fill=(200, 200, 220, 40))
+
+        frame.paste(Image.alpha_composite(
+            frame.convert("RGBA"), mask).convert("RGB"), (0, 0))
+
+        # Circle outlines
+        draw_new = ImageDraw.Draw(frame)
+        draw_new.ellipse([cx_a - r, cy_center - r, cx_a + r, cy_center + r],
+                         outline=self._rgb("blue"), width=int(3 * s))
+        draw_new.ellipse([cx_b - r, cy_center - r, cx_b + r, cy_center + r],
+                         outline=self._rgb("orange"), width=int(3 * s))
+
+        # Set labels
+        draw_new.text((cx_a - r + int(20 * s), cy_center - int(12 * s)),
+                      set_a, fill=self._rgb("blue"), font=set_font)
+        draw_new.text((cx_b + r - int(50 * s), cy_center - int(12 * s)),
+                      set_b, fill=self._rgb("orange"), font=set_font)
+
+        return cy_center + r + rect_pad + int(20 * s)
+
+    def _draw_mirror_image(self, draw, frame, element, y):
+        """Mirror / water reflection visualization — non-verbal reasoning.
+
+        JSON: { "target": "mirror_image",
+                "original": "AMBULANCE",
+                "mirrored": "ECNALUBMA",
+                "mirror_type": "vertical|horizontal",
+                "label": "Mirror Image" }
+        """
+        original = element.get("original", "")
+        mirrored = element.get("mirrored", "")
+        mirror_type = element.get("mirror_type", "vertical")
+        label_text = element.get("label", "Mirror Image")
+        s = self.scale
+
+        big_font = _get_font(int(52 * s), bold=True)
+        lbl_font = _get_font(int(32 * s), bold=True)
+        tag_font = _get_font(int(26 * s))
+        pad = int(40 * s)
+
+        # Label
+        lw = draw.textlength(label_text, font=lbl_font)
+        draw.text(((self.width - lw) / 2, y), label_text,
+                  fill=self._rgb("note_text"), font=lbl_font)
+        y += int(48 * s)
+
+        box_w = int(400 * s)
+        box_h = int(100 * s)
+        gap = int(60 * s)
+        total_w = 2 * box_w + gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        # Original box
+        draw.rounded_rectangle(
+            [start_x, y, start_x + box_w, y + box_h],
+            radius=int(10 * s), fill=(227, 242, 253), outline=self._rgb("blue"), width=int(2 * s),
+        )
+        draw.text((start_x + int(12 * s), y - int(2 * s)), "Original",
+                  fill=self._rgb("blue"), font=tag_font)
+        ow = draw.textlength(original, font=big_font)
+        draw.text((start_x + (box_w - ow) / 2, y + (box_h - big_font.size) / 2),
+                  original, fill=self._rgb("blue"), font=big_font)
+
+        # Mirror line
+        mx = start_x + box_w + gap // 2
+        draw.line([mx, y - int(10 * s), mx, y + box_h + int(10 * s)],
+                  fill=(180, 180, 200), width=int(3 * s))
+        draw.text((mx - int(30 * s), y + box_h + int(14 * s)), "Mirror",
+                  fill=self._rgb("body_secondary"), font=tag_font)
+
+        # Mirrored box
+        mx2 = start_x + box_w + gap
+        draw.rounded_rectangle(
+            [mx2, y, mx2 + box_w, y + box_h],
+            radius=int(10 * s), fill=(255, 243, 224), outline=self._rgb("orange"), width=int(2 * s),
+        )
+        draw.text((mx2 + int(12 * s), y - int(2 * s)), "Reflection",
+                  fill=self._rgb("orange"), font=tag_font)
+        mw = draw.textlength(mirrored, font=big_font)
+        draw.text((mx2 + (box_w - mw) / 2, y + (box_h - big_font.size) / 2),
+                  mirrored, fill=self._rgb("orange"), font=big_font)
+
+        return y + box_h + int(40 * s)
+
+    def _draw_clock_angle(self, draw, frame, element, y):
+        """Clock face with calculated angle between hands.
+
+        JSON: { "target": "clock_angle",
+                "hour": 3, "minute": 30,
+                "angle": 75,
+                "label": "Angle = 75°" }
+        """
+        hour = element.get("hour", 12)
+        minute = element.get("minute", 0)
+        angle_val = element.get("angle", 0)
+        label_text = element.get("label", "")
+        s = self.scale
+
+        radius = int(130 * s)
+        cx_c = self.content_x + self.content_w // 2
+        cy_c = y + radius + int(30 * s)
+        num_font = _get_font(int(24 * s), bold=True)
+        lbl_font = _get_font(int(36 * s), bold=True)
+
+        # Clock face
+        draw.ellipse([cx_c - radius, cy_c - radius, cx_c + radius, cy_c + radius],
+                     fill=(255, 255, 255), outline=(60, 60, 100), width=int(3 * s))
+
+        # Hour marks and numbers
+        for i in range(1, 13):
+            angle = math.radians(i * 30 - 90)
+            # Tick mark
+            tx1 = cx_c + int((radius - int(12 * s)) * math.cos(angle))
+            ty1 = cy_c + int((radius - int(12 * s)) * math.sin(angle))
+            tx2 = cx_c + int((radius - int(4 * s)) * math.cos(angle))
+            ty2 = cy_c + int((radius - int(4 * s)) * math.sin(angle))
+            draw.line([tx1, ty1, tx2, ty2], fill=(60, 60, 100), width=int(2 * s))
+            # Number
+            nx = cx_c + int((radius - int(30 * s)) * math.cos(angle))
+            ny = cy_c + int((radius - int(30 * s)) * math.sin(angle))
+            nstr = str(i)
+            nw = draw.textlength(nstr, font=num_font)
+            draw.text((nx - nw / 2, ny - num_font.size / 2), nstr,
+                      fill=(60, 60, 100), font=num_font)
+
+        # Hour hand
+        h_angle = math.radians((hour % 12 + minute / 60) * 30 - 90)
+        h_len = int(radius * 0.55)
+        hx = cx_c + int(h_len * math.cos(h_angle))
+        hy = cy_c + int(h_len * math.sin(h_angle))
+        draw.line([cx_c, cy_c, hx, hy], fill=(26, 35, 126), width=int(5 * s))
+
+        # Minute hand
+        m_angle = math.radians(minute * 6 - 90)
+        m_len = int(radius * 0.80)
+        mx_h = cx_c + int(m_len * math.cos(m_angle))
+        my_h = cy_c + int(m_len * math.sin(m_angle))
+        draw.line([cx_c, cy_c, mx_h, my_h], fill=self._rgb("blue"), width=int(3 * s))
+
+        # Center dot
+        dot_r = int(6 * s)
+        draw.ellipse([cx_c - dot_r, cy_c - dot_r, cx_c + dot_r, cy_c + dot_r],
+                     fill=(26, 35, 126))
+
+        # Angle arc between hands
+        if angle_val > 0:
+            arc_r = int(40 * s)
+            start_deg = math.degrees(h_angle)
+            end_deg = math.degrees(m_angle)
+            draw.arc([cx_c - arc_r, cy_c - arc_r, cx_c + arc_r, cy_c + arc_r],
+                     start_deg, end_deg, fill=self._rgb("orange"), width=int(3 * s))
+
+        # Label
+        if label_text:
+            lw = draw.textlength(label_text, font=lbl_font)
+            draw.text(((self.width - lw) / 2, cy_c + radius + int(16 * s)),
+                      label_text, fill=self._rgb("orange"), font=lbl_font)
+
+        return cy_c + radius + int(60 * s)
+
+    def _draw_input_output(self, draw, frame, element, y):
+        """Machine input-output reasoning table.
+
+        JSON: { "target": "input_output",
+                "heading": "Machine Input-Output",
+                "steps": [
+                    {"label": "Input", "values": ["25", "cat", "13", "dog", "8"]},
+                    {"label": "Step 1", "values": ["8", "25", "cat", "13", "dog"]},
+                    {"label": "Step 2", "values": ["8", "13", "25", "cat", "dog"]}
+                ],
+                "highlight_step": 2 }
+        """
+        heading = element.get("heading", "")
+        steps = element.get("steps", [])
+        highlight_step = element.get("highlight_step", -1)
+        s = self.scale
+
+        head_font = _get_font(int(38 * s), bold=True)
+        lbl_font = _get_font(int(30 * s), bold=True)
+        val_font = _get_font(int(28 * s))
+        pad = int(20 * s)
+        row_h = int(48 * s)
+        lbl_w = int(100 * s)
+
+        if heading:
+            hw = draw.textlength(heading, font=head_font)
+            draw.text(((self.width - hw) / 2, y), heading,
+                      fill=self._rgb("note_text"), font=head_font)
+            y += int(48 * s)
+
+        cx = self.content_x + pad
+        max_vals = max((len(st.get("values", [])) for st in steps), default=0)
+        val_w = min(int(120 * s), (self.content_w - 2 * pad - lbl_w) // max(1, max_vals))
+
+        for si, step in enumerate(steps):
+            is_hl = (si == highlight_step)
+            row_bg = (255, 243, 224) if is_hl else \
+                     (248, 248, 255) if si % 2 == 0 else (255, 255, 255)
+            draw.rectangle([cx, y, cx + self.content_w - 2 * pad, y + row_h], fill=row_bg)
+
+            # Label
+            lbl = step.get("label", f"Step {si}")
+            draw.text((cx + int(8 * s), y + int(10 * s)), lbl,
+                      fill=self._rgb("blue"), font=lbl_font)
+
+            # Values
+            for vi, val in enumerate(step.get("values", [])):
+                vx = cx + lbl_w + vi * val_w
+                vw = draw.textlength(str(val), font=val_font)
+                draw.text((vx + (val_w - vw) / 2, y + int(12 * s)),
+                          str(val), fill=self._rgb("body_text"), font=val_font)
+            y += row_h
+
+        return y + int(12 * s)
+
+    def _draw_cube_visual(self, draw, frame, element, y):
+        """Painted cube / dice unfolding — reasoning.
+
+        JSON: { "target": "cube_visual",
+                "faces": ["R", "B", "G", "Y", "W", "O"],
+                "label": "Painted Cube",
+                "highlight_faces": [0, 2] }
+        """
+        faces = element.get("faces", ["1", "2", "3", "4", "5", "6"])
+        label_text = element.get("label", "")
+        highlight_faces = set(element.get("highlight_faces", []))
+        s = self.scale
+
+        lbl_font = _get_font(int(36 * s), bold=True)
+        face_font = _get_font(int(32 * s), bold=True)
+        cell = int(64 * s)
+        gap = int(2 * s)
+
+        face_colors = {
+            "R": (220, 50, 50), "B": (50, 100, 220), "G": (50, 180, 50),
+            "Y": (230, 200, 30), "W": (240, 240, 240), "O": (239, 108, 0),
+        }
+
+        if label_text:
+            lw = draw.textlength(label_text, font=lbl_font)
+            draw.text(((self.width - lw) / 2, y), label_text,
+                      fill=self._rgb("note_text"), font=lbl_font)
+            y += int(48 * s)
+
+        # Cross-shaped unfolding: [1] on top, [2][3][4][5] middle row, [6] bottom
+        #     [0]
+        # [1][2][3][4]
+        #     [5]
+        positions = [
+            (1, 0),  # face 0: top
+            (0, 1),  # face 1: left
+            (1, 1),  # face 2: front
+            (2, 1),  # face 3: right
+            (3, 1),  # face 4: back
+            (1, 2),  # face 5: bottom
+        ]
+        total_w = 4 * (cell + gap)
+        total_h = 3 * (cell + gap)
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        for i, (col, row) in enumerate(positions):
+            if i >= len(faces):
+                break
+            fx = start_x + col * (cell + gap)
+            fy = y + row * (cell + gap)
+            face_val = str(faces[i])
+            is_hl = i in highlight_faces
+
+            bg = face_colors.get(face_val.upper(), (220, 220, 230))
+            if is_hl:
+                outline = self._rgb("orange")
+                outline_w = int(4 * s)
+            else:
+                outline = (180, 180, 200)
+                outline_w = int(2 * s)
+
+            draw.rounded_rectangle(
+                [fx, fy, fx + cell, fy + cell],
+                radius=int(4 * s), fill=bg, outline=outline, width=outline_w,
+            )
+            # Face label
+            fw_t = draw.textlength(face_val, font=face_font)
+            fc = (255, 255, 255) if sum(bg) < 500 else (30, 30, 60)
+            draw.text((fx + (cell - fw_t) / 2, fy + (cell - face_font.size) / 2),
+                      face_val, fill=fc, font=face_font)
+
+        return y + total_h + int(20 * s)
+
+    def _draw_place_value(self, draw, frame, element, y):
+        """Place value chart — math number system.
+
+        JSON: { "target": "place_value",
+                "number": "34567",
+                "places": ["Ten-Thousands", "Thousands", "Hundreds", "Tens", "Ones"],
+                "highlight_place": 2 }
+        """
+        number = str(element.get("number", ""))
+        places = element.get("places", [])
+        highlight_place = element.get("highlight_place", -1)
+        s = self.scale
+
+        if not places:
+            place_names = ["Ten-Thousands", "Thousands", "Hundreds", "Tens", "Ones"]
+            places = place_names[max(0, 5 - len(number)):]
+
+        head_font = _get_font(int(26 * s), bold=True)
+        digit_font = _get_font(int(52 * s), bold=True)
+        val_font = _get_font(int(24 * s))
+        pad = int(16 * s)
+        cell_w = min(int(160 * s), (self.content_w - pad * 2) // max(1, len(number)))
+        cell_h = int(110 * s)
+        total_w = len(number) * cell_w
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        for i, digit in enumerate(number):
+            cx = start_x + i * cell_w
+            is_hl = (i == highlight_place)
+            bg = (255, 243, 224) if is_hl else self._rgb("concept_blue_bg")
+            border = self._rgb("orange") if is_hl else self._rgb("blue")
+            fg = self._rgb("orange") if is_hl else self._rgb("blue")
+
+            draw.rounded_rectangle(
+                [cx + 2, y, cx + cell_w - 2, y + cell_h],
+                radius=int(8 * s), fill=bg, outline=border, width=int(2 * s),
+            )
+            # Place name at top
+            if i < len(places):
+                pw = draw.textlength(places[i], font=head_font)
+                draw.text((cx + (cell_w - pw) / 2, y + int(6 * s)),
+                          places[i], fill=border, font=head_font)
+            # Big digit
+            dw = draw.textlength(digit, font=digit_font)
+            draw.text((cx + (cell_w - dw) / 2, y + int(34 * s)),
+                      digit, fill=fg, font=digit_font)
+            # Place value
+            place_val = int(digit) * (10 ** (len(number) - 1 - i))
+            pv_str = f"= {place_val:,}"
+            pvw = draw.textlength(pv_str, font=val_font)
+            draw.text((cx + (cell_w - pvw) / 2, y + int(86 * s)),
+                      pv_str, fill=self._rgb("body_secondary"), font=val_font)
+
+        return y + cell_h + int(20 * s)
+
+    def _draw_spectrum_band(self, draw, frame, element, y):
+        """Electromagnetic / visible light spectrum band — physics.
+
+        JSON: { "target": "spectrum_band",
+                "type": "visible|em",
+                "highlight": "green",
+                "label": "Visible Light Spectrum" }
+        """
+        spec_type = element.get("type", "visible")
+        highlight = element.get("highlight", "")
+        label_text = element.get("label", "")
+        s = self.scale
+
+        lbl_font = _get_font(int(36 * s), bold=True)
+        tag_font = _get_font(int(22 * s))
+
+        if label_text:
+            lw = draw.textlength(label_text, font=lbl_font)
+            draw.text(((self.width - lw) / 2, y), label_text,
+                      fill=self._rgb("note_text"), font=lbl_font)
+            y += int(48 * s)
+
+        bar_h = int(60 * s)
+        cx = self.content_x + int(40 * s)
+        bar_w = self.content_w - int(80 * s)
+
+        if spec_type == "visible":
+            colors = [
+                ("Violet", (148, 0, 211)), ("Indigo", (75, 0, 130)),
+                ("Blue", (0, 0, 255)), ("Green", (0, 128, 0)),
+                ("Yellow", (255, 255, 0)), ("Orange", (255, 165, 0)),
+                ("Red", (255, 0, 0)),
+            ]
+        else:
+            colors = [
+                ("Gamma", (80, 0, 120)), ("X-ray", (120, 0, 180)),
+                ("UV", (148, 0, 211)), ("Visible", (0, 200, 0)),
+                ("IR", (200, 50, 0)), ("Micro", (180, 100, 0)),
+                ("Radio", (150, 150, 0)),
+            ]
+
+        n = len(colors)
+        seg_w = bar_w // n
+
+        for i, (name, rgb) in enumerate(colors):
+            sx = cx + i * seg_w
+            is_hl = highlight.lower() in name.lower()
+
+            draw.rectangle([sx, y, sx + seg_w, y + bar_h], fill=rgb)
+            if is_hl:
+                draw.rectangle([sx, y, sx + seg_w, y + bar_h],
+                               outline=(255, 255, 255), width=int(4 * s))
+                # Arrow below
+                draw.polygon(
+                    [(sx + seg_w // 2, y + bar_h + int(20 * s)),
+                     (sx + seg_w // 2 - int(8 * s), y + bar_h + int(8 * s)),
+                     (sx + seg_w // 2 + int(8 * s), y + bar_h + int(8 * s))],
+                    fill=(255, 255, 255))
+
+            # Label below
+            tw = draw.textlength(name, font=tag_font)
+            # Determine text color for readability
+            fc = (255, 255, 255) if sum(rgb) < 350 else (30, 30, 60)
+            draw.text((sx + (seg_w - tw) / 2, y + (bar_h - tag_font.size) / 2),
+                      name, fill=fc, font=tag_font)
+
+        return y + bar_h + int(30 * s)
+
+    def _draw_ratio_bar(self, draw, frame, element, y):
+        """Ratio comparison bars — math ratio & proportion.
+
+        JSON: { "target": "ratio_bar",
+                "items": [
+                    {"label": "Boys", "value": 3, "color": "blue"},
+                    {"label": "Girls", "value": 5, "color": "orange"}
+                ],
+                "label": "Ratio 3:5" }
+        """
+        items = element.get("items", [])
+        label_text = element.get("label", "")
+        s = self.scale
+
+        lbl_font = _get_font(int(36 * s), bold=True)
+        bar_font = _get_font(int(30 * s), bold=True)
+        val_font = _get_font(int(28 * s))
+
+        if label_text:
+            lw = draw.textlength(label_text, font=lbl_font)
+            draw.text(((self.width - lw) / 2, y), label_text,
+                      fill=self._rgb("note_text"), font=lbl_font)
+            y += int(48 * s)
+
+        total = sum(it.get("value", 1) for it in items)
+        bar_h = int(48 * s)
+        bar_gap = int(20 * s)
+        max_bar_w = self.content_w - int(200 * s)
+        label_w = int(100 * s)
+        cx = self.content_x + label_w + int(16 * s)
+
+        for it in items:
+            val = it.get("value", 1)
+            name = it.get("label", "")
+            color = it.get("color", "blue")
+            accent = self._rgb(color if color in self.C else "blue")
+            w = int(max_bar_w * val / max(1, total))
+
+            # Label left
+            draw.text((self.content_x + int(8 * s), y + (bar_h - bar_font.size) / 2),
+                      name, fill=self._rgb("body_text"), font=bar_font)
+            # Bar
+            draw.rounded_rectangle(
+                [cx, y, cx + w, y + bar_h],
+                radius=int(6 * s), fill=accent,
+            )
+            # Value inside bar
+            vstr = str(val)
+            vw = draw.textlength(vstr, font=val_font)
+            if vw < w - int(16 * s):
+                draw.text((cx + w - vw - int(12 * s), y + (bar_h - val_font.size) / 2),
+                          vstr, fill=(255, 255, 255), font=val_font)
+            else:
+                draw.text((cx + w + int(8 * s), y + (bar_h - val_font.size) / 2),
+                          vstr, fill=accent, font=val_font)
+            y += bar_h + bar_gap
+
+        return y
+
+    def _draw_percentage_bar(self, draw, frame, element, y):
+        """Percentage strip visualization — math.
+
+        JSON: { "target": "percentage_bar",
+                "value": 65,
+                "total": 100,
+                "label": "65% Passed",
+                "color": "green" }
+        """
+        value = element.get("value", 0)
+        total = element.get("total", 100)
+        label_text = element.get("label", "")
+        color = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        lbl_font = _get_font(int(36 * s), bold=True)
+        pct_font = _get_font(int(48 * s), bold=True)
+        tag_font = _get_font(int(28 * s))
+
+        if label_text:
+            lw = draw.textlength(label_text, font=lbl_font)
+            draw.text(((self.width - lw) / 2, y), label_text,
+                      fill=self._rgb("note_text"), font=lbl_font)
+            y += int(48 * s)
+
+        bar_h = int(40 * s)
+        bar_x = self.content_x + int(60 * s)
+        bar_w = self.content_w - int(120 * s)
+        pct = min(value / max(1, total), 1.0)
+        fill_w = int(bar_w * pct)
+
+        # Background bar
+        draw.rounded_rectangle(
+            [bar_x, y, bar_x + bar_w, y + bar_h],
+            radius=int(8 * s), fill=(230, 230, 235),
+        )
+        # Filled portion
+        if fill_w > int(16 * s):
+            draw.rounded_rectangle(
+                [bar_x, y, bar_x + fill_w, y + bar_h],
+                radius=int(8 * s), fill=accent,
+            )
+
+        # Percentage text centered
+        pct_text = f"{int(pct * 100)}%"
+        pw = draw.textlength(pct_text, font=pct_font)
+        draw.text(((self.width - pw) / 2, y + bar_h + int(8 * s)),
+                  pct_text, fill=accent, font=pct_font)
+
+        # Min/max labels
+        draw.text((bar_x, y + bar_h + int(8 * s)), "0", fill=self._rgb("body_secondary"), font=tag_font)
+        tw = draw.textlength(str(total), font=tag_font)
+        draw.text((bar_x + bar_w - tw, y + bar_h + int(8 * s)),
+                  str(total), fill=self._rgb("body_secondary"), font=tag_font)
+
+        return y + bar_h + int(70 * s)
+
+    def _draw_odd_one_out(self, draw, frame, element, y):
+        """Grid of items with odd one highlighted — reasoning.
+
+        JSON: { "target": "odd_one_out",
+                "items": ["Rose", "Lily", "Mango", "Tulip", "Daisy"],
+                "odd_index": 2,
+                "reason": "Mango is a fruit, rest are flowers" }
+        """
+        items = element.get("items", [])
+        odd_index = element.get("odd_index", -1)
+        reason = element.get("reason", "")
+        s = self.scale
+
+        item_font = _get_font(int(36 * s), bold=True)
+        reason_font = _get_font(int(32 * s))
+        pad = int(16 * s)
+        chip_h = int(56 * s)
+        chip_gap = int(14 * s)
+
+        n = len(items)
+        chip_w = min(int(200 * s), (self.content_w - (n - 1) * chip_gap) // max(1, n))
+        total_w = n * chip_w + (n - 1) * chip_gap
+        start_x = self.content_x + (self.content_w - total_w) // 2
+
+        for i, item in enumerate(items):
+            ix = start_x + i * (chip_w + chip_gap)
+            is_odd = (i == odd_index)
+            bg = (255, 235, 238) if is_odd else self._rgb("concept_blue_bg")
+            border = self._rgb("fail") if is_odd else self._rgb("blue")
+            fc = self._rgb("fail") if is_odd else self._rgb("blue")
+
+            draw.rounded_rectangle(
+                [ix, y, ix + chip_w, y + chip_h],
+                radius=int(8 * s), fill=bg, outline=border, width=int(2 * s),
+            )
+            # Strike-through for odd
+            tw = draw.textlength(item, font=item_font)
+            tx = ix + (chip_w - tw) / 2
+            ty = y + (chip_h - item_font.size) / 2
+            draw.text((tx, ty), item, fill=fc, font=item_font)
+            if is_odd:
+                draw.line([tx, ty + item_font.size // 2,
+                           tx + tw, ty + item_font.size // 2],
+                          fill=self._rgb("fail"), width=int(3 * s))
+
+        y += chip_h + int(12 * s)
+
+        if reason:
+            rw = draw.textlength(reason, font=reason_font)
+            draw.text(((self.width - rw) / 2, y), reason,
+                      fill=self._rgb("body_secondary"), font=reason_font)
+            y += int(40 * s)
+
+        return y + pad
+
+    def _draw_flashcard(self, draw, frame, element, y):
+        """Front/back flashcard style — all subjects.
+
+        JSON: { "target": "flashcard",
+                "front": "What is the capital of France?",
+                "back": "Paris",
+                "revealed": true,
+                "color": "blue" }
+        """
+        front = element.get("front", "")
+        back = element.get("back", "")
+        revealed = element.get("revealed", False)
+        color = element.get("color", "blue")
+        s = self.scale
+
+        accent = self._rgb(color if color in self.C else "blue")
+        q_font = _get_font(int(42 * s), bold=True)
+        a_font = _get_font(int(48 * s), bold=True)
+        tag_font = _get_font(int(26 * s), bold=True)
+        pad_x = int(60 * s)
+        pad_y = int(36 * s)
+        cx = self.content_x
+
+        max_w = self.content_w - 2 * pad_x
+        q_lines = self._wrap_text(front, q_font, max_w)
+        a_lines = self._wrap_text(back, a_font, max_w) if revealed else []
+        line_h_q = int(q_font.size * 1.5)
+        line_h_a = int(a_font.size * 1.5)
+        card_h = len(q_lines) * line_h_q + (len(a_lines) * line_h_a if revealed else 0) + \
+                 2 * pad_y + (int(50 * s) if revealed else 0)
+
+        draw.rounded_rectangle(
+            [cx, y, cx + self.content_w, y + card_h],
+            radius=int(16 * s), fill=(255, 255, 255),
+            outline=accent, width=int(3 * s),
+        )
+
+        cy = y + pad_y
+        # "Q" badge
+        draw.rounded_rectangle(
+            [cx + pad_x, cy - int(4 * s), cx + pad_x + int(32 * s), cy + int(28 * s)],
+            radius=int(4 * s), fill=accent,
+        )
+        draw.text((cx + pad_x + int(8 * s), cy), "Q",
+                  fill=(255, 255, 255), font=tag_font)
+
+        # Question text
+        for line in q_lines:
+            lw = draw.textlength(line, font=q_font)
+            draw.text(((self.width - lw) / 2, cy), line,
+                      fill=self._rgb("body_text"), font=q_font)
+            cy += line_h_q
+
+        if revealed:
+            # Divider
+            cy += int(12 * s)
+            draw.line([cx + pad_x, cy, cx + self.content_w - pad_x, cy],
+                      fill=accent, width=int(2 * s))
+            cy += int(16 * s)
+
+            # "A" badge
+            draw.rounded_rectangle(
+                [cx + pad_x, cy - int(4 * s), cx + pad_x + int(32 * s), cy + int(28 * s)],
+                radius=int(4 * s), fill=self._rgb("success"),
+            )
+            draw.text((cx + pad_x + int(8 * s), cy), "A",
+                      fill=(255, 255, 255), font=tag_font)
+
+            for line in a_lines:
+                lw = draw.textlength(line, font=a_font)
+                draw.text(((self.width - lw) / 2, cy), line,
+                          fill=self._rgb("success"), font=a_font)
+                cy += line_h_a
+
+        return y + card_h
 
     def _is_renderable(self, el):
         etype = el.get("type")

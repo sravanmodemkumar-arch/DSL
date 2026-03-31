@@ -977,15 +977,22 @@ function showSaved() {
 /* ── Auto-save on change ─────────────────────────────────────── */
 document.getElementById('settings-form').addEventListener('change', function(e) {
     var el = e.target;
-    if (!el.name || el.type === 'radio' || el.type === 'checkbox') return;
+    if (!el.name) return;
     var fd = new FormData();
     fd.append('key', el.name);
-    fd.append('value', el.value);
+    if (el.type === 'checkbox') {
+        fd.append('value', el.checked ? 'true' : 'false');
+    } else if (el.type === 'radio') {
+        if (!el.checked) return;
+        fd.append('value', el.value);
+    } else {
+        fd.append('value', el.value);
+    }
     fetch('/settings/save-field', {method:'POST', body:fd}).then(showSaved);
 });
 document.getElementById('settings-form').addEventListener('blur', function(e) {
     var el = e.target;
-    if (!el.name || el.tagName === 'SELECT') return;
+    if (!el.name || el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'radio') return;
     var fd = new FormData();
     fd.append('key', el.name);
     fd.append('value', el.value);

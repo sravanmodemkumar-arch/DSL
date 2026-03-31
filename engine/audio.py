@@ -26,6 +26,100 @@ def _get_ffmpeg():
 
 
 # ---------------------------------------------------------------------------
+# Language → Voice auto-selection (edge_tts neural voices)
+# ---------------------------------------------------------------------------
+
+# Default voice per language — used when meta.language is set in JSON
+LANGUAGE_VOICE_MAP = {
+    # English variants
+    "english":    "en-IN-PrabhatNeural",
+    "en":         "en-IN-PrabhatNeural",
+    "en-in":      "en-IN-PrabhatNeural",
+    "en-us":      "en-US-GuyNeural",
+    "en-gb":      "en-GB-RyanNeural",
+    "en-au":      "en-AU-WilliamNeural",
+    # Hindi
+    "hindi":      "hi-IN-MadhurNeural",
+    "hi":         "hi-IN-MadhurNeural",
+    # Tamil
+    "tamil":      "ta-IN-ValluvarNeural",
+    "ta":         "ta-IN-ValluvarNeural",
+    # Telugu
+    "telugu":     "te-IN-MohanNeural",
+    "te":         "te-IN-MohanNeural",
+    # Kannada
+    "kannada":    "kn-IN-GaganNeural",
+    "kn":         "kn-IN-GaganNeural",
+    # Malayalam
+    "malayalam":  "ml-IN-MidhunNeural",
+    "ml":         "ml-IN-MidhunNeural",
+    # Marathi
+    "marathi":    "mr-IN-ManoharNeural",
+    "mr":         "mr-IN-ManoharNeural",
+    # Bengali
+    "bengali":    "bn-IN-BashkarNeural",
+    "bn":         "bn-IN-BashkarNeural",
+    "bangla":     "bn-IN-BashkarNeural",
+    # Gujarati
+    "gujarati":   "gu-IN-NiranjanNeural",
+    "gu":         "gu-IN-NiranjanNeural",
+    # Punjabi
+    "punjabi":    "pa-IN-GurpreetNeural",
+    "pa":         "pa-IN-GurpreetNeural",
+    # Urdu
+    "urdu":       "ur-IN-SalmanNeural",
+    "ur":         "ur-IN-SalmanNeural",
+    # Odia
+    "odia":       "or-IN-SubhasiniNeural",
+    "or":         "or-IN-SubhasiniNeural",
+    "oriya":      "or-IN-SubhasiniNeural",
+    # Assamese
+    "assamese":   "as-IN-PriyomNeural",
+    "as":         "as-IN-PriyomNeural",
+    # Arabic
+    "arabic":     "ar-SA-HamedNeural",
+    "ar":         "ar-SA-HamedNeural",
+    # French
+    "french":     "fr-FR-HenriNeural",
+    "fr":         "fr-FR-HenriNeural",
+    # Spanish
+    "spanish":    "es-ES-AlvaroNeural",
+    "es":         "es-ES-AlvaroNeural",
+    # German
+    "german":     "de-DE-ConradNeural",
+    "de":         "de-DE-ConradNeural",
+    # Japanese
+    "japanese":   "ja-JP-KeitaNeural",
+    "ja":         "ja-JP-KeitaNeural",
+    # Korean
+    "korean":     "ko-KR-InJoonNeural",
+    "ko":         "ko-KR-InJoonNeural",
+    # Chinese
+    "chinese":    "zh-CN-YunxiNeural",
+    "zh":         "zh-CN-YunxiNeural",
+    "mandarin":   "zh-CN-YunxiNeural",
+    # Portuguese
+    "portuguese": "pt-BR-AntonioNeural",
+    "pt":         "pt-BR-AntonioNeural",
+    # Russian
+    "russian":    "ru-RU-DmitryNeural",
+    "ru":         "ru-RU-DmitryNeural",
+}
+
+
+def get_voice_for_language(language, fallback_voice="en-IN-PrabhatNeural"):
+    """Return the best edge_tts voice for a given language string.
+
+    Accepts: "English", "Hindi", "tamil", "te", "en-IN", etc.
+    Falls back to fallback_voice if language not recognized.
+    """
+    if not language:
+        return fallback_voice
+    key = language.strip().lower().replace(" ", "")
+    return LANGUAGE_VOICE_MAP.get(key, fallback_voice)
+
+
+# ---------------------------------------------------------------------------
 # Global word-duration cache (avoids regenerating common words like "the")
 # ---------------------------------------------------------------------------
 

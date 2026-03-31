@@ -193,6 +193,11 @@ def retry(job_id):
             _app.config["VIDEOS_DIR"],
             video.video_id,
         )
+        # Apply current settings so changed resolution/quality take effect
+        from models import Setting
+        video.resolution = Setting.get("default_resolution", _app.config["DEFAULT_RESOLUTION"])
+        video.quality_preset = Setting.get("default_quality_preset", _app.config["DEFAULT_QUALITY_PRESET"])
+        video.theme = Setting.get("default_theme", _app.config["DEFAULT_THEME"])
 
     db.session.commit()
 

@@ -304,7 +304,12 @@ def retry(video_id):
         video_id,
     )
 
-    from models import JobQueue
+    # Apply current settings so changed resolution/quality take effect
+    from models import JobQueue, Setting
+    video.resolution = Setting.get("default_resolution", current_app.config["DEFAULT_RESOLUTION"])
+    video.quality_preset = Setting.get("default_quality_preset", current_app.config["DEFAULT_QUALITY_PRESET"])
+    video.theme = Setting.get("default_theme", current_app.config["DEFAULT_THEME"])
+
     job = JobQueue(video_id=video_id, priority=2, status="queued")
     db.session.add(job)
     db.session.commit()

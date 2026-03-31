@@ -183,11 +183,14 @@ def process():
                 skipped += 1
                 continue
             else:
-                # pending/failed/cancelled — re-queue with updated JSON path
+                # pending/failed/cancelled — re-queue with updated JSON + settings
                 existing.json_path = json_path
                 existing.status = "pending"
                 existing.progress = 0
                 existing.error_message = ""
+                existing.resolution = resolution
+                existing.quality_preset = quality
+                existing.theme = theme
                 # Cancel any existing queued/processing job first
                 JobQueue.query.filter_by(video_id=qid).filter(
                     JobQueue.status.in_(["queued", "processing", "cancelled", "failed"])

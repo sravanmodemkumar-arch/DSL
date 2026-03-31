@@ -197,7 +197,9 @@ def get_active_state(timeline, current_time, question_data):
         elif target == "options_grid":
             options_shown = True
 
-        elif target.startswith("option_"):
+        elif target.startswith("option_") and target in (
+            "option_a", "option_b", "option_c", "option_d",
+        ):
             highlighted_option = target.replace("option_", "")
 
         elif action == "highlight_option" and target == "options_grid":
@@ -417,23 +419,69 @@ def get_active_state(timeline, current_time, question_data):
     # Work area elements in logical display order
     work_order = [
         "instruction_text",
+        "instruction_lines",  # alias — AI sometimes generates this
         # Visual content
         "shortcut_columns",
         "concept_text",
         "highlight_box",     # important formula / rule
+        "definition_card",   # term + definition (GK, vocabulary, science)
+        "quote_block",       # famous quotes, articles, provisions
+        "amendment_card",    # constitutional articles (Polity)
+        "person_card",       # historical figure / scientist profile
         "key_facts",         # key:value pairs (History, Geography, GK)
+        "stat_card",         # big number statistics (Economics, GK)
         "process_steps",     # numbered steps (Science, Math methods)
+        "bullet_list",       # bullet point list with icons
         "two_col_text",      # two-column text comparison
+        "split_screen",      # side-by-side before/after comparison
+        "option_analysis",   # single-screen option rule check
+        "grid_check",        # options × criteria matrix ✔/✘
         "timeline",          # chronological events (History)
         "chem_equation",     # chemical equation (Chemistry)
         "flow_chart",        # process flow (Biology, Science)
         "t_account",         # debit/credit T-account (Accounts)
         "memory_trick",      # mnemonic/acronym display
         "analogy",           # A:B::C:? (Reasoning)
+        "syllogism",         # premises + conclusion (Reasoning)
+        "coding_decoding",   # letter↔number mapping (Reasoning)
+        "seating_arrangement",  # linear/circular seating (Reasoning)
+        "blood_relation_tree",  # family tree (Reasoning)
+        "direction_diagram",    # direction path (Reasoning)
+        "ranking_order",        # linear ranking (Reasoning)
+        "series_pattern",       # number/letter series with diffs
+        "dice_visual",          # dice faces (Probability)
+        "calendar_visual",      # month grid with highlighted dates
         "number_line",       # number line (Math)
+        "conversion_chain",  # unit conversion chain
+        "equation_steps",    # step-by-step equation solving
+        "proof_steps",       # formal proof lines + reasons
+        "matrix",            # mathematical matrix with brackets
+        "code_block",        # syntax-highlighted code (CS)
+        "truth_table",       # boolean logic truth table (CS/Reasoning)
+        "law_card",          # named scientific law (Physics/Chemistry)
+        "tip_box",           # exam shortcut / quick tip
+        "warning_box",       # common mistake / trap warning
+        "event_card",        # date+place+significance (GK/History)
+        "word_breakdown",    # prefix+root+suffix (English)
+        "fill_blank_sentence",  # sentence with blank + answer
+        "venn_operations",   # shaded Venn for set operations
+        "mirror_image",      # mirror/water reflection (Reasoning)
+        "clock_angle",       # clock face with angle (Reasoning)
+        "input_output",      # machine input-output (Reasoning)
+        "cube_visual",       # painted cube / unfolding (Reasoning)
+        "place_value",       # place value chart (Math)
+        "spectrum_band",     # EM/visible spectrum (Physics)
+        "ratio_bar",         # ratio comparison bars (Math)
+        "percentage_bar",    # percentage strip (Math)
+        "odd_one_out",       # odd one highlighted (Reasoning)
+        "flashcard",         # front/back flashcard
         "builtin_visual",    # pure-Pillow subject illustrations
         "subject_image",     # auto-fetched free photo
+        "web_image",         # image from direct URL
+        "web_gif",           # GIF from URL (first frame)
+        "google_image",      # auto-searched image
         "video_clip",        # embedded video asset
+        "web_video",         # video from URL
         "matplotlib_plot",   # scientific graph (line/bar/scatter/pie/histogram)
         "rdkit_mol",         # 2D molecular structure from SMILES
         "manim_scene",       # pre-rendered Manim animation

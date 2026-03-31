@@ -147,11 +147,22 @@ class VideoPipeline:
         try:
             # ── Stage 1: TTS audio ──────────────────────────────────────────
             _cb(progress_callback, "audio_gen", 10)
+
+            # Auto-select voice from JSON meta.language (falls back to settings)
+            tts_engine = self.config.get("TTS_ENGINE", "gtts")
+            settings_voice = self.config.get("TTS_TLD", "en-IN-PrabhatNeural")
+            json_language = question_data.get("meta", {}).get("language", "")
+            if json_language and tts_engine == "edge_tts":
+                from engine.audio import get_voice_for_language
+                voice = get_voice_for_language(json_language, fallback_voice=settings_voice)
+            else:
+                voice = settings_voice
+
             segments = generate_audio_for_question(
                 question_data, audio_dir,
-                tts_engine=self.config.get("TTS_ENGINE", "gtts"),
+                tts_engine=tts_engine,
                 lang=self.config.get("TTS_LANG", "en"),
-                tld=self.config.get("TTS_TLD", "co.in"),
+                tld=voice,
             )
             _cb(progress_callback, "audio_gen", 30)
 
@@ -294,8 +305,8 @@ class VideoPipeline:
     def _encode_video(self, frames_dir, audio_path, output_path, fps, bitrate, width, height, frame_workers=None, crf=None):
         """Encode frames + audio → MP4 using hardware-detected encoder.
         GPU encodes are serialised via _GPU_ENCODE_LOCK; CPU encodes run in parallel.
-        crf: if set, uses CRF quality-based encoding (P5-P7) — guarantees quality
-             regardless of content complexity. bitrate becomes a maximum cap."""
+        P5-P7: 2-pass ABR encoding to guarantee bitrate for static PPT content.
+        P1-P4 / GPU: single-pass ABR."""
         ffmpeg = self._get_ffmpeg_path()
         alloc = compute_allocation()
         encoder = alloc["gpu_encoder"]
@@ -303,7 +314,7 @@ class VideoPipeline:
         is_gpu = alloc["is_gpu_encode"]
         enc_threads = alloc["encode_threads"]
 
-        # Pick x264 preset based on quality tier — higher quality = slower encode
+        # Pick x264 preset and audio bitrate based on quality tier
         x264_preset = "fast"  # default for P1-P4
         audio_bitrate = "192k"
         if crf:
@@ -318,45 +329,71 @@ class VideoPipeline:
                 x264_preset = "medium"
                 audio_bitrate = "192k"
 
-        def _run(enc, flags, use_lock, threads):
-            if crf and enc == "libx264":
-                # CRF + VBV: quality-based encoding with enforced bitrate floor.
-                # PPT-style frames are static → CRF alone compresses to almost 0.
-                # minrate ensures the file is large enough for YouTube/playback quality.
-                # bufsize = 2× maxrate for smooth VBV buffering.
-                # -tune stillimage optimizes for static/near-static content.
-                quality_flags = [
-                    "-crf", str(crf),
-                    "-minrate", _min_bitrate(bitrate),
-                    "-maxrate", bitrate,
-                    "-bufsize", _double_bitrate(bitrate),
-                    "-tune", "stillimage",
-                ]
-                # Override preset — higher quality for CRF modes
-                flags = [f for f in flags if f not in ("-preset",)]
-                # Remove any existing -preset value from flags
-                clean_flags = []
-                skip_next = False
-                for f in flags:
-                    if skip_next:
-                        skip_next = False
-                        continue
-                    if f == "-preset":
-                        skip_next = True
-                        continue
-                    clean_flags.append(f)
-                flags = clean_flags + ["-preset", x264_preset]
-            else:
-                # ABR mode for lower presets or GPU encoders
-                quality_flags = ["-b:v", bitrate]
+        input_pattern = os.path.join(frames_dir, "frame_%06d.png")
+        passlog = os.path.join(frames_dir, "ffmpeg2pass")
 
-            cmd = [
+        def _exec(cmd, use_lock):
+            print(f"[FFmpeg] CMD: {' '.join(cmd[:8])}... ({len(cmd)} args)")
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, text=True)
+            _throttle_subprocess(proc)
+            stdout, stderr = proc.communicate(timeout=600)
+            if proc.returncode != 0:
+                print(f"[FFmpeg] FAILED (exit {proc.returncode}): {stderr[-500:]}")
+                raise subprocess.CalledProcessError(proc.returncode, cmd,
+                                                    stdout, stderr)
+
+        def _run_2pass(enc, preset, threads, use_lock):
+            """2-pass ABR encoding — guarantees target bitrate for static content."""
+            # Strip -preset from original flags to avoid duplicates
+            extra = []
+            skip = False
+            for f in enc_flags:
+                if skip:
+                    skip = False
+                    continue
+                if f == "-preset":
+                    skip = True
+                    continue
+                extra.append(f)
+
+            common = [
+                "-preset", preset,
+                "-tune", "stillimage",
+                "-b:v", bitrate,
+                "-minrate", _min_bitrate(bitrate),
+                "-maxrate", bitrate,
+                "-bufsize", _double_bitrate(bitrate),
+            ]
+
+            # Pass 1: analysis only (no audio, output to /dev/null)
+            cmd1 = [
                 ffmpeg, "-y",
                 "-framerate", str(fps),
-                "-i", os.path.join(frames_dir, "frame_%06d.png"),
+                "-i", input_pattern,
+                "-c:v", enc,
+            ] + extra + common + [
+                "-pass", "1", "-passlogfile", passlog,
+                "-an", "-f", "null",
+                "-threads", threads,
+                "-s", f"{width}x{height}",
+                os.devnull,
+            ]
+            if use_lock:
+                with _GPU_ENCODE_LOCK:
+                    _exec(cmd1, use_lock)
+            else:
+                _exec(cmd1, use_lock)
+
+            # Pass 2: final encode with audio
+            cmd2 = [
+                ffmpeg, "-y",
+                "-framerate", str(fps),
+                "-i", input_pattern,
                 "-i", audio_path,
                 "-c:v", enc,
-            ] + flags + quality_flags + [
+            ] + extra + common + [
+                "-pass", "2", "-passlogfile", passlog,
                 "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", audio_bitrate,
                 "-threads", threads,
@@ -364,29 +401,55 @@ class VideoPipeline:
                 "-s", f"{width}x{height}",
                 output_path,
             ]
-
-            def _exec(cmd):
-                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE, text=True)
-                _throttle_subprocess(proc)  # limit FFmpeg CPU priority + affinity
-                stdout, stderr = proc.communicate(timeout=600)
-                if proc.returncode != 0:
-                    raise subprocess.CalledProcessError(proc.returncode, cmd,
-                                                        stdout, stderr)
-
             if use_lock:
-                with _GPU_ENCODE_LOCK:   # one GPU encode at a time
-                    _exec(cmd)
+                with _GPU_ENCODE_LOCK:
+                    _exec(cmd2, use_lock)
             else:
-                _exec(cmd)
+                _exec(cmd2, use_lock)
+
+            # Clean up passlog files
+            for f in [passlog + "-0.log", passlog + "-0.log.mbtree"]:
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
+
+        def _run_1pass(enc, flags, use_lock, threads):
+            """Single-pass ABR for P1-P4 or GPU encoders."""
+            cmd = [
+                ffmpeg, "-y",
+                "-framerate", str(fps),
+                "-i", input_pattern,
+                "-i", audio_path,
+                "-c:v", enc,
+            ] + list(flags) + [
+                "-b:v", bitrate,
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", audio_bitrate,
+                "-threads", threads,
+                "-shortest", "-movflags", "+faststart",
+                "-s", f"{width}x{height}",
+                output_path,
+            ]
+            if use_lock:
+                with _GPU_ENCODE_LOCK:
+                    _exec(cmd, use_lock)
+            else:
+                _exec(cmd, use_lock)
 
         try:
-            _run(encoder, enc_flags, use_lock=is_gpu, threads=enc_threads)
+            if crf and not is_gpu:
+                # P5-P7 on CPU: 2-pass ABR for guaranteed bitrate
+                _run_2pass(encoder, x264_preset, enc_threads, use_lock=False)
+            else:
+                _run_1pass(encoder, enc_flags, use_lock=is_gpu, threads=enc_threads)
         except subprocess.CalledProcessError:
-            # GPU failed — fall back to CPU (no lock needed)
             if is_gpu:
                 cpu_threads = str(max(1, int((os.cpu_count() or 1) * 0.70)))
-                _run("libx264", ["-preset", "fast"], use_lock=False, threads=cpu_threads)
+                if crf:
+                    _run_2pass("libx264", x264_preset, cpu_threads, use_lock=False)
+                else:
+                    _run_1pass("libx264", ["-preset", "fast"], use_lock=False, threads=cpu_threads)
             else:
                 raise RuntimeError("FFmpeg libx264 encoding failed.")
         except FileNotFoundError:
@@ -513,6 +576,78 @@ class VideoPipeline:
                         render["src_path"] = path
                 except Exception:
                     pass
+
+            # web_image / web_gif — download from direct URL
+            if target in ("web_image", "web_gif") and not render.get("src_path"):
+                url = render.get("url", "")
+                if url:
+                    try:
+                        img_cache = os.path.join(assets_dir, "web_images")
+                        os.makedirs(img_cache, exist_ok=True)
+                        import hashlib, urllib.request
+                        ext = os.path.splitext(url.split("?")[0])[-1] or ".png"
+                        fname = hashlib.md5(url.encode()).hexdigest() + ext
+                        local_path = os.path.join(img_cache, fname)
+                        if not os.path.exists(local_path):
+                            urllib.request.urlretrieve(url, local_path)
+                        if os.path.exists(local_path):
+                            render["src_path"] = local_path
+                    except Exception:
+                        pass
+
+            # web_video — download video from URL
+            if target == "web_video" and not render.get("src_path"):
+                url = render.get("url", "")
+                if url:
+                    try:
+                        vid_cache = os.path.join(assets_dir, "web_videos")
+                        os.makedirs(vid_cache, exist_ok=True)
+                        import hashlib, urllib.request
+                        ext = os.path.splitext(url.split("?")[0])[-1] or ".mp4"
+                        fname = hashlib.md5(url.encode()).hexdigest() + ext
+                        local_path = os.path.join(vid_cache, fname)
+                        if not os.path.exists(local_path):
+                            urllib.request.urlretrieve(url, local_path)
+                        if os.path.exists(local_path):
+                            render["src_path"] = local_path
+                    except Exception:
+                        pass
+
+            # google_image — search + download via free_media providers
+            if target == "google_image" and not render.get("src_path"):
+                try:
+                    from engine.free_media import resolve_media
+                    img_cache = os.path.join(assets_dir, "google_images")
+                    path = resolve_media(
+                        query=render.get("query", render.get("caption", "")),
+                        media_type="image",
+                        subject=render.get("subject", subject),
+                        topic_hint=render.get("topic", ""),
+                        cache_dir=img_cache,
+                        url=render.get("url", ""),
+                    )
+                    if path:
+                        render["src_path"] = path
+                except Exception:
+                    pass
+
+            # person_card — resolve image URL for profile photo
+            if target == "person_card" and not render.get("src_path"):
+                url = render.get("image_url", render.get("url", ""))
+                if url:
+                    try:
+                        img_cache = os.path.join(assets_dir, "web_images")
+                        os.makedirs(img_cache, exist_ok=True)
+                        import hashlib, urllib.request
+                        ext = os.path.splitext(url.split("?")[0])[-1] or ".png"
+                        fname = hashlib.md5(url.encode()).hexdigest() + ext
+                        local_path = os.path.join(img_cache, fname)
+                        if not os.path.exists(local_path):
+                            urllib.request.urlretrieve(url, local_path)
+                        if os.path.exists(local_path):
+                            render["src_path"] = local_path
+                    except Exception:
+                        pass
 
     # ── Manim pre-rendering ──────────────────────────────────────────────────
 
