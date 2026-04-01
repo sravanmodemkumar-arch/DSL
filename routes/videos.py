@@ -293,6 +293,15 @@ def _clean_temp_files(qid, output_dir):
     return removed
 
 
+@videos_bp.route("/completed-ids")
+def completed_ids():
+    """Return list of completed video IDs for bulk download."""
+    from flask import jsonify
+    videos = Video.query.filter_by(status="completed").all()
+    ids = [v.video_id for v in videos if v.video_path and os.path.exists(v.video_path)]
+    return jsonify(ids)
+
+
 @videos_bp.route("/<video_id>/retry", methods=["POST"])
 def retry(video_id):
     video = Video.query.filter_by(video_id=video_id).first_or_404()
