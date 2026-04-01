@@ -293,6 +293,21 @@ def _clean_temp_files(qid, output_dir):
     return removed
 
 
+@videos_bp.route("/delete-all", methods=["DELETE"])
+def delete_all():
+    """Delete all videos and their files."""
+    from models import JobQueue
+    from routes.queue_routes import _cleanup_video_files
+
+    videos = Video.query.all()
+    for video in videos:
+        JobQueue.query.filter_by(video_id=video.video_id).delete()
+        _cleanup_video_files(video)
+        db.session.delete(video)
+    db.session.commit()
+    return ""
+
+
 @videos_bp.route("/download-all")
 def download_all():
     """Download all completed videos as a ZIP — one folder per video with mp4, thumbnail, json."""
