@@ -293,13 +293,51 @@ def _clean_temp_files(qid, output_dir):
     return removed
 
 
-@videos_bp.route("/completed-ids")
-def completed_ids():
-    """Return list of completed video IDs for bulk download."""
-    from flask import jsonify
-    videos = Video.query.filter_by(status="completed").all()
-    ids = [v.video_id for v in videos if v.video_path and os.path.exists(v.video_path)]
-    return jsonify(ids)
+@videos_bp.route("/download-all")
+def download_all():
+    """Download all completed videos as a ZIP — one folder per video with mp4, thumbnail, json."""
+    import zipfile, tempfile, re, json
+
+    completed = Video.query.filter_by(status="completed").all()
+    videos_to_zip = [v for v in completed if v.video_path and os.path.exists(v.video_path)]
+
+    if not videos_to_zip:
+        abort(404, "No completed videos available")
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+            for v in videos_to_zip:
+                safe = re.sub(r'[^\w\-_. ]', '_', (v.title or v.video_id)[:60]).strip() or v.video_id
+                folder = safe
+
+                # video
+                zf.write(v.video_path, arcname=f"{folder}/video.mp4")
+
+                # thumbnail
+                if v.thumbnail_path and os.path.exists(v.thumbnail_path):
+                    zf.write(v.thumbnail_path, arcname=f"{folder}/thumbnail.png")
+
+                # json — extract only this question's entry
+                if v.json_path and os.path.exists(v.json_path):
+                    try:
+                        with open(v.json_path, "r", encoding="utf-8") as f:
+                            all_q = json.load(f)
+                        question = next((q for q in all_q if q.get("id") == v.video_id), None)
+                        data = json.dumps(question or all_q, indent=2, ensure_ascii=False)
+                    except Exception:
+                        data = "{}"
+                    zf.writestr(f"{folder}/question.json", data)
+
+        tmp.flush()
+        return send_file(
+            tmp.name,
+            as_attachment=True,
+            download_name="stem_videos.zip",
+            mimetype="application/zip",
+        )
+    finally:
+        tmp.close()
 
 
 @videos_bp.route("/<video_id>/retry", methods=["POST"])
