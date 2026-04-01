@@ -405,9 +405,11 @@ def _job_finished(app, job_id):
     _check_and_start_queued(app)
 
 
-def _process_single_job(app, job_id, config_dict, frame_workers):
+def _process_single_job(app, job_id, _config_dict_unused, frame_workers):
     """Process one video job in its own thread."""
     with app.app_context():
+        # Read config fresh so voice/settings changes on upload page apply immediately
+        config_dict = _get_config(app)
         job = db.session.get(JobQueue, job_id)
         if not job or _is_cancelled(job_id):
             _clear_cancelled(job_id)
@@ -495,6 +497,16 @@ def _process_single_job(app, job_id, config_dict, frame_workers):
                 video.status           = "completed"
                 video.progress         = 100
                 video.completed_at     = datetime.now(timezone.utc)
+
+                # Save per-video question.json so it survives batch cleanup
+                try:
+                    q_json_path = os.path.join(output_dir, "question.json")
+                    with open(q_json_path, "w", encoding="utf-8") as qf:
+                        json.dump(question_data, qf, indent=2, ensure_ascii=False)
+                    video.json_path = q_json_path
+                except Exception:
+                    pass
+
             if job:
                 job.status             = "completed"
                 job.progress           = 100

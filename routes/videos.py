@@ -296,7 +296,7 @@ def _clean_temp_files(qid, output_dir):
 @videos_bp.route("/download-all")
 def download_all():
     """Download all completed videos as a ZIP — one folder per video with mp4, thumbnail, json."""
-    import zipfile, tempfile, re, json
+    import zipfile, tempfile, re
 
     completed = Video.query.filter_by(status="completed").all()
     videos_to_zip = [v for v in completed if v.video_path and os.path.exists(v.video_path)]
@@ -318,16 +318,9 @@ def download_all():
                 if v.thumbnail_path and os.path.exists(v.thumbnail_path):
                     zf.write(v.thumbnail_path, arcname=f"{folder}/thumbnail.png")
 
-                # json — extract only this question's entry
+                # json
                 if v.json_path and os.path.exists(v.json_path):
-                    try:
-                        with open(v.json_path, "r", encoding="utf-8") as f:
-                            all_q = json.load(f)
-                        question = next((q for q in all_q if q.get("id") == v.video_id), None)
-                        data = json.dumps(question or all_q, indent=2, ensure_ascii=False)
-                    except Exception:
-                        data = "{}"
-                    zf.writestr(f"{folder}/question.json", data)
+                    zf.write(v.json_path, arcname=f"{folder}/question.json")
 
         tmp.flush()
         return send_file(
